@@ -1,0 +1,17 @@
+# Tools and build output
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+.DS_Store
+
+# RAW DATA STAYS OUT OF GIT.
+# The original spreadsheets contain employer cost/retail/margin data.
+# Only the cleaned, cost-free catalog (made in Stage 1) is ever committed.
+data/raw/*
+!data/raw/.gitkeep
+*.xlsx
+*.xls
+*.csv
+*.pdf
