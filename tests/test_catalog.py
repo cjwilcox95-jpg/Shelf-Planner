@@ -71,6 +71,12 @@ class FinishedCatalog(unittest.TestCase):
         for k in keys:
             self.assertTrue(upc.is_valid_upc12(k), k)
 
+    def test_reset_items_only_safe_fields(self):
+        for r in self.doc.get("resets", []):
+            for row in [i for s in r["shelves"] for i in s["items"]] + r["unallocated"]:
+                self.assertLessEqual(set(row), bc.ALLOWED_RESET_ITEM, row)
+                self.assertTrue(upc.is_valid_upc12(row["upc"]), row)
+
     def test_every_item_has_names_for_its_class(self):
         for i in self.doc["items"]:
             self.assertIn(i["classCode"], self.doc["classNames"])
