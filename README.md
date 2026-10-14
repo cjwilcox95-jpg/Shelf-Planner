@@ -22,7 +22,7 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 
 | Stage | What it adds | Status |
 |---|---|---|
-| 0 | Read the data files, set up the project | Partly done (waiting on the data files) |
+| 0 | Read the data files, set up the project | Mostly done (waiting on the AFI category master) |
 | 1 | Clean product catalog (no cost data), UPC match report | Not started |
 | 2 | One shelf drawn to scale, finger drag, capacity bar, search, Ketchup-Mustard demo | Not started |
 | 3 | Product detail panel, editable dimensions, default-guess table | Not started |
@@ -33,7 +33,9 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 ## Project layout
 
 ```
-data/raw/      Original spreadsheets go here. NEVER committed to git (they contain cost data).
+data/raw/      Original spreadsheets and PDFs go here. NEVER committed to git (they contain cost data).
+docs/          Notes, including DATA_NOTES.md (what each data file is and its problems).
+scripts/       Data-prep tools. read_price_book_pdf.py reads an AFI price book PDF, keeping only safe fields.
 ```
 
 (More folders will be added as stages are built.)
@@ -41,5 +43,6 @@ data/raw/      Original spreadsheets go here. NEVER committed to git (they conta
 ## Known limits
 
 - No app to open yet.
-- The source spreadsheets have not been loaded into this project yet.
+- Still waiting on AFI_category_master.xlsx, PlanogramPOC.jsx and the Ketchup-Mustard PDF.
+- No source file prints full 12-digit barcodes yet, so UPC check digits are calculated, not verified.
 - This code runs in a temporary cloud workspace. Until it is connected to a GitHub repository, work is only saved on a temporary machine and could be lost.
