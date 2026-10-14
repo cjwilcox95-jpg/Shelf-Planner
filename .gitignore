@@ -18,3 +18,5 @@ data/raw/*
 
 # Built catalog and reports contain store data; they go to your phone, not to GitHub.
 data/build/
+__pycache__/
+*.pyc
