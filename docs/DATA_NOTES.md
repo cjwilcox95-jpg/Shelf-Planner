@@ -36,7 +36,14 @@ There is **no vendor column** in this file or in the HBC book.
 - **Order list:** about a third of rows have no UPC ("See Comments" or blank). Of rows with a UPC, about 64% match the grocery file; many misses are shippers or pallets with their own codes. Aisle labels are mostly numbers 2-14, plus a few text labels ("Supplies", "Special buy", "Prod").
 - **Movement report** is a paper scan, so reading it needs character recognition (OCR) and would contain errors. It also includes margin, which conflicts with the "no margin in the app" rule; to be settled before Stage 6.
 
-## UPC key (plan for Stage 1)
+## UPC key
 
-Strip everything but digits, left-pad to 11 digits, then add the calculated UPC-A check digit to get a 12-digit key.
-When a source prints 12 digits, check that its last digit matches the calculation.
+Strip everything but digits, left-pad to 11 digits, then add the calculated UPC-A check digit to get a 12-digit key
+(`scripts/upc.py`). When a source prints 12 digits, its last digit is checked against the calculation.
+
+## Decisions
+
+- KEHE special-order items are **included** (the store can get them), labeled and listed after regular items.
+- No prices, costs or margins in the app, ever.
+- When one UPC is on several rows, the plain shelf item is kept over a shipper/display version.
+- Category codes with two names use the name most rows have (one case: class 390).

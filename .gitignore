@@ -15,3 +15,6 @@ data/raw/*
 *.xls
 *.csv
 *.pdf
+
+# Built catalog and reports contain store data; they go to your phone, not to GitHub.
+data/build/
