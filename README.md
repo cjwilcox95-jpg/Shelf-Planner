@@ -18,13 +18,15 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 
 ## Status
 
-**Stage 1: data prep done.** There is no app to open yet; Stage 2 adds it. See [CHANGELOG.md](CHANGELOG.md).
+**Stage 2: one shelf you can plan on your phone.**
+
+Open it: **https://cjwilcox95-jpg.github.io/shelf-planner/** (the first time, load your `catalog.json` file). See [CHANGELOG.md](CHANGELOG.md).
 
 | Stage | What it adds | Status |
 |---|---|---|
 | 0 | Read the data files, set up the project | Done (AFI category master still to come) |
-| 1 | Clean product catalog (no cost data), UPC match report | Done, except the AFI master part |
-| 2 | One shelf drawn to scale, finger drag, capacity bar, search, Ketchup-Mustard demo | Not started |
+| 1 | Clean product catalog (no cost data), UPC match report | Done (AFI resets: 3 of 35 PDFs so far) |
+| 2 | One shelf drawn to scale, finger drag, capacity bar, search, Ketchup-Mustard demo | Done |
 | 3 | Product detail panel, editable dimensions, default-guess table | Not started |
 | 4 | Several shelves, save/load/duplicate plans, undo/redo, backup, start from an AFI reset | Not started |
 | 5 | Photos (camera, background removal), print/export | Not started |
@@ -39,7 +41,11 @@ scripts/       Data-prep tools (Python):
                  build_catalog.py       makes data/build/catalog.json and match_report.md
                  read_price_book_pdf.py reads an AFI price book PDF, keeping only safe fields
                  upc.py                 turns every UPC format into one 12-digit key
-tests/         Automatic checks. Run: python3 -m unittest discover -s tests
+tests/         Automatic checks for data prep. Run: python3 -m unittest discover -s tests
+app/           The web app (React + Vite).
+                 src/lib/        fit math, dimension guesses, search, undo, on-device storage (with unit tests)
+                 src/components/ the shelf drawing and panels
+                 e2e/            browser tests at phone and desktop size, with finger dragging
 data/build/    The finished catalog and report. NEVER committed (store data); copied to your phone instead.
 ```
 
@@ -52,13 +58,29 @@ size, category, aisle) is built on this workspace and loaded onto your phone, wh
 To rebuild the catalog after getting new files: put them in `data/raw/`, then run
 `python3 -I scripts/build_catalog.py` and `python3 -m unittest discover -s tests`.
 
-(More folders will be added as stages are built.)
+## Working on the app
+
+```
+cd app
+npm install
+npm test            # fit math and other unit tests
+npm run build
+npx playwright test # browser tests (needs data/build/catalog.json)
+```
+
+Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, which GitHub Pages serves.
 
 ## Known limits
 
-- No app to open yet.
+- **Every product size is a guess** (dashed outline and ~). Editing real sizes comes in Stage 3.
+- One shelf at a time. Several shelves per section, and saving several plans, come in Stage 4.
+- **Back up**: export/import backup comes in Stage 4. Until then the shelf lives only in this phone's browser.
+  On iPhone, Safari can clear a website's saved data if you don't open it for a few weeks;
+  adding the app to your Home Screen (Share, then Add to Home Screen) protects against that.
+- Dragging was tested with simulated touch in Chrome, not on a real iPhone or Android phone yet.
+- On very crowded shelves the position numbers overlap at the zoomed-out view; zoom in to read them.
 - No vendor names: neither AFI file has a vendor column.
 - Product names are AFI's 30-character abbreviations (e.g. "HNZ KETCHUP JUG").
 - Only about 380 items have an aisle (from the store order list).
-- Still waiting on AFI_category_master.xlsx, PlanogramPOC.jsx and the Ketchup-Mustard PDF.
-- No source file prints full 12-digit barcodes yet, so UPC check digits are calculated, not verified.
+- AFI resets: 3 of the 35 reset PDFs are loaded (Ketchup-Mustard, Pickles-Relish, Glass Peppers-Olives).
+- No source file prints full 12-digit barcodes, so check digits are calculated. AFI reset matches are confirmed by AFI item number instead.

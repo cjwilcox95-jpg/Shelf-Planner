@@ -2,6 +2,20 @@
 
 Plain-English notes on what changed at each stage.
 
+## Stage 2: one shelf on your phone (2026-10-14)
+
+- New web app. The first time, you load your store-data file (catalog.json); it stays on your phone.
+- A shelf drawn to scale in real inches: products stand on a shelf board, with a ruler and the clearance line.
+- Inches used, inches left, or "4.5 in OVER" in red. Nothing is ever blocked.
+- Flags products deeper than the shelf or taller than the clearance, and shows about how many fit front to back.
+- Move products with your finger (press and hold, then slide), or tap a product, tap Move, then tap the spot.
+- Facings + and -, remove, undo and redo. The shelf is saved on the phone after every change.
+- Search all 23,755 products by words or UPC (a scanned barcode, the AFI short form, or part of one).
+- Start from any shelf of the AFI Ketchup-Mustard, Pickles-Relish or Glass Peppers-Olives resets.
+- Every size is a labeled guess based on package type and size (for example a 20 oz squeeze bottle is about 2.75 in wide).
+- Works offline after the first visit. Can be added to the Home Screen.
+- Data prep now reads AFI reset PDFs: 89% of the reset items are in the store's files, confirmed by AFI item number.
+
 ## Stage 1: data prep (2026-10-14)
 
 - Built one product catalog from the AFI grocery item file and the HBC price book: 23,755 products

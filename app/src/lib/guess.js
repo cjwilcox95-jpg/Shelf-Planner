@@ -1,0 +1,82 @@
+// Default dimension GUESSES. None of the store files has real product sizes, so every
+// product starts with a guess based on its package type and its size (oz, lb, ...).
+// Guesses are always labeled "guess" and drawn dashed with a "~". Stage 3 makes this
+// table editable and lets you replace any guess with a real measurement.
+
+/**
+ * Package types, checked in order. `ref` is a typical product of that type:
+ * at `oz` ounces it is w x h x d inches. Other sizes are scaled by the cube root
+ * of the size ratio (twice the volume -> about 1.26x each way).
+ */
+export const PACKAGE_TYPES = [
+  { id: 'pouch', label: 'Pouch', words: /\b(POUCH|PCH|POU)\b/, ref: { oz: 5, w: 4.5, h: 7, d: 1.25 } },
+  { id: 'can', label: 'Can', words: /\b(CAN|CANS|CND|CANNED)\b/, ref: { oz: 15, w: 3, h: 4.5, d: 3 } },
+  {
+    id: 'squeeze', label: 'Squeeze bottle',
+    words: /\b(SQZ|SQUEEZE|SQUEEZ|PLASTIC|PLSTC|INVERT|UPSIDE|EZ SQ|EZ SQZ|KETCHUP|MUSTARD|MSTRD|MUSTD|MAYO|MAYONNAISE)\b/,
+    ref: { oz: 20, w: 2.75, h: 8.5, d: 2.1 },
+  },
+  {
+    id: 'jar', label: 'Glass jar',
+    words: /\b(GLASS|GLS|JAR|PICKLES?|DILLS?|SPEARS?|RELISH|OLIVES?|PEPPERS?|JALAPENOS?|PEPERONCINI|SALSA|GHERKINS?|OKRA|CAPERS|ARTICHOKE|PEANUT BUTTER|JELLY|JAM|PRESERVES)\b/,
+    ref: { oz: 24, w: 3.4, h: 6.6, d: 3.4 },
+  },
+  {
+    id: 'bottle', label: 'Bottle',
+    words: /\b(BTL|BOTTLE|DRESSING|SAUCE|SCE|SYRUP|OIL|VINEGAR|JUICE|WATER|SODA|DRINK)\b/,
+    ref: { oz: 16, w: 2.8, h: 8.3, d: 2.8 },
+  },
+  { id: 'box', label: 'Box', words: /\b(BOX|CEREAL|CRL|CRACKERS?|MIX|PASTA|MAC)\b/, ref: { oz: 12, w: 7.5, h: 10, d: 2.5 } },
+  { id: 'bag', label: 'Bag', words: /\b(BAG|CHIPS?|SNACKS?|CANDY|POPCORN)\b/, ref: { oz: 10, w: 9, h: 12, d: 3 } },
+  { id: 'other', label: 'Other', words: null, ref: { oz: 16, w: 3.5, h: 6, d: 3.5 } },
+]
+
+// Size -> ounces (fluid ounces and weight ounces are treated alike; this is a rough guess).
+const TO_OZ = {
+  OZ: 1, FZ: 1, 'FL OZ': 1, LB: 16, GL: 128, GAL: 128, QT: 32, PT: 16,
+  LT: 33.8, L: 33.8, ML: 1 / 29.57, GR: 1 / 28.35, GM: 1 / 28.35, G: 1 / 28.35, KG: 35.27,
+}
+
+export function sizeInOz(sizeValue, uom) {
+  const f = TO_OZ[(uom || '').toUpperCase()]
+  return f && sizeValue > 0 ? sizeValue * f : null
+}
+
+/** Parse "20 OZ" / "64.00 OZ" when sizeValue/uom were not stored separately. */
+export function parseSize(size) {
+  const m = /^\s*(\d*\.?\d+)\s*([A-Za-z][A-Za-z ]*)?\s*$/.exec(size || '')
+  return m ? { value: Number(m[1]), uom: (m[2] || '').trim().toUpperCase() } : { value: null, uom: null }
+}
+
+export function packageTypeFor(text) {
+  const t = (text || '').toUpperCase()
+  return PACKAGE_TYPES.find((p) => p.words && p.words.test(t)) || PACKAGE_TYPES[PACKAGE_TYPES.length - 1]
+}
+
+const round = (x) => Math.round(x * 4) / 4 // nearest quarter inch
+
+/**
+ * Guess w/h/d for a product. `text` is the description plus its category names.
+ * Returns { w, h, d, type, basis }.
+ */
+export function guessDims({ text, sizeValue, uom, size }) {
+  const type = packageTypeFor(text)
+  let value = sizeValue
+  let unit = uom
+  if (value == null && size) ({ value, uom: unit } = parseSize(size))
+  const oz = sizeInOz(value, unit)
+  let k = 1
+  let basis = `typical ${type.label.toLowerCase()}`
+  if (oz) {
+    k = Math.cbrt(oz / type.ref.oz)
+    k = Math.min(2.5, Math.max(0.5, k))
+    basis = `${type.label.toLowerCase()}, scaled from ${type.ref.oz} oz`
+  }
+  return {
+    w: Math.max(0.5, round(type.ref.w * k)),
+    h: Math.max(0.5, round(type.ref.h * k)),
+    d: Math.max(0.5, round(type.ref.d * k)),
+    type: type.id,
+    basis,
+  }
+}
