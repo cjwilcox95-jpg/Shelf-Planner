@@ -18,7 +18,7 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 
 ## Status
 
-**Stage 4: real sizes.** (Stages 1-3 done; photos started.)
+**Stages 1-4 and 6 done; Stage 5 done except cutting the background out of photos.**
 
 Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, load your `catalog.json` file). See [CHANGELOG.md](CHANGELOG.md).
 
@@ -29,8 +29,8 @@ Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, lo
 | 2 | One shelf drawn to scale, finger drag, capacity bar, search, Ketchup-Mustard demo | Done |
 | 3 | Whole section (stacked shelves, drag between them), plans (save/copy/rename/delete), undo/redo, "off the shelf" tray, backup file, start from a whole AFI reset | Done |
 | 4 | Product detail panel, editable dimensions, default-guess table | Done: sizes with sources, notes, guess table, measure-from-photo tool, size packs |
-| 5 | Photos (camera, background removal), print/export | Started: photos on tiles, Add photo, photo packs, photos in backups |
-| 6 | Movement-based suggestions (only when asked) | Not started |
+| 5 | Photos (camera, background removal), print/export | Done except background removal: photos on tiles, Add photo, photo packs, print / PDF / picture, stacking and empty spaces, compare plans |
+| 6 | Movement-based suggestions (asked for 2026-10-15) | Done: Tools > Sales help, units sold only |
 
 (Stages 3 and 4 were swapped on 2026-10-15 so whole sections came first.)
 
@@ -44,6 +44,7 @@ scripts/       Data-prep tools (Python):
                  read_price_book_pdf.py reads an AFI price book PDF, keeping only safe fields
                  upc.py                 turns every UPC format into one 12-digit key
                  make_photo_pack.py     folder of pictures named by UPC -> one photo pack file for the app
+                 read_movement_scan.py  scanned BRData movement report -> movement.json (UPC + units sold only)
 tests/         Automatic checks for data prep. Run: python3 -m unittest discover -s tests
 app/           The web app (React + Vite).
                  src/lib/        fit math, dimension guesses, search, undo, on-device storage (with unit tests)
@@ -60,6 +61,29 @@ size, category, aisle) is built on this workspace and loaded onto your phone, wh
 
 To rebuild the catalog after getting new files: put them in `data/raw/`, then run
 `python3 -I scripts/build_catalog.py` and `python3 -m unittest discover -s tests`.
+
+## Tools in the app
+
+- **Print or save as PDF**: a drawing of the section to scale with a numbered key, and a product list with check
+  boxes. Optionally a change list compared with another plan. Save to Files, print, or save page 1 as a picture.
+- **Compare with another plan**: what to add, take out, move (to another shelf or along the same one), facings
+  and stacking changes, and shelf size changes, going from one plan (e.g. "current") to the open one ("proposed").
+- **Sales help (worth a look)**: from a sales movement file (`movement.json` or a CSV export). Lists what may run
+  out before the next delivery, where a full case will not fit, facings that could be given up, the slowest sellers
+  per foot of shelf, best sellers, no sales, and for a shelf that is over, which facings to give up first.
+  **Units sold only**: sales dollars, cost, margin and on-hand are ignored and never saved. Nothing changes a plan.
+- **Default size guesses**: the typical size per package type that every guess starts from.
+
+On a selected product, **More** shows *Stacked* (stack 2 or more high), and **＋ Add** can add an **empty space**
+(a gap of any width that counts toward the shelf).
+
+## Sales movement data
+
+Movement (units sold) is store data, so like the catalog it is never put in this public project. To make the app's file
+from the scanned BRData report: install the free OCR tool once (`python3 -m venv ocrenv && ocrenv/bin/pip install
+rapidocr-onnxruntime`), then run `ocrenv/bin/python -I scripts/read_movement_scan.py data/raw/<scan>.pdf`. It writes
+`data/build/movement.json` and `movement_report.md` (what was read and which lines to check). Every line is checked
+against AFI's item number; units out of the report's highest-first order are flagged.
 
 ## Backups and restoring a fresh workspace
 
@@ -91,8 +115,7 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 - Sizes start as guesses (dashed outline and ~). Correct them under Edit size (tape = measured, or ≈ from a photo).
 - Photos are drawn inside the product's size box, so a photo can look short or narrow while its size is still a guess.
 - Measuring from a photo is about ±10% (camera distortion); a tape measure is better.
-- The app does not model products stacked 2 high, gaps in the middle of a shelf, or a product hanging across two
-  sections; the laundry plans describe these in their notes.
+- Stacks and empty spaces are modeled. A product hanging across two sections is not (the plan notes say where).
 - No background removal yet: store-site pictures have white backgrounds (trimmed automatically); aisle photos keep their background.
 - Store-site pictures: only 1 test picture so far. The automatic download for the Ketchup-Mustard set needs CJ to approve it
   (Claude Code's safety check blocks it in auto mode).
@@ -103,6 +126,12 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 - Dragging was tested with simulated touch in Chrome. CJ has used it on an iPhone; report anything odd.
 - On very crowded shelves the position numbers overlap when zoomed out; zoom in to read them.
 - Importing a backup merges plans (newer copy wins); it never deletes plans on the phone.
+- Printed PDFs are pictures of the pages (no selectable text). Text in narrow tiles is cut short; the key beside each
+  shelf and the product list give full names.
+- Sales help uses units sold only (no sales dollars or margin, by design). "Shelf holds X days" depends on product
+  depths, which are mostly still guesses. A sales file made "for selected UPCs" leaves products out; missing is not
+  the same as not selling. The BRData scan is read by OCR: check `movement_report.md` for lines that were left out or flagged.
+- Comparing plans matches products by UPC and shelves by number (1 = bottom).
 - Clearance defaults to 12 in on every shelf; set each shelf's real clearance under "Shelf size".
 - No vendor names: neither AFI file has a vendor column.
 - Product names are AFI's 30-character abbreviations (e.g. "HNZ KETCHUP JUG").

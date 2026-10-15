@@ -11,7 +11,7 @@ This page describes their layout only; it contains no cost, price or sales figur
 | `AFITMGRC.csv` | AFI grocery item file for store 752 (no header row, 22 columns) | 19,744 rows | `0-36800-47637` (11 digits, no check digit) |
 | `HBC_BOOK.pdf` | AFI Retail Price Book, HBC / general merchandise, store 752, dated 10/10/26 (98 pages, printed text) | 4,123 | `0-24291-98092` (same as above) |
 | `Master_Order_list_9-7-2026.xlsx` | Store order guide, sheet "Grocery", with an **Aisle** column | 1,131 rows | `54400-00005` (10 digits: leading 0 and check digit dropped), plus a few other forms |
-| `scan_doc...pdf` | BRData "Sales Movement History", 9/14/2025 to 12/31/2025, 23 scanned pages, sideways | not read yet | `03680008514` (11 digits, no dashes) |
+| `scan_doc...pdf` | BRData "Sales Movement History", 9/14/2025 to 12/31/2025, 23 scanned pages, sideways, "For Selected UPCs", sorted by units sold | read by OCR (see below) | `03680008514` (11 digits, no dashes) |
 
 Still expected: `AFI_category_master.xlsx`, `PlanogramPOC.jsx`, the Ketchup-Mustard planogram PDF.
 
@@ -34,7 +34,10 @@ There is **no vendor column** in this file or in the HBC book.
 - **HBC sizes chopped** by a 6-character column: `11.4 O` means 11.4 OZ (about 280 items). About 40 have no number at all (`TRAY`, `EA`, `10/4OZ`).
 - **No check digit.** No file so far prints the full 12-digit barcode, so the check digit is calculated, not verified, until a file that includes it arrives.
 - **Order list:** about a third of rows have no UPC ("See Comments" or blank). Of rows with a UPC, about 64% match the grocery file; many misses are shippers or pallets with their own codes. Aisle labels are mostly numbers 2-14, plus a few text labels ("Supplies", "Special buy", "Prod").
-- **Movement report** is a paper scan, so reading it needs character recognition (OCR) and would contain errors. It also includes margin, which conflicts with the "no margin in the app" rule; to be settled before Stage 6.
+- **Movement report** is a paper scan, so it is read with character recognition (OCR), which can misread digits.
+  Columns: UPC, W/Item (AFI item #), Description, Pack/Size, Unt/Lbs (units sold), Sales, GM$, GM%, Avg price,
+  Avg cost, Units, On-hand, coupon qty and amount. **Only UPC, W/Item (to check the UPC) and Unt/Lbs are read.**
+  The margin and money columns conflict with the "no cost, retail or margin" rule, so Stage 6 uses units sold only.
 
 ## UPC key
 

@@ -2,6 +2,30 @@
 
 Plain-English notes on what changed at each stage.
 
+## Stage 6: sales help (2026-10-15)
+
+- Tools > Sales help: load a sales movement file (movement.json, or a CSV export with UPC and units columns).
+  Only UPC and units sold are read; sales dollars, cost, margin and on-hand are ignored and never saved.
+- "Worth a look" lists: may run out before the next delivery (pick 3, 7 or 14 days between deliveries), a full case
+  won't fit, could give up a facing, slowest for the room they take, no sales, best sellers, not in the file.
+- For a shelf that is over: which facings to give up first so it fits, keeping enough for the next delivery.
+- The selected product shows "sells ~12/wk · shelf holds ~3 wk". Nothing ever changes a plan by itself.
+- scripts/read_movement_scan.py reads the scanned BRData report with free OCR on this computer, checking every
+  line against AFI's item numbers. Sales data is included in backups.
+
+## Stage 5: print, compare, stacks and empty spaces (2026-10-15)
+
+- Tools > Print or save as PDF: a drawing of the section to scale (portrait or landscape, whichever is bigger), each
+  shelf's inches used and left, a numbered key of names beside each shelf, and a product list with check boxes.
+  Save or share the PDF (Files, Print, Mail), or save page 1 as a picture. No prices are ever printed.
+- Tools > Compare with another plan: what to add, take out, move to another shelf, slide along a shelf, facings or
+  stacking changes, and shelf size changes. The change list can be added to the PDF for whoever sets the shelf.
+- Stack a product 2 or more high (More > Stacked): the height check uses the whole stack and the shelf count includes
+  every layer.
+- Empty spaces (＋ Add > Add an empty space): a gap of any width that counts toward the shelf. Position numbers skip it.
+- The bottom buttons are now ＋ Add, Plans, Shelf and Tools.
+- The laundry plans now include the stacks and empty spaces from the photos.
+
 ## Laundry aisle from CJ's photos (2026-10-15)
 
 - Four laundry sections (Tide; store brand/ERA/Gain; stain removers/boosters/Downy; starch/dye/bleach) recreated
