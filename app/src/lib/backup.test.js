@@ -5,13 +5,15 @@ const plan = (id, updatedAt, name = id) => ({ id, name, updatedAt, shelves: [{ i
 
 describe('backup', () => {
   it('holds every plan and the store data', () => {
-    const b = makeBackup({ plans: { a: plan('a', 'T1'), b: plan('b', 'T1') }, catalog: { kind: 'shelf-planner-catalog' }, now: 'NOW' })
+    const b = makeBackup({ plans: { a: plan('a', 'T1'), b: plan('b', 'T1') }, catalog: { kind: 'shelf-planner-catalog' }, photos: { '036800083004': { data: 'data:image/jpeg;base64,A', w: 1, h: 2 } }, now: 'NOW' })
     expect(b.plans).toHaveLength(2)
+    expect(Object.keys(b.photos)).toEqual(['036800083004'])
     expect(b.catalog.kind).toBe('shelf-planner-catalog')
     expect(identifyFile(JSON.parse(JSON.stringify(b))).type).toBe('backup')
   })
   it('tells a catalog, a backup and anything else apart', () => {
     expect(identifyFile({ kind: 'shelf-planner-catalog', items: [{}] }).type).toBe('catalog')
+    expect(identifyFile({ kind: 'shelf-planner-photos', photos: {} }).type).toBe('photos')
     expect(identifyFile({ hello: 1 }).type).toBeNull()
     expect(identifyFile(null).problem).toMatch(/not a Shelf Planner file/)
   })

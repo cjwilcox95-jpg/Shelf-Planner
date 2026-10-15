@@ -44,8 +44,17 @@ export function SectionSummary({ plan, check, anyGuess, missing }) {
 }
 
 /** The selected product, pinned above the bottom buttons so it is always in reach. */
-export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, onFacings, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
+export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, onPickPhoto, onRemovePhoto, onFacings, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
   const [more, setMore] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const pick = async (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    setBusy(true)
+    await onPickPhoto(f)
+    setBusy(false)
+  }
   const inTray = where === TRAY
   const g = (k) => (dims.source[k] === 'guess' ? '~' : '')
   const place = inTray ? 'Off the shelf' : `${shelfLabel(plan, where)}, #${index + 1}`
@@ -66,6 +75,10 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
   return (
     <section className="selected-bar" data-testid="selected-panel" aria-label="Selected product">
       <div className="selected-head">
+        <label className={`photo-slot${photo ? ' has-photo' : ''}`} aria-label={photo ? 'Change photo' : 'Add photo'}>
+          {photo ? <img src={photo.data} alt="" /> : <span>{busy ? '…' : '＋\nPhoto'}</span>}
+          <input type="file" accept="image/*" onChange={pick} data-testid="photo-input" />
+        </label>
         <div className="selected-text">
           <div className="muted small">{place}</div>
           <div className="selected-name">{info.description}</div>
@@ -99,17 +112,23 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
           {placed && <div><dt>On the shelf</dt><dd>{placed.tooDeep ? 'won’t fit front to back' : `${placed.capacity} units (${item.facings} wide × ${placed.unitsDeep} deep)`}</dd></div>}
           {info.specialOrder && <div><dt>Store</dt><dd>KEHE special order</dd></div>}
           {dims.source.w === 'guess' && <div><dt>Guess</dt><dd>from {dims.basis}</dd></div>}
+          <div><dt>Photo</dt><dd>
+            {photo
+              ? <>{photo.source}{' '}<button className="link-btn" onClick={onRemovePhoto}>Remove photo</button></>
+              : 'none yet: tap the ＋ Photo square'}
+          </dd></div>
         </dl>
       )}
     </section>
   )
 }
 
-function Row({ item, position, info, sub, warn, selected, onSelect }) {
+function Row({ item, position, info, sub, warn, selected, onSelect, photo }) {
   return (
     <li>
       <button className={`row${selected ? ' selected' : ''}`} onClick={onSelect}>
         <span className="row-pos" style={{ '--brand': info.color }}>{position}</span>
+        {photo && <img className="row-thumb" src={photo.data} alt="" />}
         <span className="row-main">
           <span className="row-name">{info.description}</span>
           <span className="row-sub">{sub}</span>
@@ -121,7 +140,7 @@ function Row({ item, position, info, sub, warn, selected, onSelect }) {
 }
 
 /** Every product, shelf by shelf from the top, then the tray. */
-export function SectionList({ plan, fits, products, selectedUid, onSelect }) {
+export function SectionList({ plan, fits, products, photos = {}, selectedUid, onSelect }) {
   const topFirst = [...plan.shelves].reverse()
   return (
     <div data-testid="item-list">
@@ -133,7 +152,7 @@ export function SectionList({ plan, fits, products, selectedUid, onSelect }) {
             {plan.tray.map((item) => {
               const info = products.info(item)
               return (
-                <Row key={item.uid} item={item} position="–" info={info}
+                <Row key={item.uid} item={item} position="–" info={info} photo={photos[item.upc]}
                   sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''}`}
                   warn={!info.inCatalog ? 'not in store files' : ''}
                   selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, TRAY)} />
@@ -164,7 +183,7 @@ export function SectionList({ plan, fits, products, selectedUid, onSelect }) {
                 if (p.pastEdge) notes.push('past end of shelf')
                 if (!info.inCatalog) notes.push('not in store files')
                 return (
-                  <Row key={item.uid} item={item} position={i + 1} info={info}
+                  <Row key={item.uid} item={item} position={i + 1} info={info} photo={photos[item.upc]}
                     sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''} · ${guess ? '~' : ''}${fmtIn(p.widthIn)} in${info.specialOrder ? ' · special order' : ''}`}
                     warn={notes.join(' · ')}
                     selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, shelf.id)} />
@@ -372,11 +391,11 @@ export function PlansSheet({
       <h3 className="sheet-section">Backup</h3>
       <p className="muted small">
         One file with all your plans and the store data. Save it to Files (or email it to yourself).
-        Use it to move to a new phone. Last backup: <strong>{lastBackupAt ? shortDate(lastBackupAt) : 'never'}</strong>.
+        Photos are included. Use it to move to a new phone. Last backup: <strong>{lastBackupAt ? shortDate(lastBackupAt) : 'never'}</strong>.
       </p>
       <button className="btn primary wide" onClick={async () => setMsg(await onExport())} data-testid="export-backup">Export backup</button>
       <label className="btn wide file-btn">
-        Import backup or catalog file
+        Import backup, photo pack or catalog file
         <input type="file" accept=".json,application/json" onChange={pick} data-testid="import-file" />
       </label>
       {msg && <p className={msg.startsWith('Could not') || msg.startsWith('This is not') ? 'error' : 'ok-msg'} role="status">{msg}</p>}

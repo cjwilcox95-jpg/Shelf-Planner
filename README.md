@@ -13,7 +13,7 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 - **Free.** No paid services, no API keys, no logins.
 - **Your data stays on your device.** Plans are saved in the browser on your phone. Use Export backup / Import backup to move them or keep a copy.
 - **No cost data, ever.** Case cost, unit cost, retail and margin are stripped during data prep. The app never ships, stores or shows them.
-- **No scraped photos.** Only photos you take or upload yourself.
+- **Photos stay private.** Photos you take, or pictures from firelakefoods.com saved with the store's permission (for this store's planning only). They live on the phone and in backups, never in this public GitHub project.
 - **Honest dimensions.** Every size is labeled *measured*, *estimated from photo* or *guessed*. Guessed sizes are drawn with a dashed outline and a `~`.
 
 ## Status
@@ -29,7 +29,7 @@ Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, lo
 | 2 | One shelf drawn to scale, finger drag, capacity bar, search, Ketchup-Mustard demo | Done |
 | 3 | Whole section (stacked shelves, drag between them), plans (save/copy/rename/delete), undo/redo, "off the shelf" tray, backup file, start from a whole AFI reset | Done |
 | 4 | Product detail panel, editable dimensions, default-guess table | Next |
-| 5 | Photos (camera, background removal), print/export | Not started |
+| 5 | Photos (camera, background removal), print/export | Started: photos on tiles, Add photo, photo packs, photos in backups |
 | 6 | Movement-based suggestions (only when asked) | Not started |
 
 (Stages 3 and 4 were swapped on 2026-10-15 so whole sections came first.)
@@ -43,6 +43,7 @@ scripts/       Data-prep tools (Python):
                  build_catalog.py       makes data/build/catalog.json and match_report.md
                  read_price_book_pdf.py reads an AFI price book PDF, keeping only safe fields
                  upc.py                 turns every UPC format into one 12-digit key
+                 make_photo_pack.py     folder of pictures named by UPC -> one photo pack file for the app
 tests/         Automatic checks for data prep. Run: python3 -m unittest discover -s tests
 app/           The web app (React + Vite).
                  src/lib/        fit math, dimension guesses, search, undo, on-device storage (with unit tests)
@@ -75,6 +76,10 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 ## Known limits
 
 - **Every product size is a guess** (dashed outline and ~). Editing real sizes comes in Stage 4.
+- Photos are drawn inside the guessed size box, so a photo can look short or narrow until real sizes are entered.
+- No background removal yet: store-site pictures have white backgrounds (trimmed automatically); aisle photos keep their background.
+- Store-site pictures: only 1 test picture so far. The automatic download for the Ketchup-Mustard set needs CJ to approve it
+  (Claude Code's safety check blocks it in auto mode).
 - **Back up regularly** (Plans, then Export backup). Plans live only in the phone's browser.
   On iPhone, Safari can clear a website's saved data if it isn't opened for a few weeks;
   adding the app to the Home Screen (Share, then Add to Home Screen) protects against that.

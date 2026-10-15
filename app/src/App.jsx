@@ -8,7 +8,8 @@ import {
   planFromAfi, planFromOldShelf, shelfLabel,
 } from './lib/plan.js'
 import { makeProducts } from './lib/products.js'
-import { askToKeepData, load, save } from './lib/storage.js'
+import { askToKeepData, load, loadPrefix, remove, save } from './lib/storage.js'
+import { cleanPhotos, mergePhotos, processPhoto } from './lib/photos.js'
 import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
@@ -35,6 +36,7 @@ export default function App() {
   const [zoom, setZoom] = useState(null) // null = fit the section to the screen
   const [toast, setToast] = useState(null)
   const [lastBackupAt, setLastBackupAt] = useState(null)
+  const [photos, setPhotos] = useState({}) // UPC -> { data, w, h, source, addedAt }
   const [boxWidth, setBoxWidth] = useState(360)
   const boxRef = useRef(null)
   const toastTimer = useRef(null)
@@ -72,6 +74,8 @@ export default function App() {
         const [cat, saved, currentId, oldShelf, lastBk] = await Promise.all(
           ['catalog', 'plans', 'currentPlanId', 'shelf', 'lastBackupAt'].map((k) => load(k)))
         setLastBackupAt(lastBk || null)
+        const savedPhotos = await loadPrefix('photo:').catch(() => ({}))
+        setPhotos(Object.fromEntries(Object.entries(savedPhotos).map(([k, v]) => [k.slice(6), v])))
         if (identifyFile(cat).type === 'catalog') {
           setCatalog(cat)
           startWith(cat, saved, currentId, oldShelf)
@@ -111,6 +115,34 @@ export default function App() {
     setToast({ text, undoable })
     toastTimer.current = setTimeout(() => setToast(null), 4000)
   }, [])
+
+  /** Save several photos on the phone at once. */
+  const storePhotos = async (incoming) => {
+    const { merged, added, replaced } = mergePhotos(photos, incoming)
+    for (const upc of Object.keys(merged)) {
+      if (merged[upc] !== photos[upc]) await save(`photo:${upc}`, merged[upc])
+    }
+    setPhotos(merged)
+    return { added, replaced }
+  }
+
+  const onPickPhoto = async (item, file) => {
+    try {
+      const p = await processPhoto(file)
+      const rec = { ...p, source: 'your photo', addedAt: new Date().toISOString() }
+      await save(`photo:${item.upc}`, rec)
+      setPhotos((all) => ({ ...all, [item.upc]: rec }))
+      showToast('Photo saved for this product')
+    } catch (e) {
+      showToast(e.message || 'Could not use that picture')
+    }
+  }
+
+  const onRemovePhoto = async (item) => {
+    await remove(`photo:${item.upc}`)
+    setPhotos((all) => { const next = { ...all }; delete next[item.upc]; return next })
+    showToast('Photo removed')
+  }
 
   const act = (a, message) => {
     if (applyPlanAction(plan, a) === plan) return false // nothing would change
@@ -188,7 +220,7 @@ export default function App() {
 
   const onExport = async () => {
     try {
-      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog }))
+      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos }))
       const how = await shareOrDownload(text, backupFileName())
       if (how === 'cancelled') return 'Backup cancelled.'
       const now = new Date().toISOString()
@@ -206,6 +238,14 @@ export default function App() {
     try { doc = JSON.parse(await file.text()) } catch { return 'Could not read that file.' }
     const kind = identifyFile(doc)
     if (!kind.type) return kind.problem
+    if (kind.type === 'photos') {
+      if (phase !== 'ready') return 'Load catalog.json first, then the photo pack.'
+      const clean = cleanPhotos(doc.photos)
+      const { added, replaced } = await storePhotos(clean)
+      const known = Object.keys(clean).filter((u) => catalog.items.some((i) => i.upc === u)).length
+      return `Photo pack loaded: ${added} new photo${added === 1 ? '' : 's'}${replaced ? `, ${replaced} replaced` : ''}` +
+        ` (${known} of ${Object.keys(clean).length} match products in your store data).`
+    }
     if (kind.type === 'catalog') {
       await save('catalog', doc)
       await askToKeepData()
@@ -227,9 +267,11 @@ export default function App() {
       commitPlans(merged)
       if (merged[plan.id] !== plan) openPlan(merged[plan.id])
     }
+    const pics = doc.photos ? await storePhotos(doc.photos) : { added: 0 }
     if (sheet === 'data') setSheet(null)
     return `Backup loaded: ${counts.added} new plan${counts.added === 1 ? '' : 's'}, ${counts.updated} updated` +
-      (counts.keptPhone ? `, ${counts.keptPhone} kept because this phone’s copy was newer` : '') + '. Nothing was deleted.'
+      (counts.keptPhone ? `, ${counts.keptPhone} kept because this phone’s copy was newer` : '') +
+      (pics.added ? `, ${pics.added} photos added` : '') + '. Nothing was deleted.'
   }
 
   if (phase === 'loading') return <div className="center-msg">Loading…</div>
@@ -270,6 +312,7 @@ export default function App() {
             plan={plan}
             fits={check.byShelf}
             products={products}
+            photos={photos}
             scale={scale}
             viewWidth={boxWidth - 4}
             selectedUid={selectedUid}
@@ -281,7 +324,7 @@ export default function App() {
           />
         </section>
 
-        <SectionList plan={plan} fits={check.byShelf} products={products} selectedUid={selectedUid}
+        <SectionList plan={plan} fits={check.byShelf} products={products} photos={photos} selectedUid={selectedUid}
           onSelect={(uid, where) => { setSelectedUid(uid); setPlacing(false); if (where !== TRAY) setActiveShelfId(where) }} />
         {plan.note && <p className="muted small note">{plan.note}</p>}
       </main>
@@ -296,6 +339,9 @@ export default function App() {
           dims={products.dims(sel.item)}
           placed={placed}
           placing={placing}
+          photo={photos[sel.item.upc]}
+          onPickPhoto={(f) => onPickPhoto(sel.item, f)}
+          onRemovePhoto={() => onRemovePhoto(sel.item)}
           onFacings={(n) => act({ type: 'facings', uid: sel.item.uid, facings: n })}
           onStartPlace={() => setPlacing(true)}
           onCancelPlace={() => setPlacing(false)}

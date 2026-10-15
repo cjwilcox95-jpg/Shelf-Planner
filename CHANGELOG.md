@@ -2,6 +2,17 @@
 
 Plain-English notes on what changed at each stage.
 
+## Photos, brought forward from Stage 5 (2026-10-15)
+
+- Tiles show the product's photo on every facing when it has one; the shelf list shows a small thumbnail.
+- Tap the "+ Photo" square on a selected product to take or pick a picture. White space around the product is
+  trimmed and the picture is shrunk to about 400 px. Saved on the phone for that product in every plan.
+- "Photo packs": one file with many photos (by UPC), imported under Plans. scripts/make_photo_pack.py makes one
+  from a folder of pictures.
+- Backups now include photos.
+- First real check of the barcode math: the store website's full barcode for Food Club ketchup 20 oz matches the
+  check digit the app calculates.
+
 ## Stage 3: whole sections, plans and backup (2026-10-15)
 
 - The screen now shows a whole section: every shelf stacked top to bottom, all at one scale.

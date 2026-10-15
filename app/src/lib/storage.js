@@ -52,3 +52,28 @@ export function validateCatalog(doc) {
   if (!Array.isArray(doc.items) || !doc.items.length) return 'The file has no products in it.'
   return null
 }
+
+/** Everything saved under keys that start with `prefix` (for example every "photo:..."). */
+export async function loadPrefix(prefix) {
+  const d = await db()
+  return new Promise((resolve, reject) => {
+    const out = {}
+    const range = IDBKeyRange.bound(prefix, `${prefix}￿`)
+    const req = d.transaction(STORE).objectStore(STORE).openCursor(range)
+    req.onsuccess = () => {
+      const c = req.result
+      if (c) { out[c.key] = c.value; c.continue() } else resolve(out)
+    }
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function remove(key) {
+  const d = await db()
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction(STORE, 'readwrite')
+    tx.objectStore(STORE).delete(key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}

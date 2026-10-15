@@ -17,7 +17,7 @@ const MOVE_TOLERANCE = 10 // px a finger may wobble before we decide it is scrol
  *  - or tap a product, tap "Move", then tap where it should go
  */
 export default function SectionView({
-  plan, fits, products, scale, viewWidth, selectedUid, activeShelfId, placing,
+  plan, fits, products, photos = {}, scale, viewWidth, selectedUid, activeShelfId, placing,
   onTapItem, onMove, onTapShelf,
 }) {
   const scrollRef = useRef(null)
@@ -209,7 +209,9 @@ export default function SectionView({
                     const w = p.widthIn * scale
                     const h = p.heightIn * scale
                     const lines = Math.min(3, Math.floor((h - 34) / 16.5))
+                    const photo = photos[item.upc]
                     const classes = ['tile']
+                    if (photo) classes.push('has-photo')
                     if (guess) classes.push('guess')
                     if (p.uid === selectedUid) classes.push('selected')
                     if (p.pastEdge) classes.push('past-edge')
@@ -233,11 +235,15 @@ export default function SectionView({
                         onClick={(e) => { if (!placing) e.stopPropagation() }}
                       >
                         <div className="units">
-                          {Array.from({ length: item.facings }, (_, k) => <span key={k} style={{ width: p.unitWidthIn * scale }} />)}
+                          {Array.from({ length: item.facings }, (_, k) => (
+                            <span key={k} style={{ width: p.unitWidthIn * scale }}>
+                              {photo && <img src={photo.data} alt="" draggable="false" />}
+                            </span>
+                          ))}
                         </div>
                         <span className="pos-badge">{i + 1}</span>
                         {guess && <span className="guess-mark" aria-label="guessed size">~</span>}
-                        {w >= 66 && lines >= 1 && (
+                        {!photo && w >= 66 && lines >= 1 && (
                           <span className="tile-name" style={{ WebkitLineClamp: lines }}>{info.description}</span>
                         )}
                         {p.tooDeep && <span className="warn-mark" title="Deeper than the shelf">!</span>}

@@ -230,6 +230,9 @@ test('shelf size for one shelf or all, add and remove a shelf', async ({ page })
 test('export a backup, then load it on a fresh phone', async ({ page, browser }, info) => {
   test.skip(info.project.name !== 'desktop', 'file download checked on desktop')
   await loadData(page)
+  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await page.getByTestId('photo-input').setInputFiles(path.resolve('../data/build/photos/synthetic-bottle.png'))
+  await expect(page.locator('.toast')).toContainText('Photo saved')
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByRole('button', { name: 'Copy' }).first().click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
@@ -242,6 +245,7 @@ test('export a backup, then load it on a fresh phone', async ({ page, browser },
   expect(backup.kind).toBe('shelf-planner-backup')
   expect(backup.plans).toHaveLength(2)
   expect(backup.catalog.items.length).toBeGreaterThan(20000)
+  expect(Object.keys(backup.photos)).toHaveLength(1)
   expect(text).not.toMatch(/\d\.\d{4}/) // no cost-like numbers
   await expect(page.getByText(/Last backup:/)).not.toContainText('never')
 
@@ -253,6 +257,8 @@ test('export a backup, then load it on a fresh phone', async ({ page, browser },
   await expect(p2.getByTestId('summary')).toBeVisible()
   await p2.getByRole('button', { name: 'Plans', exact: true }).click()
   await expect(p2.getByTestId('plan-list').locator('li')).toHaveCount(2)
+  await p2.getByRole('button', { name: 'Done' }).click()
+  await expect(p2.locator('.tile.has-photo')).toHaveCount(1) // the photo came along
   await fresh.close()
 })
 
@@ -276,4 +282,45 @@ test('a shelf saved by the old one-shelf version becomes a plan', async ({ page 
   await expect(page.getByTestId('plan-name')).toHaveText('My old shelf')
   await expect(rows(page)).toHaveCount(1)
   expect(await shelfNames(page, 'Shelf 1')).toEqual(['HNZ KETCHUP PLASTIC'])
+})
+
+const PHOTO_PACK = path.resolve('../data/build/photos-test.json') // made by scripts/make_photo_pack.py
+const SYNTHETIC = path.resolve('../data/build/photos/synthetic-bottle.png')
+
+test('photo pack: pictures show on the shelf and in the list', async ({ page }) => {
+  test.skip(!fs.existsSync(PHOTO_PACK), 'no test photo pack')
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('import-file').setInputFiles(PHOTO_PACK)
+  await expect(page.getByRole('dialog')).toContainText('Photo pack loaded: 1 new photo')
+  await page.getByRole('button', { name: 'Done' }).click()
+  // FDC KETCHUP SQZ UPSIDE DWN 20 oz is on shelf 3 with 2 facings: both show the picture
+  const tile = page.locator('.tile.has-photo')
+  await expect(tile).toHaveCount(1)
+  await expect(tile.locator('img')).toHaveCount(2)
+  await expect(page.locator('.row-thumb')).toHaveCount(1)
+  await tile.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await tile.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }))
+  await shot(page, '10-photo-on-shelf')
+  await page.reload() // photos are saved on the phone
+  await expect(page.locator('.tile.has-photo img')).toHaveCount(2)
+})
+
+test('add a photo from the phone to a product', async ({ page }) => {
+  await loadData(page)
+  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await page.getByTestId('photo-input').setInputFiles(SYNTHETIC)
+  await expect(page.locator('.toast')).toContainText('Photo saved')
+  await expect(page.locator('.photo-slot img')).toHaveCount(1)
+  // trimmed to the bottle: taller than wide, at most 400 px
+  const size = await page.locator('.photo-slot img').evaluate((img) => [img.naturalWidth, img.naturalHeight])
+  expect(size[1]).toBe(400)
+  expect(size[0]).toBeLessThan(200)
+  await expect(rows(page).nth(0).locator('.tile.has-photo')).toHaveCount(1)
+  await shot(page, '11-added-photo')
+  await page.getByRole('button', { name: 'More', exact: true }).click()
+  await page.getByRole('button', { name: 'Remove photo' }).click()
+  await expect(page.locator('.tile.has-photo')).toHaveCount(0)
 })
