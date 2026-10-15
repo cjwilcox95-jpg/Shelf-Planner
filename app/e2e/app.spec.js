@@ -209,20 +209,20 @@ test('plans: copy, rename, switch, start from AFI, delete', async ({ page }) => 
 test('shelf size for one shelf or all, add and remove a shelf', async ({ page }) => {
   await loadData(page)
   await page.getByTestId('shelf-head').nth(0).click()
-  await page.getByRole('button', { name: 'Shelf size' }).click()
+  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await page.getByTestId('field-clearanceIn').fill('9')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByTestId('section-status')).toHaveText('Width fits') // tall bottles no longer clear 9 in
   await expect(page.getByTestId('summary')).toContainText('taller than the clearance')
-  await page.getByRole('button', { name: 'Shelf size' }).click()
+  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await page.getByRole('button', { name: '36', exact: true }).click()
   await page.getByLabel('Use these sizes for every shelf').check()
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(rows(page).nth(6).getByTestId('shelf-head')).toContainText('of 36 ·')
-  await page.getByRole('button', { name: 'Shelf size' }).click()
+  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await page.getByRole('button', { name: 'Add a shelf on top' }).click()
   await expect(rows(page)).toHaveCount(8)
-  await page.getByRole('button', { name: 'Shelf size' }).click()
+  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await page.getByRole('button', { name: 'Remove this shelf' }).click()
   await expect(rows(page)).toHaveCount(7)
 })
@@ -349,7 +349,7 @@ test('change the default guesses for a package type', async ({ page }) => {
   const tile = rows(page).nth(0).getByTestId('tile').nth(0) // FRENCHS MUSTARD SQUEEZE HONEY 12 oz, 2 facings
   const firstRow = page.getByTestId('item-list').locator('section').filter({ has: page.locator('h2', { hasText: 'Shelf 7 (top)' }) }).locator('.row-sub').first()
   await expect(firstRow).toContainText('~4.5 in') // 2 x 2.25 in guess
-  await page.getByRole('button', { name: 'Shelf size' }).click()
+  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await page.getByTestId('open-guesses').click()
   await page.getByTestId('guess-squeeze-w').fill('4')
   await page.getByTestId('save-guesses').click()
@@ -446,4 +446,23 @@ test('stack a product 2 high and leave an empty space on a shelf', async ({ page
   await page.getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(rows(page).nth(0).getByTestId('gap')).toHaveCount(0)
   expect(await trayNames(page)).toHaveLength(2) // the empty space did not go to the tray
+})
+
+test('print: make a PDF with the drawing and the product list, and a picture', async ({ page }, info) => {
+  await loadData(page)
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-print').click()
+  await page.getByTestId('make-pdf').click()
+  await expect(page.getByTestId('print-ready')).toContainText('Ready: 3 pages') // drawing + 2 list pages
+  await shot(page, '22-print-ready')
+  const dl = page.waitForEvent('download')
+  await page.getByTestId('save-pdf').click()
+  const file = await dl
+  expect(file.suggestedFilename()).toMatch(/^ketchup-mustard-afi-2024-01-09-\d{4}-\d\d-\d\d\.pdf$/)
+  await file.saveAs(path.join(SHOTS, `${info.project.name}-22-plan.pdf`))
+  const head = fs.readFileSync(path.join(SHOTS, `${info.project.name}-22-plan.pdf`)).subarray(0, 8).toString()
+  expect(head).toBe('%PDF-1.4')
+  const dl2 = page.waitForEvent('download')
+  await page.getByTestId('save-png').click()
+  await (await dl2).saveAs(path.join(SHOTS, `${info.project.name}-22-plan-page1.png`))
 })

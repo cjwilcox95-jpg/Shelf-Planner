@@ -41,13 +41,16 @@ export function mergePlans(existing, incoming) {
   return { merged, counts }
 }
 
-/** Hand the file to the phone's share sheet (Save to Files), or download it on a computer. */
-export async function shareOrDownload(text, filename) {
-  const blob = new Blob([text], { type: 'application/json' })
+/**
+ * Hand the file to the phone's share sheet (Save to Files, Print, Mail...), or download it on a computer.
+ * data: text or a Blob.
+ */
+export async function shareOrDownload(data, filename, { type = 'application/json', title = 'Shelf Planner backup' } = {}) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type })
   try {
-    const file = new File([blob], filename, { type: 'application/json' })
+    const file = new File([blob], filename, { type: blob.type || type })
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'Shelf Planner backup' })
+      await navigator.share({ files: [file], title })
       return 'shared'
     }
   } catch (e) {

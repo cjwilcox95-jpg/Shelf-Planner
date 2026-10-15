@@ -12,6 +12,8 @@ import { askToKeepData, load, loadPrefix, remove, save } from './lib/storage.js'
 import { cleanPhotos, mergePhotos, processPhoto } from './lib/photos.js'
 import { cleanSizes, mergeSizes } from './lib/sizes.js'
 import { GuessTableSheet, SizeSheet } from './components/SizeTools.jsx'
+import { PrintSheet } from './components/PrintSheet.jsx'
+import { ToolsSheet } from './components/ToolsSheet.jsx'
 import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
@@ -412,7 +414,8 @@ export default function App() {
       <nav className="bottombar">
         <button className="btn primary" onClick={() => setSheet('add')} data-testid="open-add">＋ Add</button>
         <button className="btn" onClick={() => setSheet('plans')}>Plans</button>
-        <button className="btn" onClick={() => setSheet('shelf')}>Shelf size</button>
+        <button className="btn" onClick={() => setSheet('shelf')} aria-label="Shelf">Shelf</button>
+        <button className="btn" onClick={() => setSheet('tools')} data-testid="open-tools">Tools</button>
       </nav>
 
       {sheet === 'add' && (
@@ -444,6 +447,12 @@ export default function App() {
           shelfWidthIn={sel.where !== TRAY ? plan.shelves.find((s) => s.id === sel.where).widthIn : activeShelf.widthIn}
           onSave={(rec) => onSaveSize(sel.item.upc, rec)}
           onClose={() => setSheet(null)} />
+      )}
+      {sheet === 'tools' && (
+        <ToolsSheet onPick={setSheet} onClose={() => setSheet(null)} />
+      )}
+      {sheet === 'print' && (
+        <PrintSheet plan={plan} check={check} products={products} photos={photos} onClose={() => setSheet(null)} />
       )}
       {sheet === 'guesses' && (
         <GuessTableSheet types={products.types} onSave={onSaveGuesses} onClose={() => setSheet(null)} />
