@@ -2,6 +2,10 @@
 
 Plain-English notes on what changed at each stage.
 
+## Fix (2026-10-15)
+
+- The app now works at its real address, https://cjwilcox95-jpg.github.io/Shelf-Planner/ (GitHub addresses are case-sensitive; the app was built for lowercase).
+
 ## Stage 2: one shelf on your phone (2026-10-14)
 
 - New web app. The first time, you load your store-data file (catalog.json); it stays on your phone.

@@ -20,7 +20,7 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 
 **Stage 2: one shelf you can plan on your phone.**
 
-Open it: **https://cjwilcox95-jpg.github.io/shelf-planner/** (the first time, load your `catalog.json` file). See [CHANGELOG.md](CHANGELOG.md).
+Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, load your `catalog.json` file). See [CHANGELOG.md](CHANGELOG.md).
 
 | Stage | What it adds | Status |
 |---|---|---|

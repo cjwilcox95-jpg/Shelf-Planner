@@ -5,10 +5,10 @@ export default defineConfig({
   timeout: 60_000,
   reporter: 'list',
   outputDir: '../data/build/test-results',
-  use: { baseURL: 'http://localhost:4173/shelf-planner/' },
+  use: { baseURL: 'http://localhost:4173/' },
   webServer: {
     command: 'npx vite preview --port 4173 --strictPort',
-    url: 'http://localhost:4173/shelf-planner/',
+    url: 'http://localhost:4173/',
     reuseExistingServer: true,
   },
   projects: [
