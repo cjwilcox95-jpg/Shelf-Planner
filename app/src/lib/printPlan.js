@@ -120,7 +120,7 @@ export const LIST_COLUMNS = [
   { label: 'UPC', w: 1.4 },
   { label: 'Facings', w: 0.6, right: true },
   { label: 'Width in', w: 0.7, right: true },
-  { label: 'Notes', w: 1.0 },
+  { label: 'Notes', w: 0.95 },
 ]
 
 // ---------------------------------------------------------------- drawing (browser only)

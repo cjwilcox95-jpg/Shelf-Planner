@@ -14,6 +14,8 @@ import { cleanSizes, mergeSizes } from './lib/sizes.js'
 import { GuessTableSheet, SizeSheet } from './components/SizeTools.jsx'
 import { PrintSheet } from './components/PrintSheet.jsx'
 import { ToolsSheet } from './components/ToolsSheet.jsx'
+import { CompareSheet } from './components/CompareSheet.jsx'
+import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
 import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
@@ -44,6 +46,7 @@ export default function App() {
   const [sizes, setSizes] = useState({}) // UPC -> real sizes { w, h, d, type, note }
   const [guessEdits, setGuessEdits] = useState({}) // package type -> edited typical size
   const [boxWidth, setBoxWidth] = useState(360)
+  const [compareId, setCompareId] = useState(null) // the plan the open plan is compared with
   const boxRef = useRef(null)
   const toastTimer = useRef(null)
   const plan = hist.present
@@ -451,8 +454,27 @@ export default function App() {
       {sheet === 'tools' && (
         <ToolsSheet onPick={setSheet} onClose={() => setSheet(null)} />
       )}
-      {sheet === 'print' && (
-        <PrintSheet plan={plan} check={check} products={products} photos={photos} onClose={() => setSheet(null)} />
+      {sheet === 'print' && (() => {
+        const others = Object.values(plans).filter((p) => p.id !== plan.id)
+        const base = others.find((p) => p.id === compareId)
+        const extraTables = base
+          ? [{ title: `Changes from “${base.name}”`, columns: CHANGE_COLUMNS, rows: changeRows(comparePlans(base, plan), products) }]
+          : []
+        return (
+          <PrintSheet plan={plan} check={check} products={products} photos={photos} extraTables={extraTables}
+            compareOptions={others} compareId={base ? compareId : null} onCompareId={setCompareId} onClose={() => setSheet(null)} />
+        )
+      })()}
+      {sheet === 'compare' && (
+        <CompareSheet plan={plan} others={Object.values(plans).filter((p) => p.id !== plan.id)}
+          compareId={compareId} onCompareId={setCompareId} products={products}
+          onSelect={(uid) => {
+            const f = findItem(plan, uid)
+            setSelectedUid(uid)
+            if (f && f.where !== TRAY) setActiveShelfId(f.where)
+            setSheet(null)
+          }}
+          onPrint={() => setSheet('print')} onClose={() => setSheet(null)} />
       )}
       {sheet === 'guesses' && (
         <GuessTableSheet types={products.types} onSave={onSaveGuesses} onClose={() => setSheet(null)} />
