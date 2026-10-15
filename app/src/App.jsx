@@ -16,6 +16,8 @@ import { PrintSheet } from './components/PrintSheet.jsx'
 import { ToolsSheet } from './components/ToolsSheet.jsx'
 import { CompareSheet } from './components/CompareSheet.jsx'
 import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
+import { MovementSheet } from './components/MovementSheet.jsx'
+import { cleanMovement, paceText, parseMovementCsv, salesRows, suggestions } from './lib/movement.js'
 import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
@@ -47,6 +49,9 @@ export default function App() {
   const [guessEdits, setGuessEdits] = useState({}) // package type -> edited typical size
   const [boxWidth, setBoxWidth] = useState(360)
   const [compareId, setCompareId] = useState(null) // the plan the open plan is compared with
+  const [movement, setMovement] = useState(null) // units sold by UPC (no money), from a sales file
+  const [pendingCsv, setPendingCsv] = useState(null) // a CSV waiting for its number of days
+  const [deliveryDays, setDeliveryDays] = useState(7)
   const boxRef = useRef(null)
   const toastTimer = useRef(null)
   const plan = hist.present
@@ -88,6 +93,9 @@ export default function App() {
         const savedSizes = await loadPrefix('size:').catch(() => ({}))
         setSizes(Object.fromEntries(Object.entries(savedSizes).map(([k, v]) => [k.slice(5), v])))
         setGuessEdits((await load('guessEdits').catch(() => null)) || {})
+        const mv = await load('movement').catch(() => null)
+        if (mv) setMovement(cleanMovement(mv))
+        setDeliveryDays((await load('deliveryDays').catch(() => null)) || 7)
         if (identifyFile(cat).type === 'catalog') {
           setCatalog(cat)
           startWith(cat, saved, currentId, oldShelf)
@@ -119,6 +127,8 @@ export default function App() {
   const products = useMemo(() => makeProducts(catalog, { sizes, guessEdits }), [catalog, sizes, guessEdits])
   const index = useMemo(() => (catalog ? buildIndex(catalog) : []), [catalog])
   const check = useMemo(() => checkPlan(plan, (item) => products.dims(item)), [plan, products])
+  const sales = useMemo(() => (movement ? salesRows(plan, check, products, movement) : []), [plan, check, products, movement])
+  const tips = useMemo(() => suggestions(plan, check, sales, { deliveryDays }), [plan, check, sales, deliveryDays])
   const fitScale = Math.max(MIN_SCALE, (boxWidth - 28) / (check.widestIn + 3))
   const scale = zoom ?? fitScale
 
@@ -162,6 +172,29 @@ export default function App() {
     for (const upc of Object.keys(merged)) if (merged[upc] !== sizes[upc]) await save(`size:${upc}`, merged[upc])
     setSizes(merged)
     return changed
+  }
+
+  const storeMovement = async (doc) => {
+    const m = cleanMovement({ ...doc, loadedAt: new Date().toISOString() })
+    await save('movement', m)
+    setMovement(m)
+    const onPlans = Object.values(plansRef.current).flatMap((p) => p.shelves.flatMap((x) => x.items)).filter((i) => i.kind !== 'gap')
+    const found = new Set(onPlans.filter((i) => m.items[i.upc]).map((i) => i.upc)).size
+    const total = new Set(onPlans.map((i) => i.upc)).size
+    return `Sales file loaded: ${Object.keys(m.items).length.toLocaleString()} products (${found} of the ${total} products in your plans). Units sold only.`
+  }
+
+  /** A .json movement file or a .csv export, picked under Tools > Sales help. */
+  const onMovementFile = async (file) => {
+    const text = await file.text()
+    if (/\.csv$/i.test(file.name) || !text.trim().startsWith('{')) {
+      const r = parseMovementCsv(text, (u) => products.byUpc.has(u))
+      if (r.problem) return `Could not read it: ${r.problem}`
+      if (!Object.keys(r.items).length) return 'Could not read it: no lines matched products in your store data.'
+      setPendingCsv(r)
+      return null
+    }
+    return onImportFile(file)
   }
 
   const onSaveGuesses = async (edits) => {
@@ -263,7 +296,7 @@ export default function App() {
 
   const onExport = async () => {
     try {
-      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos, sizes, guessEdits }))
+      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos, sizes, guessEdits, movement }))
       const how = await shareOrDownload(text, backupFileName())
       if (how === 'cancelled') return 'Backup cancelled.'
       const now = new Date().toISOString()
@@ -296,6 +329,10 @@ export default function App() {
       const known = Object.keys(clean).filter((u) => products.byUpc.has(u)).length
       return `Size pack loaded: ${changed} product${changed === 1 ? '' : 's'} updated (${known} of ${Object.keys(clean).length} are in your store data). Tape measurements on this phone were kept.`
     }
+    if (kind.type === 'movement') {
+      if (phase !== 'ready') return 'Load catalog.json first, then the sales file.'
+      return storeMovement(doc)
+    }
     if (kind.type === 'catalog') {
       await save('catalog', doc)
       await askToKeepData()
@@ -319,6 +356,7 @@ export default function App() {
     }
     const pics = doc.photos ? await storePhotos(doc.photos) : { added: 0 }
     if (doc.sizes) await storeSizes(doc.sizes)
+    if (doc.movement && (!movement || (doc.movement.loadedAt || '') > (movement.loadedAt || ''))) await storeMovement(doc.movement)
     if (doc.guessEdits && !Object.keys(guessEdits).length && Object.keys(doc.guessEdits).length) {
       await save('guessEdits', doc.guessEdits)
       setGuessEdits(doc.guessEdits)
@@ -396,6 +434,7 @@ export default function App() {
           placed={placed}
           placing={placing}
           photo={photos[sel.item.upc]}
+          movement={movement && sel.where !== TRAY ? paceText(sales.find((r) => r.upc === sel.item.upc)) : null}
           onEditSize={() => setSheet('size')}
           onPickPhoto={(f) => onPickPhoto(sel.item, f)}
           onRemovePhoto={() => onRemovePhoto(sel.item)}
@@ -465,6 +504,25 @@ export default function App() {
             compareOptions={others} compareId={base ? compareId : null} onCompareId={setCompareId} onClose={() => setSheet(null)} />
         )
       })()}
+      {sheet === 'sales' && (
+        <MovementSheet movement={movement} rows={sales} tips={tips} pendingCsv={pendingCsv}
+          deliveryDays={deliveryDays}
+          onDeliveryDays={(d) => { setDeliveryDays(d); save('deliveryDays', d).catch(() => {}) }}
+          onFile={onMovementFile}
+          onCsvDays={async (days) => {
+            const msg = await storeMovement({ source: 'sales file (CSV)', days, items: pendingCsv.items })
+            setPendingCsv(null)
+            return msg
+          }}
+          onRemove={async () => { await remove('movement'); setMovement(null); showToast('Sales data removed from this phone') }}
+          onSelect={(uid) => {
+            const f = findItem(plan, uid)
+            setSelectedUid(uid)
+            if (f && f.where !== TRAY) setActiveShelfId(f.where)
+            setSheet(null)
+          }}
+          onClose={() => { setPendingCsv(null); setSheet(null) }} />
+      )}
       {sheet === 'compare' && (
         <CompareSheet plan={plan} others={Object.values(plans).filter((p) => p.id !== plan.id)}
           compareId={compareId} onCompareId={setCompareId} products={products}

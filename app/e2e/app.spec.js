@@ -497,3 +497,42 @@ test('compare a proposed copy with the current plan, and print the change list',
   await page.getByTestId('save-pdf').click()
   await (await dl).saveAs(path.join(SHOTS, `${test.info().project.name}-23-changes.pdf`))
 })
+
+test('sales help: load a CSV export, money columns are ignored, worth-a-look lists appear', async ({ page }) => {
+  await loadData(page)
+  const cat = JSON.parse(fs.readFileSync(CATALOG, 'utf8'))
+  const reset = cat.resets.find((r) => /KETCHUP/i.test(r.name))
+  const items = reset.shelves.flatMap((s) => s.items).filter((i) => i.status !== 'notFound')
+  // first product sells fast, one sells nothing, the rest a few; written the way BRData prints UPCs (11 digits)
+  const lines = ['UPC,Description,Unt/Lbs,Sales $,GM%,On Hand']
+  items.forEach((it, k) => lines.push(`${it.upc.slice(0, 11)},"${it.description}",${k === 0 ? 900 : k === 1 ? 0 : 20 + k},${(k + 1) * 11.11},25.5,-3`))
+  const csv = path.join(SHOTS, 'test-sales.csv')
+  fs.writeFileSync(csv, lines.join('\n'))
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-sales').click()
+  await page.getByTestId('movement-file').setInputFiles(csv)
+  await expect(page.getByRole('dialog')).toContainText('from the “Unt/Lbs” column')
+  await page.getByRole('button', { name: '13 weeks' }).click()
+  await page.getByTestId('movement-save').click()
+  await expect(page.getByTestId('movement-period')).toContainText('13 weeks')
+  await expect(page.getByTestId('tips-best')).toContainText(items[0].description)
+  await expect(page.getByTestId('tips-nosales')).toContainText(items[1].description)
+  await shot(page, '24-sales-help')
+  await page.screenshot({ path: path.join(SHOTS, `${test.info().project.name}-24-sales-help-full.png`), fullPage: true })
+  // nothing about money was saved on the phone
+  const saved = await page.evaluate(() => new Promise((resolve) => {
+    const req = indexedDB.open('shelf-planner', 1)
+    req.onsuccess = () => {
+      const get = req.result.transaction('kv').objectStore('kv').get('movement')
+      get.onsuccess = () => resolve(JSON.stringify(get.result))
+    }
+  }))
+  expect(saved).toContain('"units":900')
+  expect(saved).not.toMatch(/11\.11|25\.5|:-3|Sales \$|GM|On Hand/i)
+  // tapping a product shows it on the shelf with its pace
+  await page.getByTestId('tips-best').locator('.row').first().click()
+  await expect(page.getByTestId('sells')).toContainText('sells ~69/wk') // 900 / 13 weeks
+  await page.reload()
+  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await expect(page.getByTestId('sells')).toBeVisible() // still loaded after closing the app
+})

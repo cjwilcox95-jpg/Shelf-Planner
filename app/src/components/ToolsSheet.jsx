@@ -2,6 +2,7 @@ import { Sheet } from './Panels.jsx'
 
 const TOOLS = [
   { id: 'print', title: 'Print or save as PDF', text: 'A drawing to scale and a list with check boxes for setting the shelf.' },
+  { id: 'sales', title: 'Sales help (worth a look)', text: 'What may run out, what takes room for little sales, what to cut first when a shelf is over.' },
   { id: 'compare', title: 'Compare with another plan', text: 'What to add, take out, move or change, e.g. current set to proposed set.' },
   { id: 'guesses', title: 'Default size guesses', text: 'The typical sizes every guessed product starts from.' },
 ]
