@@ -38,6 +38,10 @@ There is **no vendor column** in this file or in the HBC book.
   Columns: UPC, W/Item (AFI item #), Description, Pack/Size, Unt/Lbs (units sold), Sales, GM$, GM%, Avg price,
   Avg cost, Units, On-hand, coupon qty and amount. **Only UPC, W/Item (to check the UPC) and Unt/Lbs are read.**
   The margin and money columns conflict with the "no cost, retail or margin" rule, so Stage 6 uses units sold only.
+  Result (2026-10-15): 1,341 lines, 889 products with units sold (831 confirmed by AFI item #, 16 UPCs fixed from
+  the item #, 42 in the store files without item confirmation), 7 lines with unreadable units, none out of order.
+  445 lines are not in the grocery/HBC files (spot checks: yogurt, frozen pizza, i.e. other departments).
+  Because the report was "For Selected UPCs", it covers few products per category (e.g. 7 of 47 in Ketchup-Mustard).
 
 ## UPC key
 
