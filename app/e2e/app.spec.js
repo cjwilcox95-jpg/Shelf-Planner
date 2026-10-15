@@ -536,3 +536,18 @@ test('sales help: load a CSV export, money columns are ignored, worth-a-look lis
   await rows(page).nth(0).getByTestId('tile').nth(0).click()
   await expect(page.getByTestId('sells')).toBeVisible() // still loaded after closing the app
 })
+
+const MOVEMENT = path.resolve('../data/build/movement.json') // units sold read from CJ's BRData scan (private)
+
+test('sales help with the real movement file on the Ketchup-Mustard set', async ({ page }) => {
+  test.skip(!fs.existsSync(MOVEMENT), 'no movement file')
+  await loadData(page)
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-sales').click()
+  await page.getByTestId('movement-file').setInputFiles(MOVEMENT)
+  await expect(page.getByRole('dialog')).toContainText('Sales file loaded')
+  await expect(page.getByTestId('movement-period')).toContainText('15.6 weeks')
+  await shot(page, '25-sales-real')
+  const text = await page.getByRole('dialog').innerText()
+  fs.writeFileSync(path.join(SHOTS, `${test.info().project.name}-25-sales-real.txt`), text)
+})

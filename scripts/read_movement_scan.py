@@ -70,8 +70,9 @@ def read_page(ocr, png):
         rotated.save(path)
         res, _ = ocr(path)
         os.remove(path)
-        boxes = [(b[0][0], (b[0][1] + b[2][1]) / 2, t.strip()) for b, t, _c in (res or [])]
-        head = {t.replace(" ", "").lower(): (x, y) for x, y, t in boxes}
+        # (left x, middle y, text, right x)
+        boxes = [(b[0][0], (b[0][1] + b[2][1]) / 2, t.strip(), b[1][0]) for b, t, _c in (res or [])]
+        head = {t.replace(" ", "").lower(): (x, y, x1) for x, y, t, x1 in boxes}
         units_head = next((v for k, v in head.items() if k.startswith("unt/")), None)
         sales_head = next((v for k, v in head.items() if k == "sales"), None)
         upc_head = next((v for k, v in head.items() if k == "upc"), None)
@@ -79,14 +80,18 @@ def read_page(ocr, png):
             break
     else:
         return [], False, []
+    # The scan can be a little crooked: straighten rows using the tilt between the UPC and Unt/Lbs headings.
+    slope = (units_head[1] - upc_head[1]) / (units_head[0] - upc_head[0])
+    boxes = [(x, y - slope * (x - upc_head[0]), t, x1) for x, y, t, x1 in boxes]
     dates = []
-    for x, y, t in boxes:
+    for x, y, t, _x1 in boxes:
         if y < units_head[1]:
             dates += re.findall(r"\d\d/\d\d/\d{4}", t)
-    # Columns: the UPC starts under the UPC heading, the item # next to it. Units sold is the first
-    # money-style number (1234.00) right of the Pack/Size heading; the numbers after it (sales, margin)
-    # are ignored. Numbers are right-aligned, so the leftmost one is units even when sales is wide.
-    pack_head = next((v for k, v in head.items() if k.startswith("pack")), (units_head[0] - 230, 0))
+    # Columns: the UPC starts under the UPC heading, the item # next to it. Numbers are right-aligned
+    # under their headings, so units sold is the number whose RIGHT edge lines up with the Unt/Lbs
+    # heading's right edge. Anything else (sales, margin...) is ignored, even when units is unreadable.
+    units_right = units_head[2]
+    gap = (sales_head[2] - units_right) / 2  # half the distance to the next column
     body = sorted((b for b in boxes if b[1] > units_head[1] + 15), key=lambda b: b[1])
     lines, cur = [], []
     for b in body:  # a new line starts when y jumps by more than half a row
@@ -99,13 +104,14 @@ def read_page(ocr, png):
     rows = []
     for group in lines:
         group.sort()
-        first = [t for x, y, t in group if x < upc_head[0] + 120]
+        first = [t for x, y, t, _ in group if x < upc_head[0] + 120]
         upc_text = re.sub(r"\D", "", first[0]) if first else ""
         if len(upc_text) < 10:
             continue
-        item_text = next((re.sub(r"\D", "", t) for x, y, t in group if upc_head[0] + 120 <= x < upc_head[0] + 330), "")
-        nums = [t.replace(" ", "") for x, y, t in group if x > pack_head[0] + 60 and UNITS_RE.match(t.replace(" ", ""))]
-        rows.append({"upc11": upc_text, "item": item_text, "units_text": nums[0] if nums else None})
+        item_text = next((re.sub(r"\D", "", t) for x, y, t, _ in group if upc_head[0] + 120 <= x < upc_head[0] + 330), "")
+        nums = [t.replace(" ", "") for x, y, t, x1 in group
+                if abs(x1 - units_right) < min(gap, 70) and UNITS_RE.match(t.replace(" ", ""))]
+        rows.append({"upc11": upc_text, "item": item_text, "units_text": nums[0] if len(nums) == 1 else None})
     return rows, True, dates
 
 
@@ -149,6 +155,9 @@ def main(pdf):
             continue
         stats[how] += 1
         kept.append({"upc": key, "units": float(r["units_text"].replace(",", "")), "page": r["page"], "how": how})
+        if not r["units_text"].endswith(".00"):
+            kept[-1]["check"] = "not a whole number: pounds, or misread"
+            problems.append(f"page {r['page']}: {key}: units not a whole number (read {r['units_text']}); kept but flagged")
 
     # 2. Units must go down (the report is sorted by units, highest first)
     flagged = 0
@@ -156,7 +165,7 @@ def main(pdf):
         prev = kept[i - 1]["units"] if i else None
         nxt = kept[i + 1]["units"] if i + 1 < len(kept) else None
         if prev is not None and nxt is not None and r["units"] > prev and r["units"] > nxt:
-            r["check"] = "out of order: may be misread"
+            r.setdefault("check", "out of order: may be misread")
             flagged += 1
             problems.append(f"page {r['page']}: {r['upc']}: units out of order (read {r['units']:g}); kept but flagged")
 
