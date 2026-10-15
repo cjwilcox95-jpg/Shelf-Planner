@@ -1,4 +1,5 @@
-import { guessDims } from './guess.js'
+import { guessDims, withEdits } from './guess.js'
+import { resolveDims } from './sizes.js'
 
 // Muted colors for the stripe at the top of each placeholder tile, picked by brand
 // (first word of the name), so neighbors are easy to tell apart.
@@ -10,8 +11,12 @@ function hash(s) {
   return Math.abs(h)
 }
 
-/** Look up products and their (guessed) dimensions. */
-export function makeProducts(catalog) {
+/**
+ * Look up products and their dimensions: real sizes where known (`sizes`, by UPC),
+ * otherwise a guess from the (possibly edited) default-guess table.
+ */
+export function makeProducts(catalog, { sizes = {}, guessEdits = {} } = {}) {
+  const types = withEdits(guessEdits)
   const byUpc = new Map((catalog?.items || []).map((i) => [i.upc, i]))
   const sub = catalog?.subclassNames || {}
   const dimsCache = new Map()
@@ -37,13 +42,15 @@ export function makeProducts(catalog) {
   function dims(item) {
     if (dimsCache.has(item.upc)) return dimsCache.get(item.upc)
     const i = info(item)
-    const g = guessDims({ text: `${i.description} ${i.subclass}`, sizeValue: i.sizeValue, uom: i.uom, size: i.size })
-    const d = { w: g.w, h: g.h, d: g.d, source: { w: 'guess', h: 'guess', d: 'guess' }, basis: g.basis }
+    const rec = sizes[item.upc]
+    const g = guessDims({ text: `${i.description} ${i.subclass}`, sizeValue: i.sizeValue, uom: i.uom, size: i.size },
+      { types, typeId: rec?.type })
+    const d = { ...resolveDims(g, rec), guess: { w: g.w, h: g.h, d: g.d }, type: g.type, basis: g.basis, note: rec?.note || '' }
     dimsCache.set(item.upc, d)
     return d
   }
 
   const isGuess = (d) => Object.values(d.source).some((s) => s === 'guess')
 
-  return { byUpc, info, dims, isGuess }
+  return { byUpc, info, dims, isGuess, types }
 }

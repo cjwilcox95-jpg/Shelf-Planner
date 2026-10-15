@@ -205,7 +205,9 @@ export default function SectionView({
                   {fit.items.map((p, i) => {
                     const item = byUid.get(p.uid)
                     const info = products.info(item)
-                    const guess = products.isGuess(products.dims(item))
+                    const d = products.dims(item)
+                    const guess = products.isGuess(d)
+                    const fromPhoto = !guess && Object.values(d.source).includes('photo')
                     const w = p.widthIn * scale
                     const h = p.heightIn * scale
                     const lines = Math.min(3, Math.floor((h - 34) / 16.5))
@@ -243,6 +245,7 @@ export default function SectionView({
                         </div>
                         <span className="pos-badge">{i + 1}</span>
                         {guess && <span className="guess-mark" aria-label="guessed size">~</span>}
+                        {fromPhoto && <span className="guess-mark" aria-label="size from a photo">≈</span>}
                         {!photo && w >= 66 && lines >= 1 && (
                           <span className="tile-name" style={{ WebkitLineClamp: lines }}>{info.description}</span>
                         )}

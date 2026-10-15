@@ -10,6 +10,8 @@ import {
 import { makeProducts } from './lib/products.js'
 import { askToKeepData, load, loadPrefix, remove, save } from './lib/storage.js'
 import { cleanPhotos, mergePhotos, processPhoto } from './lib/photos.js'
+import { cleanSizes, mergeSizes } from './lib/sizes.js'
+import { GuessTableSheet, SizeSheet } from './components/SizeTools.jsx'
 import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
@@ -37,6 +39,8 @@ export default function App() {
   const [toast, setToast] = useState(null)
   const [lastBackupAt, setLastBackupAt] = useState(null)
   const [photos, setPhotos] = useState({}) // UPC -> { data, w, h, source, addedAt }
+  const [sizes, setSizes] = useState({}) // UPC -> real sizes { w, h, d, type, note }
+  const [guessEdits, setGuessEdits] = useState({}) // package type -> edited typical size
   const [boxWidth, setBoxWidth] = useState(360)
   const boxRef = useRef(null)
   const toastTimer = useRef(null)
@@ -76,6 +80,9 @@ export default function App() {
         setLastBackupAt(lastBk || null)
         const savedPhotos = await loadPrefix('photo:').catch(() => ({}))
         setPhotos(Object.fromEntries(Object.entries(savedPhotos).map(([k, v]) => [k.slice(6), v])))
+        const savedSizes = await loadPrefix('size:').catch(() => ({}))
+        setSizes(Object.fromEntries(Object.entries(savedSizes).map(([k, v]) => [k.slice(5), v])))
+        setGuessEdits((await load('guessEdits').catch(() => null)) || {})
         if (identifyFile(cat).type === 'catalog') {
           setCatalog(cat)
           startWith(cat, saved, currentId, oldShelf)
@@ -104,7 +111,7 @@ export default function App() {
     return () => ro.disconnect()
   }, [phase])
 
-  const products = useMemo(() => makeProducts(catalog), [catalog])
+  const products = useMemo(() => makeProducts(catalog, { sizes, guessEdits }), [catalog, sizes, guessEdits])
   const index = useMemo(() => (catalog ? buildIndex(catalog) : []), [catalog])
   const check = useMemo(() => checkPlan(plan, (item) => products.dims(item)), [plan, products])
   const fitScale = Math.max(MIN_SCALE, (boxWidth - 28) / (check.widestIn + 3))
@@ -136,6 +143,26 @@ export default function App() {
     } catch (e) {
       showToast(e.message || 'Could not use that picture')
     }
+  }
+
+  const onSaveSize = async (upc, rec) => {
+    if (rec) await save(`size:${upc}`, rec)
+    else await remove(`size:${upc}`)
+    setSizes((all) => { const next = { ...all }; if (rec) next[upc] = rec; else delete next[upc]; return next })
+    showToast(rec ? 'Size saved for this product everywhere' : 'Back to guessed size')
+  }
+
+  const storeSizes = async (incoming) => {
+    const { merged, changed } = mergeSizes(sizes, incoming)
+    for (const upc of Object.keys(merged)) if (merged[upc] !== sizes[upc]) await save(`size:${upc}`, merged[upc])
+    setSizes(merged)
+    return changed
+  }
+
+  const onSaveGuesses = async (edits) => {
+    await save('guessEdits', edits)
+    setGuessEdits(edits)
+    showToast(Object.keys(edits).length ? 'Default guesses updated' : 'Default guesses reset')
   }
 
   const onRemovePhoto = async (item) => {
@@ -220,7 +247,7 @@ export default function App() {
 
   const onExport = async () => {
     try {
-      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos }))
+      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos, sizes, guessEdits }))
       const how = await shareOrDownload(text, backupFileName())
       if (how === 'cancelled') return 'Backup cancelled.'
       const now = new Date().toISOString()
@@ -246,6 +273,13 @@ export default function App() {
       return `Photo pack loaded: ${added} new photo${added === 1 ? '' : 's'}${replaced ? `, ${replaced} replaced` : ''}` +
         ` (${known} of ${Object.keys(clean).length} match products in your store data).`
     }
+    if (kind.type === 'sizes') {
+      if (phase !== 'ready') return 'Load catalog.json first, then the size pack.'
+      const clean = cleanSizes(doc.sizes)
+      const changed = await storeSizes(clean)
+      const known = Object.keys(clean).filter((u) => products.byUpc.has(u)).length
+      return `Size pack loaded: ${changed} product${changed === 1 ? '' : 's'} updated (${known} of ${Object.keys(clean).length} are in your store data). Tape measurements on this phone were kept.`
+    }
     if (kind.type === 'catalog') {
       await save('catalog', doc)
       await askToKeepData()
@@ -268,6 +302,11 @@ export default function App() {
       if (merged[plan.id] !== plan) openPlan(merged[plan.id])
     }
     const pics = doc.photos ? await storePhotos(doc.photos) : { added: 0 }
+    if (doc.sizes) await storeSizes(doc.sizes)
+    if (doc.guessEdits && !Object.keys(guessEdits).length && Object.keys(doc.guessEdits).length) {
+      await save('guessEdits', doc.guessEdits)
+      setGuessEdits(doc.guessEdits)
+    }
     if (sheet === 'data') setSheet(null)
     return `Backup loaded: ${counts.added} new plan${counts.added === 1 ? '' : 's'}, ${counts.updated} updated` +
       (counts.keptPhone ? `, ${counts.keptPhone} kept because this phone’s copy was newer` : '') +
@@ -340,6 +379,7 @@ export default function App() {
           placed={placed}
           placing={placing}
           photo={photos[sel.item.upc]}
+          onEditSize={() => setSheet('size')}
           onPickPhoto={(f) => onPickPhoto(sel.item, f)}
           onRemovePhoto={() => onRemovePhoto(sel.item)}
           onFacings={(n) => act({ type: 'facings', uid: sel.item.uid, facings: n })}
@@ -372,7 +412,23 @@ export default function App() {
           }}
           onRemoveShelf={(shelfId) => act({ type: 'removeShelf', shelfId }, 'Shelf removed; its products are off the shelf')}
           onClose={() => setSheet(null)}
-          onReplaceData={() => setSheet('data')} />
+          onReplaceData={() => setSheet('data')}
+          onOpenGuesses={() => setSheet('guesses')} />
+      )}
+      {sheet === 'size' && sel && (
+        <SizeSheet
+          key={sel.item.upc}
+          info={products.info(sel.item)}
+          photo={photos[sel.item.upc]}
+          dims={products.dims(sel.item)}
+          rec={sizes[sel.item.upc]}
+          types={products.types}
+          shelfWidthIn={sel.where !== TRAY ? plan.shelves.find((s) => s.id === sel.where).widthIn : activeShelf.widthIn}
+          onSave={(rec) => onSaveSize(sel.item.upc, rec)}
+          onClose={() => setSheet(null)} />
+      )}
+      {sheet === 'guesses' && (
+        <GuessTableSheet types={products.types} onSave={onSaveGuesses} onClose={() => setSheet(null)} />
       )}
       {sheet === 'plans' && (
         <PlansSheet

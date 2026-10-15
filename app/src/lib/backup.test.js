@@ -14,6 +14,7 @@ describe('backup', () => {
   it('tells a catalog, a backup and anything else apart', () => {
     expect(identifyFile({ kind: 'shelf-planner-catalog', items: [{}] }).type).toBe('catalog')
     expect(identifyFile({ kind: 'shelf-planner-photos', photos: {} }).type).toBe('photos')
+    expect(identifyFile({ kind: 'shelf-planner-sizes', sizes: {} }).type).toBe('sizes')
     expect(identifyFile({ hello: 1 }).type).toBeNull()
     expect(identifyFile(null).problem).toMatch(/not a Shelf Planner file/)
   })

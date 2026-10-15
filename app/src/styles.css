@@ -424,3 +424,26 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0 10px; }
 .photo-slot input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
 .selected-head .selected-text { flex: 1; }
 .row-thumb { flex: none; width: 34px; height: 44px; object-fit: contain; }
+
+/* ---------- sizes ---------- */
+.size-head { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+.size-thumb { width: 64px; height: 80px; object-fit: contain; flex: none; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.size-thumb.empty { display: grid; place-items: center; font-size: 14px; color: var(--muted); text-align: center; }
+.field input.is-guess { background: #f3f0ea; color: var(--muted); font-style: italic; }
+.select, .notes {
+  width: 100%; min-height: 48px; font: inherit; font-size: 17px; padding: 8px 10px;
+  border: 2px solid var(--ink); border-radius: 10px; background: #fff;
+}
+.guess-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.guess-fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.guess-fields label { display: flex; flex-direction: column; font-size: 14px; color: var(--muted); }
+.guess-fields input { min-height: 44px; font-size: 17px; padding: 0 6px; border: 2px solid var(--ink); border-radius: 8px; width: 100%; }
+.measure-ref { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.measure-ref input { width: 90px; min-height: 44px; font-size: 17px; padding: 0 8px; border: 2px solid var(--ink); border-radius: 8px; }
+.measure-step { margin: 10px 0 6px; color: var(--select); }
+.measure-tools { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.measure-scroll { overflow: auto; max-height: 52vh; border: 2px solid var(--line); border-radius: 8px; background: #222; }
+.measure-photo { position: relative; touch-action: pan-x pan-y; cursor: crosshair; }
+.measure-photo img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.measure-photo svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.measure-result { font-size: 18px; }

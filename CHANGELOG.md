@@ -2,6 +2,18 @@
 
 Plain-English notes on what changed at each stage.
 
+## Stage 4: real sizes (2026-10-15)
+
+- Edit size: width, height and depth for any product, each labeled measured, from photo, or guess. Typing a number
+  marks it measured. Saved for the product everywhere it appears, and included in backups.
+- Marks: ~ = guess, ≈ = from a photo, no mark = measured. Tiles are dashed while any size is a guess.
+- Notes per product, and a package-type override that changes its guesses.
+- Measure from a photo: tap both ends of something you know (the shelf width, a dollar bill), then the product's
+  edges. Checked with a test picture: 2.75 in and 17 in exactly.
+- Default size guesses: an editable table of typical sizes by package type. New types from the aisle photos:
+  jugs with handles (bleach, detergent), tubs (pods, powders), aerosol cans (starch), trigger sprays, dryer-sheet boxes.
+- Size packs: one file of sizes by UPC, imported under Plans. A photo estimate never replaces a tape measurement.
+
 ## Photos, brought forward from Stage 5 (2026-10-15)
 
 - Tiles show the product's photo on every facing when it has one; the shelf list shows a small thumbnail.

@@ -18,7 +18,7 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 
 ## Status
 
-**Stage 3: whole sections, saved plans and backup.**
+**Stage 4: real sizes.** (Stages 1-3 done; photos started.)
 
 Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, load your `catalog.json` file). See [CHANGELOG.md](CHANGELOG.md).
 
@@ -28,7 +28,7 @@ Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, lo
 | 1 | Clean product catalog (no cost data), UPC match report | Done (AFI resets: 3 of 35 PDFs so far) |
 | 2 | One shelf drawn to scale, finger drag, capacity bar, search, Ketchup-Mustard demo | Done |
 | 3 | Whole section (stacked shelves, drag between them), plans (save/copy/rename/delete), undo/redo, "off the shelf" tray, backup file, start from a whole AFI reset | Done |
-| 4 | Product detail panel, editable dimensions, default-guess table | Next |
+| 4 | Product detail panel, editable dimensions, default-guess table | Done: sizes with sources, notes, guess table, measure-from-photo tool, size packs |
 | 5 | Photos (camera, background removal), print/export | Started: photos on tiles, Add photo, photo packs, photos in backups |
 | 6 | Movement-based suggestions (only when asked) | Not started |
 
@@ -88,8 +88,9 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 
 ## Known limits
 
-- **Every product size is a guess** (dashed outline and ~). Editing real sizes comes in Stage 4.
-- Photos are drawn inside the guessed size box, so a photo can look short or narrow until real sizes are entered.
+- Sizes start as guesses (dashed outline and ~). Correct them under Edit size (tape = measured, or ≈ from a photo).
+- Photos are drawn inside the product's size box, so a photo can look short or narrow while its size is still a guess.
+- Measuring from a photo is about ±10% (camera distortion); a tape measure is better.
 - No background removal yet: store-site pictures have white backgrounds (trimmed automatically); aisle photos keep their background.
 - Store-site pictures: only 1 test picture so far. The automatic download for the Ketchup-Mustard set needs CJ to approve it
   (Claude Code's safety check blocks it in auto mode).

@@ -3,8 +3,8 @@
 
 export const BACKUP_KIND = 'shelf-planner-backup'
 
-export function makeBackup({ plans, catalog, photos = {}, now = new Date().toISOString() }) {
-  return { kind: BACKUP_KIND, version: 1, exportedAt: now, plans: Object.values(plans), catalog: catalog || null, photos }
+export function makeBackup({ plans, catalog, photos = {}, sizes = {}, guessEdits = {}, now = new Date().toISOString() }) {
+  return { kind: BACKUP_KIND, version: 1, exportedAt: now, plans: Object.values(plans), catalog: catalog || null, photos, sizes, guessEdits }
 }
 
 export function backupFileName(now = new Date()) {
@@ -17,6 +17,7 @@ export function identifyFile(doc) {
   if (doc?.kind === BACKUP_KIND && Array.isArray(doc.plans)) return { type: 'backup' }
   if (doc?.kind === 'shelf-planner-catalog' && Array.isArray(doc.items) && doc.items.length) return { type: 'catalog' }
   if (doc?.kind === 'shelf-planner-photos' && doc.photos && typeof doc.photos === 'object') return { type: 'photos' }
+  if (doc?.kind === 'shelf-planner-sizes' && doc.sizes && typeof doc.sizes === 'object') return { type: 'sizes' }
   return { type: null, problem: 'This is not a Shelf Planner file. Pick catalog.json, a photo pack, or a shelf-planner-backup file.' }
 }
 

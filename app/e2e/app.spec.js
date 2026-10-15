@@ -324,3 +324,75 @@ test('add a photo from the phone to a product', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove photo' }).click()
   await expect(page.locator('.tile.has-photo')).toHaveCount(0)
 })
+
+const MEASURE = path.resolve('../data/build/photos/measure-test.png')
+
+test('edit a product size: saved everywhere, marks change from ~ to measured', async ({ page }) => {
+  await loadData(page)
+  const tile = rows(page).nth(0).getByTestId('tile').nth(0)
+  await tile.click()
+  await page.getByTestId('edit-size').click()
+  await page.getByTestId('size-w').fill('4')
+  await page.getByTestId('size-h').fill('9')
+  await page.getByTestId('size-d').fill('2.5')
+  await shot(page, '12-size-sheet')
+  await page.getByTestId('save-size').click()
+  await expect(page.locator('.toast')).toContainText('Size saved')
+  await expect(tile.locator('.guess-mark')).toHaveCount(0) // all three measured: no ~
+  await expect(page.getByTestId('selected-panel')).toContainText('2 × 4 in = 8 in wide')
+  await page.reload()
+  await expect(rows(page).nth(0).getByTestId('tile').nth(0).locator('.guess-mark')).toHaveCount(0)
+})
+
+test('change the default guesses for a package type', async ({ page }) => {
+  await loadData(page)
+  const tile = rows(page).nth(0).getByTestId('tile').nth(0) // FRENCHS MUSTARD SQUEEZE HONEY 12 oz, 2 facings
+  const firstRow = page.getByTestId('item-list').locator('section').filter({ has: page.locator('h2', { hasText: 'Shelf 7 (top)' }) }).locator('.row-sub').first()
+  await expect(firstRow).toContainText('~4.5 in') // 2 x 2.25 in guess
+  await page.getByRole('button', { name: 'Shelf size' }).click()
+  await page.getByTestId('open-guesses').click()
+  await page.getByTestId('guess-squeeze-w').fill('4')
+  await page.getByTestId('save-guesses').click()
+  await expect(firstRow).toContainText('~6.5 in') // 4 in at 20 oz -> 3.25 in at 12 oz, x 2
+  await expect(tile.locator('.guess-mark')).toHaveText('~') // still a guess
+})
+
+test('measure a product from a photo', async ({ page }) => {
+  await loadData(page)
+  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await page.getByTestId('edit-size').click()
+  await page.getByTestId('open-measure').click()
+  await page.getByTestId('measure-photo').setInputFiles(MEASURE)
+  const img = page.getByTestId('measure-area').locator('img')
+  await expect(img).toBeVisible()
+  const tap = async (x, y) => {
+    const b = await img.boundingBox()
+    await page.mouse.click(b.x + (x / 1000) * b.width, b.y + (y / 600) * b.height)
+  }
+  await page.getByRole('button', { name: 'Shelf 48' }).click()
+  await tap(20, 508); await tap(980, 508)   // the 48 in shelf edge
+  await tap(400, 300); await tap(455, 300)  // product left and right
+  await tap(428, 160); await tap(428, 500)  // product top and bottom
+  await expect(page.getByTestId('measure-result')).toContainText('≈2.75 in')
+  await expect(page.getByTestId('measure-result')).toContainText('≈17 in')
+  await shot(page, '13-measure')
+  await page.getByTestId('use-measure').click()
+  await expect(page.getByTestId('size-w')).toHaveValue('2.75')
+  await page.getByTestId('save-size').click()
+  await expect(rows(page).nth(0).getByTestId('tile').nth(0).locator('.guess-mark')).toHaveText('~') // depth still a guess
+  await page.getByRole('button', { name: 'More', exact: true }).click()
+  await expect(page.getByTestId('selected-panel')).toContainText('W from photo · H from photo · D guess')
+})
+
+test('a size pack updates products but never overwrites a tape measurement', async ({ page }) => {
+  await loadData(page)
+  const pack = {
+    kind: 'shelf-planner-sizes', version: 1,
+    sizes: { '041500000527': { w: { v: 2.6, src: 'photo' }, h: { v: 7.25, src: 'photo' }, updatedAt: '2026-10-15T00:00:00Z' } },
+  }
+  const file = path.join(SHOTS, '..', 'test-sizes.json')
+  fs.writeFileSync(file, JSON.stringify(pack))
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('import-file').setInputFiles(file)
+  await expect(page.getByRole('dialog')).toContainText('Size pack loaded: 1 product updated (1 of 1')
+})

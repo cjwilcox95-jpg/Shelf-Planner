@@ -3,6 +3,7 @@ import { fmtIn } from '../lib/fit.js'
 import { search } from '../lib/search.js'
 import { prettyUpc } from '../lib/upc.js'
 import { shelfLabel, TRAY } from '../lib/plan.js'
+import { sourceMark, SOURCE_LABEL } from '../lib/sizes.js'
 
 const shortDate = (iso) => {
   if (!iso) return ''
@@ -36,7 +37,7 @@ export function SectionSummary({ plan, check, anyGuess, missing }) {
       {(notes.length > 0 || anyGuess) && (
         <p className="summary-notes">
           {notes.map((w) => <span key={w} className="warn">{w}</span>)}
-          {anyGuess && <span>~ = guessed size</span>}
+          {anyGuess && <span>~ = guessed size · ≈ = from photo</span>}
         </p>
       )}
     </section>
@@ -44,7 +45,7 @@ export function SectionSummary({ plan, check, anyGuess, missing }) {
 }
 
 /** The selected product, pinned above the bottom buttons so it is always in reach. */
-export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, onPickPhoto, onRemovePhoto, onFacings, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
+export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, onEditSize, onPickPhoto, onRemovePhoto, onFacings, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
   const [more, setMore] = useState(false)
   const [busy, setBusy] = useState(false)
   const pick = async (e) => {
@@ -56,7 +57,7 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
     setBusy(false)
   }
   const inTray = where === TRAY
-  const g = (k) => (dims.source[k] === 'guess' ? '~' : '')
+  const g = (k) => sourceMark(dims.source[k])
   const place = inTray ? 'Off the shelf' : `${shelfLabel(plan, where)}, #${index + 1}`
   if (placing) {
     // Keep the bar small so the shelves stay visible while you pick a spot.
@@ -103,12 +104,15 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
           {' · '}{placed.tooDeep ? <span className="warn">deeper than the shelf</span> : `about ${placed.unitsDeep} deep`}
           {placed.tooTall && <> · <span className="warn">too tall</span></>}
           {!info.inCatalog && <> · <span className="warn">not in store files</span></>}
-          {' '}<button className="link-btn" onClick={() => setMore(!more)}>{more ? 'Less' : 'More'}</button>
+          {' '}<button className="link-btn" onClick={onEditSize} data-testid="edit-size">Edit size</button>
+          <button className="link-btn" onClick={() => setMore(!more)}>{more ? 'Less' : 'More'}</button>
         </p>
       )}
       {more && (
         <dl className="facts">
           <div><dt>Size each</dt><dd>{g('w')}{fmtIn(dims.w, 2)} W × {g('h')}{fmtIn(dims.h, 2)} H × {g('d')}{fmtIn(dims.d, 2)} D in</dd></div>
+          <div><dt>Where from</dt><dd>W {SOURCE_LABEL[dims.source.w]} · H {SOURCE_LABEL[dims.source.h]} · D {SOURCE_LABEL[dims.source.d]}</dd></div>
+          {dims.note && <div><dt>Notes</dt><dd>{dims.note}</dd></div>}
           {placed && <div><dt>On the shelf</dt><dd>{placed.tooDeep ? 'won’t fit front to back' : `${placed.capacity} units (${item.facings} wide × ${placed.unitsDeep} deep)`}</dd></div>}
           {info.specialOrder && <div><dt>Store</dt><dd>KEHE special order</dd></div>}
           {dims.source.w === 'guess' && <div><dt>Guess</dt><dd>from {dims.basis}</dd></div>}
@@ -176,7 +180,7 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
               {shelf.items.map((item, i) => {
                 const info = products.info(item)
                 const p = fit.items[i]
-                const guess = products.isGuess(products.dims(item))
+                const mark = sourceMark(products.dims(item).source.w)
                 const notes = []
                 if (p.tooDeep) notes.push('too deep')
                 if (p.tooTall) notes.push('too tall')
@@ -184,7 +188,7 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
                 if (!info.inCatalog) notes.push('not in store files')
                 return (
                   <Row key={item.uid} item={item} position={i + 1} info={info} photo={photos[item.upc]}
-                    sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''} · ${guess ? '~' : ''}${fmtIn(p.widthIn)} in${info.specialOrder ? ' · special order' : ''}`}
+                    sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''} · ${mark}${fmtIn(p.widthIn)} in${info.specialOrder ? ' · special order' : ''}`}
                     warn={notes.join(' · ')}
                     selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, shelf.id)} />
                 )
@@ -258,7 +262,7 @@ export function AddSheet({ index, catalog, targetLabel, onAdd, onClose }) {
 }
 
 /** Size of one shelf (or all of them), and adding/removing shelves. */
-export function ShelfSheet({ plan, shelf, catalog, onSave, onAddShelf, onRemoveShelf, onClose, onReplaceData }) {
+export function ShelfSheet({ plan, shelf, catalog, onSave, onAddShelf, onRemoveShelf, onClose, onReplaceData, onOpenGuesses }) {
   const [form, setForm] = useState({ widthIn: shelf.widthIn, depthIn: shelf.depthIn, clearanceIn: shelf.clearanceIn })
   const [all, setAll] = useState(false)
   const valid = ['widthIn', 'depthIn', 'clearanceIn'].every((k) => Number(form[k]) > 0 && Number(form[k]) <= 600)
@@ -301,6 +305,7 @@ export function ShelfSheet({ plan, shelf, catalog, onSave, onAddShelf, onRemoveS
       </div>
       <p className="muted small">Removing a shelf moves its products to “Off the shelf”. You can undo.</p>
       <hr />
+      <button className="btn wide" onClick={onOpenGuesses} data-testid="open-guesses">Default size guesses…</button>
       <p className="muted small">Store data: {catalog.items.length.toLocaleString()} products, built {catalog.built}.</p>
       <button className="btn wide" onClick={onReplaceData}>Load a newer store-data file</button>
     </Sheet>
@@ -391,11 +396,11 @@ export function PlansSheet({
       <h3 className="sheet-section">Backup</h3>
       <p className="muted small">
         One file with all your plans and the store data. Save it to Files (or email it to yourself).
-        Photos are included. Use it to move to a new phone. Last backup: <strong>{lastBackupAt ? shortDate(lastBackupAt) : 'never'}</strong>.
+        Photos and sizes are included. Use it to move to a new phone. Last backup: <strong>{lastBackupAt ? shortDate(lastBackupAt) : 'never'}</strong>.
       </p>
       <button className="btn primary wide" onClick={async () => setMsg(await onExport())} data-testid="export-backup">Export backup</button>
       <label className="btn wide file-btn">
-        Import backup, photo pack or catalog file
+        Import backup, photo/size pack or catalog file
         <input type="file" accept=".json,application/json" onChange={pick} data-testid="import-file" />
       </label>
       {msg && <p className={msg.startsWith('Could not') || msg.startsWith('This is not') ? 'error' : 'ok-msg'} role="status">{msg}</p>}
