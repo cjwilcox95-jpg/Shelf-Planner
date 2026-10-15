@@ -396,3 +396,24 @@ test('a size pack updates products but never overwrites a tape measurement', asy
   await page.getByTestId('import-file').setInputFiles(file)
   await expect(page.getByRole('dialog')).toContainText('Size pack loaded: 1 product updated (1 of 1')
 })
+
+const AISLE = path.resolve('../data/build/aisle/aisle-plans-backup.json') // from CJ's aisle photos (private)
+
+test('the laundry aisle recreated from photos imports as 4 plans with photo sizes', async ({ page }) => {
+  test.skip(!fs.existsSync(AISLE), 'no aisle file')
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('import-file').setInputFiles(AISLE)
+  await expect(page.getByRole('dialog')).toContainText('Backup loaded: 4 new plans')
+  for (const [name, file] of [['Laundry A', 'A'], ['Laundry B', 'B'], ['Laundry C', 'C'], ['Laundry D', 'D']]) {
+    if (!(await page.getByRole('dialog').isVisible())) await page.getByRole('button', { name: 'Plans', exact: true }).click()
+    await page.getByTestId('plan-list').locator('li').filter({ hasText: name }).getByRole('button', { name: 'Open', exact: true }).click()
+    await expect(page.getByTestId('plan-name')).toContainText(name)
+    await expect(rows(page)).toHaveCount(6)
+    await shot(page, `20-aisle-${file}`)
+    await page.screenshot({ path: path.join(SHOTS, `${test.info().project.name}-20-aisle-${file}-full.png`), fullPage: true })
+  }
+  // photo sizes are in use: Faultless starch width comes from the photo
+  const row = page.getByTestId('item-list').locator('.row').filter({ hasText: 'FAULTLESS STARCH FRESH' }).first()
+  await expect(row).toContainText('5 facings · ≈13 in') // ≈ = width from a photo
+})

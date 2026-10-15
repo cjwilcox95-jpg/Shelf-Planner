@@ -21,7 +21,7 @@ export function SectionSummary({ plan, check, anyGuess, missing }) {
   const over = check.overCount
   const otherProblems = check.tooDeep + check.tooTall
   let status = 'Everything fits'
-  if (over) status = `${over} shelf${over > 1 ? 's' : ''} over`
+  if (over) status = `${over} ${over > 1 ? 'shelves' : 'shelf'} over`
   else if (otherProblems) status = 'Width fits'
   return (
     <section className={`summary${over ? ' over' : otherProblems ? ' caution' : ''}`} aria-live="polite" data-testid="summary">

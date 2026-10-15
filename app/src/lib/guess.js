@@ -3,21 +3,30 @@
 // Guesses are always labeled "guess" and drawn dashed with a "~". Stage 3 makes this
 // table editable and lets you replace any guess with a real measurement.
 
+const LAUNDRY = /\b(LAUNDRY|BLEACH|FABRIC SOFTENER|STAIN|PREWASH)/
+const CLEANING = /\b(LAUNDRY|BLEACH|STAIN|CLEANERS?|CLEANING|DISINFECT\w*|HOUSEHOLD|GLASS|FABRIC)/
+
 /**
- * Package types, checked in order. `ref` is a typical product of that type:
+ * Package types, checked in order. `scope` (when set) must match the product's store
+ * category names, so a laundry rule never catches, say, baking powder or snack packs. `ref` is a typical product of that type:
  * at `oz` ounces it is w x h x d inches. Other sizes are scaled by the cube root
  * of the size ratio (twice the volume -> about 1.26x each way).
  */
 export const PACKAGE_TYPES = [
+  // Sizes below marked * were refined from measurements of CJ's laundry-aisle photos (Oct 2026).
   { id: 'pouch', label: 'Pouch / bag of pods', words: /\b(POUCH|PCH|POU|FLINGS)\b/, ref: { oz: 5, w: 4.5, h: 7, d: 1.25 } },
   { id: 'can', label: 'Food can', words: /\b(CAN|CANS|CND|CANNED)\b/, ref: { oz: 15, w: 3, h: 4.5, d: 3 } },
-  { id: 'aerosol', label: 'Aerosol / spray can', words: /\b(STARCH|AEROSOL|AERSL|AER)\b/, ref: { oz: 20, w: 2.75, h: 9.5, d: 2.75 } },
-  { id: 'trigger', label: 'Trigger spray bottle', words: /\b(TRIGGER|TRIG|SPRAY|SPRY|SPR)\b/, ref: { oz: 22, w: 4, h: 10.5, d: 2.5 } },
-  { id: 'tub', label: 'Tub (pods, powders)', words: /\b(PODS|PACS|PACKS|TUB|OXI CLEAN|OXICLEAN|POWDER|PWD)\b/, ref: { oz: 48, w: 7, h: 6.5, d: 7 } },
+  { id: 'dye', label: 'Fabric dye box or bottle', words: /\b(RIT|DYE)\b/, scope: /\bDYES?\b/, ref: { oz: 0, w: 2.7, h: 4.5, d: 1.5 } }, // *
+  { id: 'podbag', label: 'Bag of laundry pods', words: /\b(FLINGS|FLNG|FLING)\b/, scope: LAUNDRY, ref: { oz: 0, w: 7.5, h: 9.5, d: 3 } }, // *
+  { id: 'aerosol', label: 'Aerosol / spray can', words: /\b(STARCH|AEROSOL|AERSL|AER)\b/, ref: { oz: 20, w: 2.6, h: 9.6, d: 2.6 } }, // *
+  { id: 'trigger', label: 'Trigger spray bottle', words: /\b(TRIGGER|TRIG|SPRAY|SPRY|SPR|FEBREZE)\b/, scope: CLEANING, ref: { oz: 22, w: 4.2, h: 10, d: 2.5 } }, // *
+  { id: 'tub', label: 'Tub (pods, powders)', words: /\b(PODS|PDS|PACS|PACKS|TUB|OXI CLEAN|OXICLEAN|OXY|POWDER|PWD|PWDR)\b/, scope: LAUNDRY, ref: { oz: 48, w: 7.2, h: 6, d: 7.2 } }, // *
+  { id: 'sheets', label: 'Box of dryer sheets', words: /\b(SHEETS?|SHTS?|SHT|DRYR|DRYER)\b/, scope: /\bSHEETS?\b/, ref: { oz: 0, w: 7.3, h: 5.5, d: 2.75 } }, // *
   {
-    id: 'jug', label: 'Jug with handle (bleach, detergent)',
-    words: /\b(BLEACH|BLCH|DETERGENT|DETERG|DET|LAUNDRY|LNDRY|SOFTENER|SFTNR|FAB SOFT|FABRIC|CLORALEN|CLOROX)\b/,
-    ref: { oz: 92, w: 6.75, h: 11.5, d: 4.75 },
+    id: 'bleachjug', label: 'Bleach jug', // * 121 oz measured about 6 in wide, 10 in tall
+    words: /\b(BLEACH|BLCH|CLORALEN|CLOROX|ALAMO)\b/,
+    scope: /\bBLEACH\b/,
+    ref: { oz: 121, w: 6, h: 10.2, d: 5 },
   },
   {
     id: 'squeeze', label: 'Squeeze bottle',
@@ -25,11 +34,16 @@ export const PACKAGE_TYPES = [
     ref: { oz: 20, w: 2.75, h: 8.5, d: 2.1 },
   },
   {
+    id: 'jug', label: 'Detergent / softener jug', // * 100 oz measured about 7.6 in wide, 10.5 in tall
+    words: /\b(DETERGENT|DETERG|DTRGNT|DET|LIQ|LQ|LIQUID|LAUNDRY|LNDRY|SOFTENER|SOFTNER|SFTNR|SFNR|FAB SOFT|FABRIC|HEC|HE)\b/,
+    scope: LAUNDRY,
+    ref: { oz: 100, w: 7.6, h: 10.5, d: 4.6 },
+  },
+  {
     id: 'jar', label: 'Glass jar',
     words: /\b(GLASS|GLS|JAR|PICKLES?|DILLS?|SPEARS?|RELISH|OLIVES?|PEPPERS?|JALAPENOS?|PEPERONCINI|SALSA|GHERKINS?|OKRA|CAPERS|ARTICHOKE|PEANUT BUTTER|JELLY|JAM|PRESERVES)\b/,
     ref: { oz: 24, w: 3.4, h: 6.6, d: 3.4 },
   },
-  { id: 'sheets', label: 'Box of dryer sheets', words: /\b(SHEETS?|SHTS?)\b/, ref: { oz: 0, w: 5.75, h: 5.5, d: 2.75 } },
   {
     id: 'bottle', label: 'Bottle',
     words: /\b(BTL|BOTTLE|DRESSING|SAUCE|SCE|SYRUP|OIL|VINEGAR|JUICE|WATER|SODA|DRINK)\b/,
@@ -57,10 +71,15 @@ export function parseSize(size) {
   return m ? { value: Number(m[1]), uom: (m[2] || '').trim().toUpperCase() } : { value: null, uom: null }
 }
 
-/** The package type a product looks like, from its name. `types` lets you pass an edited table. */
-export function packageTypeFor(text, types = PACKAGE_TYPES) {
+/**
+ * The package type a product looks like, from its name (`text`) and its store category names (`scope`).
+ * `types` lets you pass an edited table.
+ */
+export function packageTypeFor(text, types = PACKAGE_TYPES, scope = '') {
   const t = (text || '').toUpperCase()
-  return types.find((p) => p.words && p.words.test(t)) || types.find((p) => p.id === 'other') || types[types.length - 1]
+  const sc = (scope || '').toUpperCase()
+  return types.find((p) => p.words && p.words.test(t) && (!p.scope || p.scope.test(sc)))
+    || types.find((p) => p.id === 'other') || types[types.length - 1]
 }
 
 /** The table with any numbers CJ has edited (saved as { typeId: { oz, w, h, d } }). */
@@ -74,8 +93,8 @@ const round = (x) => Math.round(x * 4) / 4 // nearest quarter inch
  * Guess w/h/d for a product. `text` is the description plus its category names.
  * Returns { w, h, d, type, basis }.
  */
-export function guessDims({ text, sizeValue, uom, size }, { types = PACKAGE_TYPES, typeId } = {}) {
-  const type = (typeId && types.find((p) => p.id === typeId)) || packageTypeFor(text, types)
+export function guessDims({ text, scope, sizeValue, uom, size }, { types = PACKAGE_TYPES, typeId } = {}) {
+  const type = (typeId && types.find((p) => p.id === typeId)) || packageTypeFor(text, types, scope ?? text)
   let value = sizeValue
   let unit = uom
   if (value == null && size) ({ value, uom: unit } = parseSize(size))

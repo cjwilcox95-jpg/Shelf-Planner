@@ -2,6 +2,16 @@
 
 Plain-English notes on what changed at each stage.
 
+## Laundry aisle from CJ's photos (2026-10-15)
+
+- Four laundry sections (Tide; store brand/ERA/Gain; stain removers/boosters/Downy; starch/dye/bleach) recreated
+  from three aisle photos as plans: 100 placements, 202 facings. Imported as one file under Plans.
+- Widths (and most heights) measured from the photos, using each 4 ft section as a ruler, and labeled "from photo".
+- Default guesses refined from those measurements: separate bleach jugs (narrower) and detergent jugs, plus pod bags,
+  dye boxes, starch cans, trigger sprays and dryer-sheet boxes. Laundry rules now only apply to laundry categories
+  (an earlier rule had caught snack packs and baking powder).
+- Products not in the store files can now hold sizes too. "2 shelfs over" now reads "2 shelves over".
+
 ## Stage 4: real sizes (2026-10-15)
 
 - Edit size: width, height and depth for any product, each labeled measured, from photo, or guess. Typing a number

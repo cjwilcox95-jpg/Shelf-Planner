@@ -33,6 +33,7 @@ export function makeProducts(catalog, { sizes = {}, guessEdits = {} } = {}) {
       pack: p?.pack,
       aisle: p?.aisle,
       subclass: p ? sub[`${p.classCode}-${p.subclassCode}`] || '' : '',
+      className: p ? catalog?.classNames?.[p.classCode] || '' : '',
       inCatalog: !!p,
       specialOrder: !!p?.specialOrder,
       color: BRAND_COLORS[hash(description.split(' ')[0] || '') % BRAND_COLORS.length],
@@ -43,7 +44,7 @@ export function makeProducts(catalog, { sizes = {}, guessEdits = {} } = {}) {
     if (dimsCache.has(item.upc)) return dimsCache.get(item.upc)
     const i = info(item)
     const rec = sizes[item.upc]
-    const g = guessDims({ text: `${i.description} ${i.subclass}`, sizeValue: i.sizeValue, uom: i.uom, size: i.size },
+    const g = guessDims({ text: `${i.description} ${i.subclass}`, scope: `${i.className} ${i.subclass}`, sizeValue: i.sizeValue, uom: i.uom, size: i.size },
       { types, typeId: rec?.type })
     const d = { ...resolveDims(g, rec), guess: { w: g.w, h: g.h, d: g.d }, type: g.type, basis: g.basis, note: rec?.note || '' }
     dimsCache.set(item.upc, d)

@@ -29,7 +29,8 @@ const okDim = (x) => x && typeof x.v === 'number' && x.v > 0 && x.v < 200 && (x.
 export function cleanSizes(raw) {
   const out = {}
   for (const [upc, r] of Object.entries(raw || {})) {
-    if (!/^\d{12}$/.test(upc) || !r || typeof r !== 'object') continue
+    // a 12-digit UPC, or the stand-in id of a product that is not in the store files ("photo-...")
+    if (!/^(\d{12}|photo-[a-z0-9_-]{1,60})$/.test(upc) || !r || typeof r !== 'object') continue
     const rec = { updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : '' }
     for (const k of DIMS) if (okDim(r[k])) rec[k] = { v: r[k].v, src: r[k].src, ...(r[k].note ? { note: String(r[k].note) } : {}) }
     if (typeof r.type === 'string') rec.type = r.type

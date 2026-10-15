@@ -91,6 +91,8 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 - Sizes start as guesses (dashed outline and ~). Correct them under Edit size (tape = measured, or ≈ from a photo).
 - Photos are drawn inside the product's size box, so a photo can look short or narrow while its size is still a guess.
 - Measuring from a photo is about ±10% (camera distortion); a tape measure is better.
+- The app does not model products stacked 2 high, gaps in the middle of a shelf, or a product hanging across two
+  sections; the laundry plans describe these in their notes.
 - No background removal yet: store-site pictures have white backgrounds (trimmed automatically); aisle photos keep their background.
 - Store-site pictures: only 1 test picture so far. The automatic download for the Ketchup-Mustard set needs CJ to approve it
   (Claude Code's safety check blocks it in auto mode).

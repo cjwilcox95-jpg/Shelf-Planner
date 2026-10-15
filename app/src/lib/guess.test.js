@@ -33,6 +33,29 @@ describe('guessDims', () => {
   })
 })
 
+describe('guesses refined from the aisle photos', () => {
+  const LAUNDRY = 'DETERGENTS LAUNDRY FABRIC SOFTENER DETERGENTS LIQUID LAUNDRY'
+  const g = (text, sizeValue, scope = LAUNDRY) => guessDims({ text, scope, sizeValue, uom: 'OZ' })
+  it('detergent jugs: 100 oz about 7.6 in wide, 50 oz about 6 in', () => {
+    expect(g('SD LIQUID DET ORIGINAL RD', 100)).toMatchObject({ type: 'jug', w: 7.5 })
+    expect(g('SD LIQ DET ORIGINAL GREEN', 50).w).toBe(6)
+  })
+  it('bleach jugs are narrower than detergent jugs', () => {
+    expect(g('CLOROX BLEACH LIQ REG CONCNTD', 121, 'DETERGENTS LAUNDRY FABRIC SOFTENER BLEACH')).toMatchObject({ type: 'bleachjug', w: 6 })
+    expect(g('SD BLEACH LIQ REG 7.5 PCT', 43, 'BLEACH').w).toBe(4.25)
+  })
+  it('starch cans and trigger sprays', () => {
+    expect(g('FAULTLESS STARCH FRESH', 20)).toMatchObject({ type: 'aerosol', w: 2.5 })
+    expect(g('SHOUT LIQUID TRIGGER', 22, 'FABRIC STAIN REMOVER - PREWASHES')).toMatchObject({ type: 'trigger', w: 4.25 })
+  })
+  it('laundry rules stay inside laundry categories', () => {
+    expect(g('CHARMIN ULTRA SOFT MEGA PACKS', 12, 'BATH TISSUE LARGE PACKS 8CT&UP').type).not.toBe('tub')
+    expect(g('ARM HAMMER BAKING POWDER', 8, 'BAKING SODA - BAKING POWDER').type).not.toBe('tub')
+    expect(g('DAWN ULTRA DISH LIQ', 19, 'DETERGENT DISH LIQUIDS').type).toBe('squeeze')
+    expect(g('RIT DYE POWDER BLACK', null, 'DETERGENTS LAUNDRY FABRIC SOFTENER FABRIC DYES').type).toBe('dye')
+  })
+})
+
 describe('helpers', () => {
   it('converts units to ounces', () => {
     expect(sizeInOz(2, 'LB')).toBe(32)

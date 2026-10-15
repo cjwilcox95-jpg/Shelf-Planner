@@ -28,6 +28,9 @@ describe('cleanSizes / mergeSizes', () => {
     })
     expect(Object.keys(r)).toEqual(['036800083004'])
   })
+  it('accepts stand-in ids for products not in the store files', () => {
+    expect(Object.keys(cleanSizes({ 'photo-rit_rust': { w: { v: 2.7, src: 'photo' } } }))).toEqual(['photo-rit_rust'])
+  })
   it('never lets a photo estimate replace a tape measurement', () => {
     const phone = { '036800083004': { w: { v: 3.0, src: 'measured' }, updatedAt: T1 } }
     const { merged } = mergeSizes(phone, { '036800083004': { w: { v: 3.4, src: 'photo' }, h: { v: 8, src: 'photo' }, updatedAt: T2 } })
