@@ -61,6 +61,19 @@ size, category, aisle) is built on this workspace and loaded onto your phone, wh
 To rebuild the catalog after getting new files: put them in `data/raw/`, then run
 `python3 -I scripts/build_catalog.py` and `python3 -m unittest discover -s tests`.
 
+## Backups and restoring a fresh workspace
+
+The Claude workspace is temporary. Three kinds of things live in three places:
+
+| What | Where it is kept |
+|---|---|
+| App code, scripts, tests, notes | This GitHub project |
+| Original files (contain cost data) and built store data (catalog, photos, photo tool) | Two zip files CJ keeps privately, never on GitHub: `shelf-planner-SOURCE-FILES-CONFIDENTIAL-<date>.zip` and `shelf-planner-work-files-<date>.zip` (each has a RESTORE.txt) |
+| Plans and photos made on the phone | In the app: Plans > Export backup > Save to Files |
+
+To restore: clone this project, upload both zips, put the source files in `data/raw/` and unpack the work files into
+`data/build/`, then run `python3 -I scripts/build_catalog.py` and the tests.
+
 ## Working on the app
 
 ```
