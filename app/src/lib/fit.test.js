@@ -144,3 +144,31 @@ describe('checkPlan', () => {
     expect(r.tooTall).toBe(1) // one product (13 facings of it) taller than the 12 in clearance
   })
 })
+
+describe('stacking and empty spaces', () => {
+  it('a stack counts its full height and holds more', () => {
+    // 3 in tall box, 3 high = 9 in, 2 wide, 24/2.1 = 11 deep
+    const box = { box: { w: 4, h: 3, d: 2.1 } }
+    const r = checkShelf(shelf([{ uid: 'a', upc: 'box', facings: 2, high: 3 }]), (i) => box[i.upc])
+    const p = r.items[0]
+    expect(p.heightIn).toBeCloseTo(9)
+    expect(p.unitHeightIn).toBeCloseTo(3)
+    expect(p.tooTall).toBe(false)
+    expect(p.capacity).toBe(2 * 11 * 3)
+    expect(r.usedIn).toBeCloseTo(8) // stacking does not change the width
+  })
+  it('a stack taller than the clearance is flagged', () => {
+    const box = { box: { w: 4, h: 5, d: 2 } }
+    const r = checkShelf(shelf([{ uid: 'a', upc: 'box', facings: 1, high: 3 }]), (i) => box[i.upc])
+    expect(r.items[0].tooTall).toBe(true) // 15 in > 12 in
+  })
+  it('an empty space takes width but is never too deep or too tall', () => {
+    const r = checkShelf(shelf([
+      { uid: 'g', kind: 'gap', widthIn: 3 },
+      { uid: 'a', upc: 'ketchup20', facings: 2 },
+    ]), (i) => dimsTable[i.upc])
+    expect(r.usedIn).toBeCloseTo(8.5)
+    expect(r.items[0]).toMatchObject({ gap: true, tooDeep: false, tooTall: false, capacity: 0 })
+    expect(r.items[1].xIn).toBeCloseTo(3)
+  })
+})

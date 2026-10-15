@@ -14,31 +14,49 @@ export function unitsDeep(shelfDepthIn, productDepthIn) {
   return Math.floor(shelfDepthIn / productDepthIn + EPS)
 }
 
+/** How many units are stacked on top of each other (1 = not stacked). */
+export const unitsHigh = (item) => Math.max(1, Math.round(item.high || 1))
+
+/** An empty space left on purpose (kind 'gap'), not a product. */
+export const isGap = (item) => item?.kind === 'gap'
+
 /**
  * Check one shelf.
- * shelf: { widthIn, depthIn, clearanceIn, items: [{ uid, facings }] }
+ * shelf: { widthIn, depthIn, clearanceIn, items: [{ uid, facings, high? } or { uid, kind: 'gap', widthIn }] }
  * dimsOf(item) -> { w, h, d } in inches (numbers)
  * Returns totals, a left-to-right position for every item, and warnings.
  */
 export function checkShelf(shelf, dimsOf) {
   let x = 0
   const items = shelf.items.map((item) => {
+    if (isGap(item)) {
+      const width = Math.max(0, Number(item.widthIn) || 0)
+      const placed = {
+        uid: item.uid, gap: true, xIn: x, widthIn: width, unitWidthIn: width, heightIn: 0, unitHeightIn: 0, depthIn: 0,
+        high: 1, unitsDeep: 0, tooDeep: false, tooTall: false, pastEdge: x + width > shelf.widthIn + EPS, capacity: 0,
+      }
+      x += width
+      return placed
+    }
     const dims = dimsOf(item)
     const width = itemWidth(dims.w, item.facings)
+    const high = unitsHigh(item)
     const placed = {
       uid: item.uid,
       xIn: x,
       widthIn: width,
       unitWidthIn: dims.w,
-      heightIn: dims.h,
+      unitHeightIn: dims.h,
+      high,
+      heightIn: dims.h * high, // the whole stack
       depthIn: dims.d,
       unitsDeep: unitsDeep(shelf.depthIn, dims.d),
       tooDeep: dims.d > shelf.depthIn + EPS,
-      tooTall: dims.h > shelf.clearanceIn + EPS,
+      tooTall: dims.h * high > shelf.clearanceIn + EPS,
       // starts (or ends) past the right edge of the shelf
       pastEdge: x + width > shelf.widthIn + EPS,
     }
-    placed.capacity = placed.unitsDeep * item.facings
+    placed.capacity = placed.unitsDeep * item.facings * high
     x += width
     return placed
   })

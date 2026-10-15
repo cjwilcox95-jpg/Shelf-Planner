@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fmtIn, insertIndexAt } from '../lib/fit.js'
-import { shelfLabel } from '../lib/plan.js'
+import { positions, shelfLabel } from '../lib/plan.js'
 
 const PAD = 14 // px left and right of the shelves
 const BOARD = 12 // px thickness of each drawn shelf board
@@ -175,6 +175,7 @@ export default function SectionView({
             const tallestIn = Math.max(shelf.clearanceIn, ...fit.items.map((p) => p.heightIn), 1)
             const canvasH = TOP + Math.ceil(tallestIn * scale)
             const byUid = new Map(shelf.items.map((i) => [i.uid, i]))
+            const posOf = positions(shelf.items)
             const isTarget = dragView?.shelfId === shelf.id
             const pct = Math.min(100, fit.percentUsed)
             return (
@@ -202,15 +203,36 @@ export default function SectionView({
                   {fit.isOver && <div className="shelf-overflow" style={{ left: xPx(shelf.widthIn), width: fit.overIn * scale, top: 0, height: canvasH }} />}
                   <div className="clearance-line" style={{ left: xPx(0), width: shelf.widthIn * scale, top: canvasH - shelf.clearanceIn * scale }} />
 
-                  {fit.items.map((p, i) => {
+                  {fit.items.map((p) => {
                     const item = byUid.get(p.uid)
+                    if (p.gap) {
+                      const gh = Math.max(24, shelf.clearanceIn * scale)
+                      return (
+                        <div
+                          key={p.uid}
+                          className={`tile gap${p.uid === selectedUid ? ' selected' : ''}${p.uid === dragView?.uid ? ' lifted-origin' : ''}${p.pastEdge ? ' past-edge' : ''}`}
+                          data-testid="gap" data-uid={p.uid} role="button"
+                          aria-label={`${shelfLabel(plan, shelf.id)}: empty space ${fmtIn(p.widthIn, 2)} in`}
+                          style={{ left: xPx(p.xIn), width: p.widthIn * scale, height: gh, top: canvasH - gh }}
+                          onPointerDown={(e) => onPointerDown(e, p.uid)}
+                          onPointerMove={onPointerMove}
+                          onPointerUp={(e) => finish(e, false)}
+                          onPointerCancel={(e) => finish(e, true)}
+                          onContextMenu={(e) => e.preventDefault()}
+                          onClick={(e) => { if (!placing) e.stopPropagation() }}
+                        >
+                          {p.widthIn * scale >= 34 && <span className="gap-label">{fmtIn(p.widthIn)}″<br />gap</span>}
+                        </div>
+                      )
+                    }
+                    const pos = posOf.get(p.uid)
                     const info = products.info(item)
                     const d = products.dims(item)
                     const guess = products.isGuess(d)
                     const fromPhoto = !guess && Object.values(d.source).includes('photo')
                     const w = p.widthIn * scale
                     const h = p.heightIn * scale
-                    const lines = Math.min(3, Math.floor((h - 34) / 16.5))
+                    const lines = Math.min(3, Math.floor((p.unitHeightIn * scale - 34) / 16.5))
                     const photo = photos[item.upc]
                     const classes = ['tile']
                     if (photo) classes.push('has-photo')
@@ -227,7 +249,7 @@ export default function SectionView({
                         data-testid="tile"
                         data-uid={p.uid}
                         role="button"
-                        aria-label={`${shelfLabel(plan, shelf.id)}, position ${i + 1}: ${info.description} ${info.size}, ${item.facings} facings`}
+                        aria-label={`${shelfLabel(plan, shelf.id)}, position ${pos}: ${info.description} ${info.size}, ${item.facings} facings${p.high > 1 ? `, ${p.high} high` : ''}`}
                         style={{ left: xPx(p.xIn), width: w, height: h, top: canvasH - h, '--brand': info.color }}
                         onPointerDown={(e) => onPointerDown(e, p.uid)}
                         onPointerMove={onPointerMove}
@@ -239,11 +261,14 @@ export default function SectionView({
                         <div className="units">
                           {Array.from({ length: item.facings }, (_, k) => (
                             <span key={k} style={{ width: p.unitWidthIn * scale }}>
-                              {photo && <img src={photo.data} alt="" draggable="false" />}
+                              {Array.from({ length: p.high }, (_, j) => (
+                                <i key={j}>{photo && <img src={photo.data} alt="" draggable="false" />}</i>
+                              ))}
                             </span>
                           ))}
                         </div>
-                        <span className="pos-badge">{i + 1}</span>
+                        <span className="pos-badge">{pos}</span>
+                        {p.high > 1 && <span className="high-mark">×{p.high}</span>}
                         {guess && <span className="guess-mark" aria-label="guessed size">~</span>}
                         {fromPhoto && <span className="guess-mark" aria-label="size from a photo">≈</span>}
                         {!photo && w >= 66 && lines >= 1 && (
@@ -280,9 +305,9 @@ export default function SectionView({
         const p = fits[shelf.id].items.find((i) => i.uid === dragView.uid)
         const info = products.info(shelf.items.find((i) => i.uid === dragView.uid))
         const w = p.widthIn * scale
-        const h = p.heightIn * scale
+        const h = p.gap ? Math.max(24, shelf.clearanceIn * scale) : p.heightIn * scale
         return (
-          <div className="tile ghost" data-testid="ghost"
+          <div className={`tile ghost${p.gap ? ' gap' : ''}`} data-testid="ghost"
             style={{ position: 'fixed', left: dragView.clientX - w / 2, top: dragView.clientY - h - 12, width: w, height: h, '--brand': info.color }}>
             <span className="pos-badge">↕</span>
           </div>

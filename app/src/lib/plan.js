@@ -89,6 +89,7 @@ export function moveTo(plan, uid, to, insertBefore) {
   const from = findItem(plan, uid)
   const target = listOf(plan, to)
   if (!from || !target) return plan
+  if (to === TRAY && from.item.kind === 'gap') return plan // an empty space is never "off the shelf"
   let at = Math.max(0, Math.min(target.length, insertBefore ?? target.length))
   if (from.where === to) {
     if (at === from.index || at === from.index + 1) return plan // dropped where it already was
@@ -104,6 +105,8 @@ export function moveTo(plan, uid, to, insertBefore) {
   return withList(withList(plan, from.where, source), to, dest)
 }
 
+const clampGap = (w) => Math.max(0.25, Math.min(96, Math.round((Number(w) || 0.25) * 4) / 4))
+
 export function applyPlanAction(plan, a) {
   switch (a.type) {
     case 'add': {
@@ -116,11 +119,24 @@ export function applyPlanAction(plan, a) {
       return moveTo(plan, a.uid, a.to, a.insertBefore)
     case 'takeOff': {
       const f = findItem(plan, a.uid)
+      if (f?.item.kind === 'gap') return withList(plan, f.where, listOf(plan, f.where).filter((i) => i.uid !== a.uid))
       return !f || f.where === TRAY ? plan : moveTo(plan, a.uid, TRAY, 0)
     }
     case 'deleteItem': {
       const f = findItem(plan, a.uid)
       return f ? withList(plan, f.where, listOf(plan, f.where).filter((i) => i.uid !== a.uid)) : plan
+    }
+    case 'addGap': { // an empty space left on purpose
+      const shelf = plan.shelves.find((s) => s.id === a.shelfId) || plan.shelves[plan.shelves.length - 1]
+      const gap = { uid: a.uid || newId('g'), kind: 'gap', widthIn: clampGap(a.widthIn ?? 2) }
+      const at = a.index == null ? shelf.items.length : Math.max(0, Math.min(shelf.items.length, a.index))
+      return withList(plan, shelf.id, [...shelf.items.slice(0, at), gap, ...shelf.items.slice(at)])
+    }
+    case 'gapWidth':
+      return mapItem(plan, a.uid, (i) => (i.kind === 'gap' ? { ...i, widthIn: clampGap(a.widthIn) } : i))
+    case 'high': { // units stacked on top of each other
+      const n = Math.max(1, Math.min(20, Math.round(a.high)))
+      return mapItem(plan, a.uid, (i) => (n === 1 ? (({ high, ...rest }) => rest)(i) : { ...i, high: n }))
     }
     case 'facings': {
       const n = Math.max(1, Math.min(99, Math.round(a.facings)))
@@ -147,6 +163,14 @@ export function applyPlanAction(plan, a) {
     default:
       return plan
   }
+}
+
+/** Position numbers left to right, counting products only (empty spaces get none). uid -> 1, 2, 3... */
+export function positions(items) {
+  const m = new Map()
+  let n = 0
+  for (const i of items) if (i.kind !== 'gap') m.set(i.uid, ++n)
+  return m
 }
 
 /** Shelf number as AFI counts it: 1 = bottom. */

@@ -417,3 +417,33 @@ test('the laundry aisle recreated from photos imports as 4 plans with photo size
   const row = page.getByTestId('item-list').locator('.row').filter({ hasText: 'FAULTLESS STARCH FRESH' }).first()
   await expect(row).toContainText('5 facings · ≈13 in') // ≈ = width from a photo
 })
+
+test('stack a product 2 high and leave an empty space on a shelf', async ({ page }) => {
+  await loadData(page)
+  const tile = rows(page).nth(0).getByTestId('tile').nth(0)
+  const h1 = (await tile.boundingBox()).height
+  await tile.click()
+  await page.getByRole('button', { name: 'More', exact: true }).click()
+  await page.getByRole('button', { name: 'Stack one more high' }).click()
+  await expect(page.getByTestId('high')).toHaveText('2 high')
+  await expect.poll(async () => (await tile.boundingBox()).height).toBeGreaterThan(h1 * 1.8) // drawn twice as tall
+  await expect(page.getByTestId('item-list').locator('.row.selected')).toContainText(', 2 high')
+  // empty space after the selected product
+  const leftBefore = await rows(page).nth(0).getByTestId('shelf-left').innerText()
+  await page.getByTestId('open-add').click()
+  await page.getByTestId('add-gap').click()
+  await expect(page.getByTestId('selected-panel')).toContainText('Empty space')
+  await expect(rows(page).nth(0).getByTestId('gap')).toHaveCount(1)
+  for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Half an inch wider' }).click()
+  await expect(page.getByTestId('gap-width')).toHaveText('3')
+  const n = (s) => Number(s.match(/[\d.]+/)[0])
+  const leftAfter = await rows(page).nth(0).getByTestId('shelf-left').innerText()
+  expect(n(leftBefore) - n(leftAfter)).toBeCloseTo(3, 1) // 3 in less room
+  await shot(page, '21-stack-and-gap')
+  // positions skip the empty space: the product after it is still #2
+  await expect(page.getByTestId('item-list').locator('section').filter({ has: page.locator('h2', { hasText: 'Shelf 7 (top)' }) })
+    .locator('.row-pos').nth(2)).toHaveText('2')
+  await page.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(rows(page).nth(0).getByTestId('gap')).toHaveCount(0)
+  expect(await trayNames(page)).toHaveLength(2) // the empty space did not go to the tray
+})

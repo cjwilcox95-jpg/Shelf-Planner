@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { fmtIn } from '../lib/fit.js'
 import { search } from '../lib/search.js'
 import { prettyUpc } from '../lib/upc.js'
-import { shelfLabel, TRAY } from '../lib/plan.js'
+import { positions, shelfLabel, TRAY } from '../lib/plan.js'
 import { sourceMark, SOURCE_LABEL } from '../lib/sizes.js'
 
 const shortDate = (iso) => {
@@ -13,7 +13,7 @@ const shortDate = (iso) => {
 }
 
 /** The whole section at a glance. */
-export function SectionSummary({ plan, check, anyGuess, missing }) {
+export function SectionSummary({ plan, check, anyGuess, missing, productCount }) {
   const notes = []
   if (check.tooDeep) notes.push(`${check.tooDeep} product${check.tooDeep > 1 ? 's' : ''} too deep for the shelf`)
   if (check.tooTall) notes.push(`${check.tooTall} product${check.tooTall > 1 ? 's' : ''} taller than the clearance`)
@@ -29,7 +29,7 @@ export function SectionSummary({ plan, check, anyGuess, missing }) {
         <div>
           <div className="big" data-testid="section-status">{status}</div>
           <div className="sub">
-            {plan.shelves.length} shelves · {plan.shelves.reduce((n, s) => n + s.items.length, 0)} products
+            {plan.shelves.length} shelves · {productCount} products
             {plan.tray.length ? ` · ${plan.tray.length} off the shelf` : ''}
           </div>
         </div>
@@ -45,7 +45,7 @@ export function SectionSummary({ plan, check, anyGuess, missing }) {
 }
 
 /** The selected product, pinned above the bottom buttons so it is always in reach. */
-export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, onEditSize, onPickPhoto, onRemovePhoto, onFacings, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
+export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, movement, onEditSize, onPickPhoto, onRemovePhoto, onFacings, onHigh, onGapWidth, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
   const [more, setMore] = useState(false)
   const [busy, setBusy] = useState(false)
   const pick = async (e) => {
@@ -58,7 +58,8 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
   }
   const inTray = where === TRAY
   const g = (k) => sourceMark(dims.source[k])
-  const place = inTray ? 'Off the shelf' : `${shelfLabel(plan, where)}, #${index + 1}`
+  const shelfItems = inTray ? [] : plan.shelves.find((x) => x.id === where).items
+  const place = inTray ? 'Off the shelf' : `${shelfLabel(plan, where)}, #${positions(shelfItems).get(item.uid) ?? index + 1}`
   if (placing) {
     // Keep the bar small so the shelves stay visible while you pick a spot.
     return (
@@ -73,6 +74,31 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
       </section>
     )
   }
+  if (info.gap) {
+    const w = Number(item.widthIn) || 0
+    return (
+      <section className="selected-bar" data-testid="selected-panel" aria-label="Selected empty space">
+        <div className="selected-head">
+          <div className="selected-text">
+            <div className="muted small">{shelfLabel(plan, where)}</div>
+            <div className="selected-name">Empty space</div>
+            <div className="muted small">Room left open on purpose. It counts toward the shelf width.</div>
+          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="selected-actions">
+          <div className="stepper" aria-label="Width of the empty space">
+            <button className="btn step" onClick={() => onGapWidth(w - 0.5)} disabled={w <= 0.5} aria-label="Half an inch narrower">−</button>
+            <div className="step-value"><span data-testid="gap-width">{fmtIn(w, 2)}</span><small>inches</small></div>
+            <button className="btn step" onClick={() => onGapWidth(w + 0.5)} aria-label="Half an inch wider">+</button>
+          </div>
+          <button className="btn" onClick={onStartPlace}>Move</button>
+          <button className="btn danger" onClick={onTakeOff}>Remove</button>
+        </div>
+      </section>
+    )
+  }
+  const high = item.high || 1
   return (
     <section className="selected-bar" data-testid="selected-panel" aria-label="Selected product">
       <div className="selected-head">
@@ -101,7 +127,9 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
       {placed && (
         <p className="selected-facts">
           {item.facings} × {g('w')}{fmtIn(dims.w, 2)} in = <strong>{g('w')}{fmtIn(placed.widthIn)} in wide</strong>
+          {high > 1 && ` · ${high} high`}
           {' · '}{placed.tooDeep ? <span className="warn">deeper than the shelf</span> : `about ${placed.unitsDeep} deep`}
+          {movement && <> · <span data-testid="sells">{movement}</span></>}
           {placed.tooTall && <> · <span className="warn">too tall</span></>}
           {!info.inCatalog && <> · <span className="warn">not in store files</span></>}
           {' '}<button className="link-btn" onClick={onEditSize} data-testid="edit-size">Edit size</button>
@@ -113,7 +141,16 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
           <div><dt>Size each</dt><dd>{g('w')}{fmtIn(dims.w, 2)} W × {g('h')}{fmtIn(dims.h, 2)} H × {g('d')}{fmtIn(dims.d, 2)} D in</dd></div>
           <div><dt>Where from</dt><dd>W {SOURCE_LABEL[dims.source.w]} · H {SOURCE_LABEL[dims.source.h]} · D {SOURCE_LABEL[dims.source.d]}</dd></div>
           {dims.note && <div><dt>Notes</dt><dd>{dims.note}</dd></div>}
-          {placed && <div><dt>On the shelf</dt><dd>{placed.tooDeep ? 'won’t fit front to back' : `${placed.capacity} units (${item.facings} wide × ${placed.unitsDeep} deep)`}</dd></div>}
+          {placed && <div><dt>On the shelf</dt><dd>{placed.tooDeep ? 'won’t fit front to back' : `${placed.capacity} units (${item.facings} wide × ${placed.unitsDeep} deep${high > 1 ? ` × ${high} high` : ''})`}</dd></div>}
+          {!inTray && (
+            <div><dt>Stacked</dt><dd>
+              <span className="mini-stepper">
+                <button className="btn" onClick={() => onHigh(high - 1)} disabled={high <= 1} aria-label="One less high">−</button>
+                <strong data-testid="high">{high} high</strong>
+                <button className="btn" onClick={() => onHigh(high + 1)} aria-label="Stack one more high">+</button>
+              </span>
+            </dd></div>
+          )}
           {info.specialOrder && <div><dt>Store</dt><dd>KEHE special order</dd></div>}
           {dims.source.w === 'guess' && <div><dt>Guess</dt><dd>from {dims.basis}</dd></div>}
           <div><dt>Photo</dt><dd>
@@ -167,6 +204,7 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
       )}
       {topFirst.map((shelf) => {
         const fit = fits[shelf.id]
+        const posOf = positions(shelf.items)
         return (
           <section key={shelf.id}>
             <h2 className="list-title">
@@ -180,6 +218,14 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
               {shelf.items.map((item, i) => {
                 const info = products.info(item)
                 const p = fit.items[i]
+                if (p.gap) {
+                  return (
+                    <Row key={item.uid} item={item} position="·" info={info}
+                      sub={`${fmtIn(p.widthIn, 2)} in left open`} warn={p.pastEdge ? 'past end of shelf' : ''}
+                      selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, shelf.id)} />
+                  )
+                }
+                const high = item.high || 1
                 const mark = sourceMark(products.dims(item).source.w)
                 const notes = []
                 if (p.tooDeep) notes.push('too deep')
@@ -187,8 +233,8 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
                 if (p.pastEdge) notes.push('past end of shelf')
                 if (!info.inCatalog) notes.push('not in store files')
                 return (
-                  <Row key={item.uid} item={item} position={i + 1} info={info} photo={photos[item.upc]}
-                    sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''} · ${mark}${fmtIn(p.widthIn)} in${info.specialOrder ? ' · special order' : ''}`}
+                  <Row key={item.uid} item={item} position={posOf.get(item.uid)} info={info} photo={photos[item.upc]}
+                    sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''}${high > 1 ? `, ${high} high` : ''} · ${mark}${fmtIn(p.widthIn)} in${info.specialOrder ? ' · special order' : ''}`}
                     warn={notes.join(' · ')}
                     selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, shelf.id)} />
                 )
@@ -222,7 +268,7 @@ export function Sheet({ title, onClose, children, tall }) {
 }
 
 /** Search the catalog by name or UPC and add to a shelf. */
-export function AddSheet({ index, catalog, targetLabel, onAdd, onClose }) {
+export function AddSheet({ index, catalog, targetLabel, onAdd, onAddGap, onClose }) {
   const [q, setQ] = useState('')
   const inputRef = useRef(null)
   const results = useMemo(() => search(index, q), [index, q])
@@ -237,7 +283,12 @@ export function AddSheet({ index, catalog, targetLabel, onAdd, onClose }) {
         aria-label="Search products" data-testid="search-input"
       />
       {q.trim() && !results.length && <p className="empty">No products match “{q}”.</p>}
-      {!q.trim() && <p className="muted">Type part of a name (any order: “ketchup hnz”) or the digits of a UPC. To add to a different shelf, close this and tap that shelf first.</p>}
+      {!q.trim() && (
+        <>
+          <p className="muted">Type part of a name (any order: “ketchup hnz”) or the digits of a UPC. To add to a different shelf, close this and tap that shelf first.</p>
+          <button className="btn wide" onClick={onAddGap} data-testid="add-gap">Add an empty space (2 in, change it after)</button>
+        </>
+      )}
       <ul className="results">
         {results.map((p) => (
           <li key={p.upc}>

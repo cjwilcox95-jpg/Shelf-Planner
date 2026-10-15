@@ -202,6 +202,17 @@ export default function App() {
     setSheet(null)
   }
 
+  const onAddGap = () => {
+    const uid = newId('g')
+    const onShelf = sel && sel.where !== TRAY
+    const shelfId = onShelf ? sel.where : activeShelf.id
+    act({ type: 'addGap', shelfId, index: onShelf ? sel.index + 1 : undefined, uid, widthIn: 2 },
+      `Empty space added to ${shelfLabel(plan, shelfId)}`)
+    setSelectedUid(uid)
+    setActiveShelfId(shelfId)
+    setSheet(null)
+  }
+
   const undo = () => { dispatch({ type: 'undo' }); setPlacing(false); showToast('Undone') }
   const redo = () => { dispatch({ type: 'redo' }); setPlacing(false); showToast('Redone') }
 
@@ -319,6 +330,7 @@ export default function App() {
   }
 
   const missing = plan.shelves.reduce((n, s) => n + s.items.filter((i) => !products.info(i).inCatalog).length, 0)
+  const productCount = plan.shelves.reduce((n, s) => n + s.items.filter((i) => i.kind !== 'gap').length, 0)
   const anyGuess = plan.shelves.some((s) => s.items.some((i) => products.isGuess(products.dims(i))))
   const placed = sel && sel.where !== TRAY ? check.byShelf[sel.where].items[sel.index] : null
 
@@ -336,7 +348,7 @@ export default function App() {
       </header>
 
       <main>
-        <SectionSummary plan={plan} check={check} anyGuess={anyGuess} missing={missing} />
+        <SectionSummary plan={plan} check={check} anyGuess={anyGuess} missing={missing} productCount={productCount} />
 
         <section className={`shelf-card${placing ? ' placing' : ''}`} ref={boxRef}>
           <div className="zoom-row">
@@ -383,9 +395,15 @@ export default function App() {
           onPickPhoto={(f) => onPickPhoto(sel.item, f)}
           onRemovePhoto={() => onRemovePhoto(sel.item)}
           onFacings={(n) => act({ type: 'facings', uid: sel.item.uid, facings: n })}
+          onHigh={(n) => act({ type: 'high', uid: sel.item.uid, high: n })}
+          onGapWidth={(w) => act({ type: 'gapWidth', uid: sel.item.uid, widthIn: w })}
           onStartPlace={() => setPlacing(true)}
           onCancelPlace={() => setPlacing(false)}
-          onTakeOff={() => act({ type: 'takeOff', uid: sel.item.uid }, 'Taken off the shelf')}
+          onTakeOff={() => {
+            const gap = sel.item.kind === 'gap'
+            act({ type: 'takeOff', uid: sel.item.uid }, gap ? 'Empty space removed' : 'Taken off the shelf')
+            if (gap) setSelectedUid(null)
+          }}
           onDelete={() => { act({ type: 'deleteItem', uid: sel.item.uid }, `Deleted ${products.info(sel.item).description}`); setSelectedUid(null) }}
           onClose={() => { setSelectedUid(null); setPlacing(false) }}
         />
@@ -400,7 +418,7 @@ export default function App() {
       {sheet === 'add' && (
         <AddSheet index={index} catalog={catalog}
           targetLabel={sel && sel.where !== TRAY ? shelfLabel(plan, sel.where) : shelfLabel(plan, activeShelf.id)}
-          onAdd={onAdd} onClose={() => setSheet(null)} />
+          onAdd={onAdd} onAddGap={onAddGap} onClose={() => setSheet(null)} />
       )}
       {sheet === 'shelf' && (
         <ShelfSheet plan={plan} shelf={activeShelf} catalog={catalog}

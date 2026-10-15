@@ -145,3 +145,28 @@ describe('undo / redo', () => {
     expect(historyReducer(h, { type: 'move', uid: 'b', to: h.present.shelves[BOT].id, insertBefore: 1 })).toBe(h)
   })
 })
+
+describe('stacking and empty spaces', () => {
+  it('sets how many high, and 1 removes it', () => {
+    const p = sample()
+    const q = applyPlanAction(p, { type: 'high', uid: 'a', high: 2 })
+    expect(findItem(q, 'a').item.high).toBe(2)
+    expect('high' in findItem(applyPlanAction(q, { type: 'high', uid: 'a', high: 1 }), 'a').item).toBe(false)
+  })
+  it('adds an empty space and changes its width', () => {
+    const p = sample()
+    const q = applyPlanAction(p, { type: 'addGap', shelfId: p.shelves[BOT].id, index: 1, uid: 'g', widthIn: 3 })
+    expect(ids(q.shelves[BOT].items)).toBe('agbc')
+    const r = applyPlanAction(q, { type: 'gapWidth', uid: 'g', widthIn: 4.6 })
+    expect(findItem(r, 'g').item.widthIn).toBe(4.5) // rounded to a quarter inch
+  })
+  it('taking an empty space off the shelf removes it instead of filling the tray', () => {
+    const p = sample()
+    const withGap = applyPlanAction(p, { type: 'addGap', shelfId: p.shelves[BOT].id, uid: 'g2' })
+    expect(findItem(withGap, 'g2').where).toBe(p.shelves[BOT].id)
+    const q = applyPlanAction(withGap, { type: 'takeOff', uid: 'g2' })
+    expect(findItem(q, 'g2')).toBe(null)
+    expect(q.tray.length).toBe(0)
+    expect(moveTo(withGap, 'g2', TRAY, 0)).toBe(withGap) // dragging it to the tray does nothing
+  })
+})

@@ -22,6 +22,9 @@ export function makeProducts(catalog, { sizes = {}, guessEdits = {} } = {}) {
   const dimsCache = new Map()
 
   function info(item) {
+    if (item.kind === 'gap') {
+      return { upc: '', description: 'Empty space', size: '', gap: true, inCatalog: true, specialOrder: false, color: '#9a9488', subclass: '', className: '' }
+    }
     const p = byUpc.get(item.upc)
     const description = p?.description ?? item.description ?? item.upc
     return {
@@ -41,6 +44,11 @@ export function makeProducts(catalog, { sizes = {}, guessEdits = {} } = {}) {
   }
 
   function dims(item) {
+    if (item.kind === 'gap') {
+      const w = Number(item.widthIn) || 0
+      const source = { w: 'measured', h: 'measured', d: 'measured' }
+      return { w, h: 0, d: 0, source, guess: { w, h: 0, d: 0 }, type: 'gap', basis: '', note: '' }
+    }
     if (dimsCache.has(item.upc)) return dimsCache.get(item.upc)
     const i = info(item)
     const rec = sizes[item.upc]
