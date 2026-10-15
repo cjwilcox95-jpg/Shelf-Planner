@@ -1,71 +1,96 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import ShelfView from './components/ShelfView.jsx'
-import { AddSheet, AfiSheet, ItemList, SelectedPanel, ShelfSheet, Summary } from './components/Panels.jsx'
-import { checkShelf, fmtIn } from './lib/fit.js'
+import SectionView from './components/SectionView.jsx'
+import { AddSheet, PlansSheet, SectionList, SectionSummary, SelectedBar, ShelfSheet } from './components/Panels.jsx'
+import { checkPlan } from './lib/fit.js'
 import { buildIndex } from './lib/search.js'
-import { emptyShelf, historyReducer, initHistory, newUid } from './lib/shelf.js'
+import {
+  TRAY, applyPlanAction, duplicatePlan, findItem, historyReducer, initHistory, newId, newPlan,
+  planFromAfi, planFromOldShelf, shelfLabel,
+} from './lib/plan.js'
 import { makeProducts } from './lib/products.js'
-import { askToKeepData, load, save, validateCatalog } from './lib/storage.js'
+import { askToKeepData, load, save } from './lib/storage.js'
+import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
 const MAX_SCALE = 40
 
-export function shelfFromAfi(reset, s) {
-  return {
-    name: `${reset.name} · shelf ${s.shelf}`,
-    widthIn: reset.widthFt * 12,
-    depthIn: 24,
-    clearanceIn: 12,
-    note: `From the AFI ${reset.name} reset (${reset.date}). AFI planned this shelf ${s.depthIn} in deep; it is set to your standard 24 in.`,
-    items: s.items.map((i) => ({ uid: newUid(), upc: i.upc, facings: i.facings, description: i.description, size: i.size })),
-  }
+function starterPlan(catalog) {
+  const r = catalog.resets?.find((x) => /KETCHUP/i.test(x.name))
+  return r ? planFromAfi(r) : newPlan({ name: 'My section' })
 }
 
-function demoShelf(catalog) {
-  const reset = catalog.resets?.find((r) => /KETCHUP/i.test(r.name))
-  const s = reset?.shelves.find((x) => x.shelf === 4) || reset?.shelves[0]
-  return reset && s ? shelfFromAfi(reset, s) : emptyShelf()
-}
+const mostRecent = (plans) =>
+  Object.values(plans).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0]
 
 export default function App() {
   const [phase, setPhase] = useState('loading') // loading | needData | ready
   const [catalog, setCatalog] = useState(null)
-  const [hist, dispatch] = useReducer(historyReducer, null, () => initHistory(emptyShelf()))
+  const [plans, setPlans] = useState({})
+  const plansRef = useRef({})
+  const [hist, dispatch] = useReducer(historyReducer, null, () => initHistory(newPlan()))
   const [selectedUid, setSelectedUid] = useState(null)
+  const [activeShelfId, setActiveShelfId] = useState(null)
   const [placing, setPlacing] = useState(false)
   const [sheet, setSheet] = useState(null)
-  const [zoom, setZoom] = useState(null) // null = fit the shelf to the screen
+  const [zoom, setZoom] = useState(null) // null = fit the section to the screen
   const [toast, setToast] = useState(null)
+  const [lastBackupAt, setLastBackupAt] = useState(null)
   const [boxWidth, setBoxWidth] = useState(360)
   const boxRef = useRef(null)
   const toastTimer = useRef(null)
-  const shelf = hist.present
+  const plan = hist.present
 
-  // Load saved data from this device.
+  const commitPlans = useCallback((next) => {
+    plansRef.current = next
+    setPlans(next)
+    save('plans', next).catch((e) => console.error('save failed', e))
+  }, [])
+
+  const openPlan = useCallback((p) => {
+    dispatch({ type: 'open', plan: p })
+    setSelectedUid(null)
+    setPlacing(false)
+    setZoom(null)
+    setActiveShelfId(p.shelves[p.shelves.length - 1].id)
+  }, [])
+
+  const startWith = useCallback((cat, saved, currentId, oldShelf) => {
+    let all = saved && Object.keys(saved).length ? saved : null
+    if (!all) {
+      const p = oldShelf ? planFromOldShelf(oldShelf) : starterPlan(cat)
+      all = { [p.id]: p }
+    }
+    commitPlans(all)
+    openPlan(all[currentId] || mostRecent(all))
+    setPhase('ready')
+  }, [commitPlans, openPlan])
+
+  // Load what is saved on this device.
   useEffect(() => {
     (async () => {
       try {
-        const [cat, saved] = await Promise.all([load('catalog'), load('shelf')])
-        if (cat && !validateCatalog(cat)) {
+        const [cat, saved, currentId, oldShelf, lastBk] = await Promise.all(
+          ['catalog', 'plans', 'currentPlanId', 'shelf', 'lastBackupAt'].map((k) => load(k)))
+        setLastBackupAt(lastBk || null)
+        if (identifyFile(cat).type === 'catalog') {
           setCatalog(cat)
-          dispatch({ type: 'replaceAll', shelf: saved || demoShelf(cat) })
-          setPhase('ready')
-        } else {
-          setPhase('needData')
-        }
+          startWith(cat, saved, currentId, oldShelf)
+        } else setPhase('needData')
       } catch (e) {
         console.error(e)
         setPhase('needData')
       }
     })()
-  }, [])
+  }, [startWith])
 
-  // Save the shelf after every change.
+  // Save the open plan after every change.
   useEffect(() => {
-    if (phase === 'ready') save('shelf', shelf).catch((e) => console.error('save failed', e))
-  }, [shelf, phase])
+    if (phase !== 'ready') return
+    commitPlans({ ...plansRef.current, [plan.id]: plan })
+    save('currentPlanId', plan.id).catch(() => {})
+  }, [plan, phase, commitPlans])
 
-  // Measure the space the shelf drawing has, to fit it to the screen.
+  // Measure the space for the drawing, to fit the section to the screen.
   useEffect(() => {
     const el = boxRef.current
     if (!el) return undefined
@@ -77,10 +102,8 @@ export default function App() {
 
   const products = useMemo(() => makeProducts(catalog), [catalog])
   const index = useMemo(() => (catalog ? buildIndex(catalog) : []), [catalog])
-  const fit = useMemo(() => checkShelf(shelf, (item) => products.dims(item)), [shelf, products])
-
-  // "Fit" shows the whole shelf, plus anything hanging past the end when it is over.
-  const fitScale = Math.max(MIN_SCALE, (boxWidth - 28) / (Math.max(shelf.widthIn, fit.usedIn) + 3))
+  const check = useMemo(() => checkPlan(plan, (item) => products.dims(item)), [plan, products])
+  const fitScale = Math.max(MIN_SCALE, (boxWidth - 28) / (check.widestIn + 3))
   const scale = zoom ?? fitScale
 
   const showToast = useCallback((text, undoable = false) => {
@@ -89,79 +112,141 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 4000)
   }, [])
 
-  const selected = shelf.items.find((i) => i.uid === selectedUid)
-  const selectedIndex = shelf.items.findIndex((i) => i.uid === selectedUid)
-
   const act = (a, message) => {
+    if (applyPlanAction(plan, a) === plan) return false // nothing would change
     dispatch(a)
     if (message) showToast(message, true)
+    return true
   }
 
-  const onMove = (uid, insertBefore) => {
-    const from = shelf.items.findIndex((i) => i.uid === uid)
-    if (insertBefore === from || insertBefore === from + 1) {
-      setPlacing(false)
-      return
-    }
-    act({ type: 'move', uid, insertBefore }, 'Moved')
-    setSelectedUid(uid)
+  const activeShelf = plan.shelves.find((s) => s.id === activeShelfId) || plan.shelves[plan.shelves.length - 1]
+  const sel = selectedUid ? findItem(plan, selectedUid) : null
+
+  // ---------- product actions ----------
+  const onMove = (uid, shelfId, insertBefore) => {
+    const fromTray = findItem(plan, uid)?.where === TRAY
+    act({ type: 'move', uid, to: shelfId, insertBefore }, fromTray ? `Put on ${shelfLabel(plan, shelfId)}` : 'Moved')
     setPlacing(false)
+    setSelectedUid(uid)
+    setActiveShelfId(shelfId)
   }
 
   const onAdd = (p) => {
-    const uid = newUid()
-    const index = selectedIndex >= 0 ? selectedIndex + 1 : shelf.items.length
-    act({ type: 'add', uid, upc: p.upc, description: p.description, size: p.size, index }, `Added ${p.description}`)
+    const uid = newId('i')
+    const onShelf = sel && sel.where !== TRAY
+    const shelfId = onShelf ? sel.where : activeShelf.id
+    const at = onShelf ? sel.index + 1 : undefined
+    act({ type: 'add', shelfId, index: at, uid, upc: p.upc, description: p.description, size: p.size },
+      `Added to ${shelfLabel(plan, shelfId)}`)
     setSelectedUid(uid)
-    setSheet(null)
-  }
-
-  const onLoadAfi = (reset, s) => {
-    act({ type: 'load', shelf: shelfFromAfi(reset, s) }, `Loaded AFI ${reset.name}, shelf ${s.shelf}`)
-    setSelectedUid(null)
-    setPlacing(false)
-    setZoom(null)
+    setActiveShelfId(shelfId)
     setSheet(null)
   }
 
   const undo = () => { dispatch({ type: 'undo' }); setPlacing(false); showToast('Undone') }
   const redo = () => { dispatch({ type: 'redo' }); setPlacing(false); showToast('Redone') }
 
-  const onDataFile = async (file) => {
-    const text = await file.text()
-    let doc
-    try { doc = JSON.parse(text) } catch { return 'That file could not be read. Pick the catalog.json file.' }
-    const problem = validateCatalog(doc)
-    if (problem) return problem
-    await save('catalog', doc)
-    await askToKeepData()
-    setCatalog(doc)
-    const saved = await load('shelf')
-    dispatch({ type: 'replaceAll', shelf: saved || demoShelf(doc) })
-    setPhase('ready')
+  // ---------- plan actions ----------
+  const allPlans = () => ({ ...plansRef.current, [plan.id]: plan })
+
+  const onOpenPlan = (id) => {
+    openPlan(plansRef.current[id])
     setSheet(null)
-    return null
+    showToast(`Opened ${plansRef.current[id].name}`)
+  }
+  const onDuplicate = (id) => {
+    const src = id === plan.id ? plan : plansRef.current[id]
+    const copy = duplicatePlan(src)
+    commitPlans({ ...allPlans(), [copy.id]: copy })
+    openPlan(copy)
+    setSheet(null)
+    showToast(`Now editing the copy: ${copy.name}`)
+  }
+  const onRename = (id, name) => {
+    if (id === plan.id) dispatch({ type: 'rename', name })
+    else commitPlans({ ...plansRef.current, [id]: { ...plansRef.current[id], name, updatedAt: new Date().toISOString() } })
+  }
+  const onDeletePlan = (id) => {
+    const victim = id === plan.id ? plan : plansRef.current[id]
+    if (!window.confirm(`Delete the plan “${victim.name}”? This cannot be undone.`)) return
+    const rest = { ...allPlans() }
+    delete rest[id]
+    if (id === plan.id) {
+      const next = mostRecent(rest) || newPlan({ name: 'My section' })
+      rest[next.id] = next
+      commitPlans(rest)
+      openPlan(next)
+    } else commitPlans(rest)
+    showToast(`Deleted ${victim.name}`)
+  }
+  const onNewPlan = (p, message) => {
+    commitPlans({ ...allPlans(), [p.id]: p })
+    openPlan(p)
+    setSheet(null)
+    showToast(message)
+  }
+
+  const onExport = async () => {
+    try {
+      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog }))
+      const how = await shareOrDownload(text, backupFileName())
+      if (how === 'cancelled') return 'Backup cancelled.'
+      const now = new Date().toISOString()
+      setLastBackupAt(now)
+      save('lastBackupAt', now).catch(() => {})
+      return how === 'shared' ? 'Backup made. If you chose “Save to Files”, it is in the Files app.' : 'Backup downloaded.'
+    } catch (e) {
+      return `Could not make the backup: ${e.message}`
+    }
+  }
+
+  /** catalog.json or a backup file, picked on the first screen or under Plans. */
+  const onImportFile = async (file) => {
+    let doc
+    try { doc = JSON.parse(await file.text()) } catch { return 'Could not read that file.' }
+    const kind = identifyFile(doc)
+    if (!kind.type) return kind.problem
+    if (kind.type === 'catalog') {
+      await save('catalog', doc)
+      await askToKeepData()
+      setCatalog(doc)
+      if (phase !== 'ready') startWith(doc, await load('plans'), await load('currentPlanId'), await load('shelf'))
+      setSheet(null)
+      return `Store data loaded: ${doc.items.length.toLocaleString()} products.`
+    }
+    // backup
+    const cat = identifyFile(doc.catalog).type === 'catalog' ? doc.catalog : catalog
+    if (!cat) return 'This backup has no store data. Load catalog.json first.'
+    if (cat !== catalog) { await save('catalog', cat); setCatalog(cat) }
+    await askToKeepData()
+    const base = phase === 'ready' ? allPlans() : (await load('plans')) || {}
+    const { merged, counts } = mergePlans(base, doc.plans)
+    if (phase !== 'ready') {
+      startWith(cat, merged, await load('currentPlanId'), null)
+    } else {
+      commitPlans(merged)
+      if (merged[plan.id] !== plan) openPlan(merged[plan.id])
+    }
+    if (sheet === 'data') setSheet(null)
+    return `Backup loaded: ${counts.added} new plan${counts.added === 1 ? '' : 's'}, ${counts.updated} updated` +
+      (counts.keptPhone ? `, ${counts.keptPhone} kept because this phone’s copy was newer` : '') + '. Nothing was deleted.'
   }
 
   if (phase === 'loading') return <div className="center-msg">Loading…</div>
   if (phase === 'needData' || sheet === 'data') {
-    return <ImportScreen onFile={onDataFile} onCancel={phase === 'ready' ? () => setSheet(null) : null} />
+    return <ImportScreen onFile={onImportFile} onCancel={phase === 'ready' ? () => setSheet(null) : null} />
   }
 
-  const warnings = []
-  const count = (k) => fit.items.filter((p) => p[k]).length
-  if (count('tooDeep')) warnings.push(`${count('tooDeep')} too deep for a ${fmtIn(shelf.depthIn)} in shelf`)
-  if (count('tooTall')) warnings.push(`${count('tooTall')} taller than the ${fmtIn(shelf.clearanceIn)} in clearance`)
-  const missing = shelf.items.filter((i) => !products.info(i).inCatalog).length
-  if (missing) warnings.push(`${missing} not in your store's item files`)
-  const anyGuess = shelf.items.some((i) => products.isGuess(products.dims(i)))
+  const missing = plan.shelves.reduce((n, s) => n + s.items.filter((i) => !products.info(i).inCatalog).length, 0)
+  const anyGuess = plan.shelves.some((s) => s.items.some((i) => products.isGuess(products.dims(i))))
+  const placed = sel && sel.where !== TRAY ? check.byShelf[sel.where].items[sel.index] : null
 
   return (
-    <div className="app">
+    <div className={`app${sel ? ' has-selection' : ''}`}>
       <header className="topbar">
-        <button className="title-btn" onClick={() => setSheet('shelf')} aria-label="Shelf name and size">
-          <span className="title">{shelf.name}</span>
-          <span className="muted">{fmtIn(shelf.widthIn)} W × {fmtIn(shelf.depthIn)} D in · {fmtIn(shelf.clearanceIn)} in clearance ✎</span>
+        <button className="title-btn" onClick={() => setSheet('plans')} aria-label="Open plans and backup">
+          <span className="title" data-testid="plan-name">{plan.name}</span>
+          <span className="muted">{plan.shelves.length} shelves · tap for plans & backup ▾</span>
         </button>
         <div className="topbar-actions">
           <button className="icon-btn labeled" onClick={undo} disabled={!hist.past.length} aria-label="Undo">↶<small>Undo</small></button>
@@ -170,70 +255,89 @@ export default function App() {
       </header>
 
       <main>
-        <Summary shelf={shelf} fit={fit} anyGuess={anyGuess} warnings={warnings} />
+        <SectionSummary plan={plan} check={check} anyGuess={anyGuess} missing={missing} />
 
         <section className={`shelf-card${placing ? ' placing' : ''}`} ref={boxRef}>
           <div className="zoom-row">
-            <span className="muted small">{placing ? 'Tap a spot on the shelf' : 'Hold a product to drag it'}</span>
+            <span className="muted small">{placing ? 'Tap a shelf where it goes' : 'Hold a product to drag it'}</span>
             <div className="zoom-btns">
               <button className="icon-btn" onClick={() => setZoom(Math.max(MIN_SCALE, scale / 1.4))} aria-label="Zoom out">−</button>
               <button className="btn small-btn" onClick={() => setZoom(null)} aria-pressed={zoom == null}>Fit</button>
               <button className="icon-btn" onClick={() => setZoom(Math.min(MAX_SCALE, scale * 1.4))} aria-label="Zoom in">+</button>
             </div>
           </div>
-          <ShelfView
-            shelf={shelf}
-            fit={fit}
+          <SectionView
+            plan={plan}
+            fits={check.byShelf}
             products={products}
             scale={scale}
+            viewWidth={boxWidth - 4}
             selectedUid={selectedUid}
+            activeShelfId={activeShelf.id}
             placing={placing}
-            onTapItem={(uid) => setSelectedUid(uid === selectedUid ? null : uid)}
+            onTapItem={(uid, shelfId) => { setSelectedUid(uid === selectedUid ? null : uid); setActiveShelfId(shelfId); setPlacing(false) }}
             onMove={onMove}
-            onPlace={onMove}
-            onTapEmpty={() => { setSelectedUid(null); setPlacing(false) }}
+            onTapShelf={(shelfId) => { setActiveShelfId(shelfId); setSelectedUid(null); setPlacing(false) }}
           />
         </section>
 
-        {selected && (
-          <SelectedPanel
-            item={selected}
-            info={products.info(selected)}
-            dims={products.dims(selected)}
-            placed={fit.items[selectedIndex]}
-            position={selectedIndex + 1}
-            placing={placing}
-            clearanceIn={shelf.clearanceIn}
-            onFacings={(n) => act({ type: 'facings', uid: selected.uid, facings: n })}
-            onStartPlace={() => setPlacing(true)}
-            onCancelPlace={() => setPlacing(false)}
-            onRemove={() => { act({ type: 'remove', uid: selected.uid }, `Removed ${products.info(selected).description}`); setSelectedUid(null); setPlacing(false) }}
-            onClose={() => { setSelectedUid(null); setPlacing(false) }}
-          />
-        )}
-
-        <h2 className="list-title">On this shelf, left to right</h2>
-        <ItemList shelf={shelf} fit={fit} products={products} selectedUid={selectedUid}
-          onSelect={(uid) => { setSelectedUid(uid); setPlacing(false) }} />
-        {shelf.note && <p className="muted small note">{shelf.note}</p>}
+        <SectionList plan={plan} fits={check.byShelf} products={products} selectedUid={selectedUid}
+          onSelect={(uid, where) => { setSelectedUid(uid); setPlacing(false); if (where !== TRAY) setActiveShelfId(where) }} />
+        {plan.note && <p className="muted small note">{plan.note}</p>}
       </main>
 
+      {sel && (
+        <SelectedBar
+          plan={plan}
+          where={sel.where}
+          index={sel.index}
+          item={sel.item}
+          info={products.info(sel.item)}
+          dims={products.dims(sel.item)}
+          placed={placed}
+          placing={placing}
+          onFacings={(n) => act({ type: 'facings', uid: sel.item.uid, facings: n })}
+          onStartPlace={() => setPlacing(true)}
+          onCancelPlace={() => setPlacing(false)}
+          onTakeOff={() => act({ type: 'takeOff', uid: sel.item.uid }, 'Taken off the shelf')}
+          onDelete={() => { act({ type: 'deleteItem', uid: sel.item.uid }, `Deleted ${products.info(sel.item).description}`); setSelectedUid(null) }}
+          onClose={() => { setSelectedUid(null); setPlacing(false) }}
+        />
+      )}
+
       <nav className="bottombar">
-        <button className="btn primary" onClick={() => setSheet('add')} data-testid="open-add">＋ Add product</button>
-        <button className="btn" onClick={() => setSheet('afi')}>AFI sets</button>
+        <button className="btn primary" onClick={() => setSheet('add')} data-testid="open-add">＋ Add</button>
+        <button className="btn" onClick={() => setSheet('plans')}>Plans</button>
         <button className="btn" onClick={() => setSheet('shelf')}>Shelf size</button>
       </nav>
 
-      {sheet === 'add' && <AddSheet index={index} catalog={catalog} onAdd={onAdd} onClose={() => setSheet(null)} />}
-      {sheet === 'afi' && <AfiSheet resets={catalog.resets || []} products={products} onLoad={onLoadAfi} onClose={() => setSheet(null)} />}
+      {sheet === 'add' && (
+        <AddSheet index={index} catalog={catalog}
+          targetLabel={sel && sel.where !== TRAY ? shelfLabel(plan, sel.where) : shelfLabel(plan, activeShelf.id)}
+          onAdd={onAdd} onClose={() => setSheet(null)} />
+      )}
       {sheet === 'shelf' && (
-        <ShelfSheet shelf={shelf} catalog={catalog}
-          onSave={(changes) => act({ type: 'shelf', changes }, 'Shelf updated')}
+        <ShelfSheet plan={plan} shelf={activeShelf} catalog={catalog}
+          onSave={(changes, all) => act({ type: 'shelf', shelfId: activeShelf.id, changes, all }, all ? 'Every shelf updated' : 'Shelf updated')}
+          onAddShelf={(position) => {
+            const id = newId('s')
+            act({ type: 'addShelf', position, id }, `Added a shelf at the ${position}`)
+            setActiveShelfId(id)
+          }}
+          onRemoveShelf={(shelfId) => act({ type: 'removeShelf', shelfId }, 'Shelf removed; its products are off the shelf')}
           onClose={() => setSheet(null)}
           onReplaceData={() => setSheet('data')} />
       )}
+      {sheet === 'plans' && (
+        <PlansSheet
+          plans={plans} currentId={plan.id} resets={catalog.resets || []} lastBackupAt={lastBackupAt}
+          onOpen={onOpenPlan} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDeletePlan}
+          onNewBlank={({ shelves, widthIn }) => onNewPlan(newPlan({ name: `New ${shelves}-shelf section`, shelves, widthIn }), 'New empty section')}
+          onNewAfi={(r) => onNewPlan(planFromAfi(r), `New plan from AFI ${r.name}`)}
+          onExport={onExport} onImportFile={onImportFile} onClose={() => setSheet(null)} />
+      )}
 
-      {toast && (
+      {toast && !sheet && (
         <div className="toast" role="status">
           <span>{toast.text}</span>
           {toast.undoable && <button className="btn" onClick={() => { undo(); setToast(null) }}>Undo</button>}
@@ -244,17 +348,17 @@ export default function App() {
 }
 
 function ImportScreen({ onFile, onCancel }) {
-  const [error, setError] = useState(null)
+  const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
   const pick = async (e) => {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
     setBusy(true)
-    setError(null)
-    const problem = await onFile(file).catch((err) => `Something went wrong: ${err.message}`)
+    setMsg(null)
+    const result = await onFile(file).catch((err) => `Could not load it: ${err.message}`)
     setBusy(false)
-    if (problem) setError(problem)
-    e.target.value = ''
+    setMsg(result)
   }
   return (
     <div className="import">
@@ -263,17 +367,15 @@ function ImportScreen({ onFile, onCancel }) {
       <div className="import-card">
         <h2>Load your store data</h2>
         <p>
-          The app needs your store's product list once. It is the file <strong>catalog.json</strong>.
-          It has product names, sizes and UPCs, with no costs or prices.
+          Pick <strong>catalog.json</strong> (your store's product list: names, sizes and UPCs, no costs or prices),
+          or a <strong>shelf-planner-backup</strong> file from another phone.
         </p>
-        <p className="muted">
-          The file stays on this phone. Nothing is uploaded anywhere.
-        </p>
+        <p className="muted">The file stays on this phone. Nothing is uploaded anywhere.</p>
         <label className={`btn primary wide file-btn${busy ? ' busy' : ''}`}>
-          {busy ? 'Loading…' : 'Choose catalog.json'}
+          {busy ? 'Loading…' : 'Choose file'}
           <input type="file" accept=".json,application/json" onChange={pick} disabled={busy} data-testid="data-file" />
         </label>
-        {error && <p className="error" role="alert">{error}</p>}
+        {msg && <p className="error" role="alert">{msg}</p>}
         {onCancel && <button className="btn wide" onClick={onCancel}>Cancel</button>}
       </div>
     </div>

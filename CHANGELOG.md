@@ -2,6 +2,21 @@
 
 Plain-English notes on what changed at each stage.
 
+## Stage 3: whole sections, plans and backup (2026-10-15)
+
+- The screen now shows a whole section: every shelf stacked top to bottom, all at one scale.
+  Each shelf shows inches used and inches left (or OVER) on one line.
+- Drag products between shelves with your finger, or tap, Move, then tap any shelf.
+- "Take off" moves a product to an "Off the shelf" tray instead of deleting it, so you can see what was cut
+  and put it back. AFI's left-off items start there too.
+- Plans: save several, open, copy (keep "current" and "proposed"), rename, delete.
+- Start a new plan from a whole AFI reset (every shelf, AFI's facings) or an empty section.
+- Shelf size per shelf, or for every shelf at once. Add or remove shelves.
+- Export backup: one file with all plans and the store data (Save to Files). Import merges it back
+  without deleting anything, so it also moves everything to a new phone.
+- The summary says "Everything fits" only when width, height and depth all fit.
+- The one shelf saved by Stage 2 becomes a plan automatically.
+
 ## Fix (2026-10-15)
 
 - The app now works at its real address, https://cjwilcox95-jpg.github.io/Shelf-Planner/ (GitHub addresses are case-sensitive; the app was built for lowercase).

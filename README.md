@@ -18,7 +18,7 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 
 ## Status
 
-**Stage 2: one shelf you can plan on your phone.**
+**Stage 3: whole sections, saved plans and backup.**
 
 Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, load your `catalog.json` file). See [CHANGELOG.md](CHANGELOG.md).
 
@@ -27,10 +27,12 @@ Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, lo
 | 0 | Read the data files, set up the project | Done (AFI category master still to come) |
 | 1 | Clean product catalog (no cost data), UPC match report | Done (AFI resets: 3 of 35 PDFs so far) |
 | 2 | One shelf drawn to scale, finger drag, capacity bar, search, Ketchup-Mustard demo | Done |
-| 3 | Product detail panel, editable dimensions, default-guess table | Not started |
-| 4 | Several shelves, save/load/duplicate plans, undo/redo, backup, start from an AFI reset | Not started |
+| 3 | Whole section (stacked shelves, drag between them), plans (save/copy/rename/delete), undo/redo, "off the shelf" tray, backup file, start from a whole AFI reset | Done |
+| 4 | Product detail panel, editable dimensions, default-guess table | Next |
 | 5 | Photos (camera, background removal), print/export | Not started |
 | 6 | Movement-based suggestions (only when asked) | Not started |
+
+(Stages 3 and 4 were swapped on 2026-10-15 so whole sections came first.)
 
 ## Project layout
 
@@ -72,13 +74,15 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 
 ## Known limits
 
-- **Every product size is a guess** (dashed outline and ~). Editing real sizes comes in Stage 3.
-- One shelf at a time. Several shelves per section, and saving several plans, come in Stage 4.
-- **Back up**: export/import backup comes in Stage 4. Until then the shelf lives only in this phone's browser.
-  On iPhone, Safari can clear a website's saved data if you don't open it for a few weeks;
-  adding the app to your Home Screen (Share, then Add to Home Screen) protects against that.
-- Dragging was tested with simulated touch in Chrome, not on a real iPhone or Android phone yet.
-- On very crowded shelves the position numbers overlap at the zoomed-out view; zoom in to read them.
+- **Every product size is a guess** (dashed outline and ~). Editing real sizes comes in Stage 4.
+- **Back up regularly** (Plans, then Export backup). Plans live only in the phone's browser.
+  On iPhone, Safari can clear a website's saved data if it isn't opened for a few weeks;
+  adding the app to the Home Screen (Share, then Add to Home Screen) protects against that.
+  Open the app in Safari or from the Home Screen icon, not inside another app's built-in browser.
+- Dragging was tested with simulated touch in Chrome. CJ has used it on an iPhone; report anything odd.
+- On very crowded shelves the position numbers overlap when zoomed out; zoom in to read them.
+- Importing a backup merges plans (newer copy wins); it never deletes plans on the phone.
+- Clearance defaults to 12 in on every shelf; set each shelf's real clearance under "Shelf size".
 - No vendor names: neither AFI file has a vendor column.
 - Product names are AFI's 30-character abbreviations (e.g. "HNZ KETCHUP JUG").
 - Only about 380 items have an aisle (from the store order list).

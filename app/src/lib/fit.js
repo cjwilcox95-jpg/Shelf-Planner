@@ -71,3 +71,22 @@ export function fmtIn(x, places = 1) {
   const r = Math.round((x + Number.EPSILON) * f) / f
   return String(Object.is(r, -0) ? 0 : r)
 }
+
+/** Check every shelf of a plan. Returns a fit for each shelf id, plus totals. */
+export function checkPlan(plan, dimsOf) {
+  const byShelf = {}
+  let overCount = 0
+  for (const s of plan.shelves) {
+    const f = checkShelf(s, dimsOf)
+    byShelf[s.id] = f
+    if (f.isOver) overCount++
+  }
+  const all = Object.values(byShelf)
+  return {
+    byShelf,
+    overCount,
+    tooDeep: all.reduce((n, f) => n + f.items.filter((i) => i.tooDeep).length, 0),
+    tooTall: all.reduce((n, f) => n + f.items.filter((i) => i.tooTall).length, 0),
+    widestIn: Math.max(0, ...plan.shelves.map((s) => Math.max(s.widthIn, byShelf[s.id].usedIn))),
+  }
+}

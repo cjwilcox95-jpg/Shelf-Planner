@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { itemWidth, unitsDeep, checkShelf, insertIndexAt, fmtIn } from './fit.js'
+import { itemWidth, unitsDeep, checkShelf, checkPlan, insertIndexAt, fmtIn } from './fit.js'
 
 const shelf = (items, over = {}) => ({ widthIn: 48, depthIn: 24, clearanceIn: 12, items, ...over })
 const dimsTable = {
@@ -125,5 +125,22 @@ describe('fmtIn', () => {
     expect(fmtIn(4.4999999)).toBe('4.5')
     expect(fmtIn(12)).toBe('12')
     expect(fmtIn(-0.00001)).toBe('0')
+  })
+})
+
+describe('checkPlan', () => {
+  it('checks each shelf on its own and counts the ones over', () => {
+    const plan = {
+      shelves: [
+        { id: 'bottom', widthIn: 48, depthIn: 24, clearanceIn: 12, items: [{ uid: 'a', upc: 'jug64', facings: 13 }] }, // 52 in
+        { id: 'top', widthIn: 48, depthIn: 24, clearanceIn: 12, items: [{ uid: 'b', upc: 'ketchup20', facings: 2 }] },
+      ],
+    }
+    const r = checkPlan(plan, dimsOf)
+    expect(r.overCount).toBe(1)
+    expect(r.byShelf.bottom.overIn).toBeCloseTo(4)
+    expect(r.byShelf.top.remainingIn).toBeCloseTo(42.5)
+    expect(r.widestIn).toBeCloseTo(52)
+    expect(r.tooTall).toBe(1) // one product (13 facings of it) taller than the 12 in clearance
   })
 })
