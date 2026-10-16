@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveDims, cleanSizes, mergeSizes, measureFromPhoto } from './sizes.js'
+import { resolveDims, cleanSizes, mergeSizes, measureFromPhoto, sourceMark } from './sizes.js'
 
 const guess = { w: 2.75, h: 8.5, d: 2.1 }
 
@@ -55,5 +55,24 @@ describe('measureFromPhoto', () => {
   })
   it('refuses nonsense', () => {
     expect(measureFromPhoto({ x: 1, y: 1 }, { x: 1, y: 1 }, 48, { x: 0, y: 0 }, { x: 5, y: 0 })).toBeNull()
+  })
+})
+
+describe('AFI planogram sizes', () => {
+  const guess = { w: 3, h: 8, d: 2 }
+  const afi = { w: 3.69, h: 7.07, d: 2.24 }
+  it('AFI width and height replace a guess; AFI depth is an estimate', () => {
+    const r = resolveDims(guess, undefined, afi)
+    expect([r.w, r.h, r.d]).toEqual([3.69, 7.07, 2.24])
+    expect(r.source).toEqual({ w: 'afi', h: 'afi', d: 'afiEstimate' })
+  })
+  it('what you enter yourself (tape or photo) beats AFI', () => {
+    const r = resolveDims(guess, { w: { v: 3.5, src: 'measured' }, h: { v: 7.5, src: 'photo' } }, afi)
+    expect(r.source).toEqual({ w: 'measured', h: 'photo', d: 'afiEstimate' })
+    expect([r.w, r.h, r.d]).toEqual([3.5, 7.5, 2.24])
+  })
+  it('marks: nothing for AFI drawing sizes, ≈ for the depth estimate', () => {
+    expect(sourceMark('afi')).toBe('')
+    expect(sourceMark('afiEstimate')).toBe('≈')
   })
 })

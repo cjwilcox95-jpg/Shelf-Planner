@@ -22,7 +22,10 @@ export function newPlan({ name = 'New plan', shelves = 5, widthIn = 48 } = {}) {
   }
 }
 
-const itemFrom = (i) => ({ uid: newId('i'), upc: i.upc, facings: i.facings || 1, description: i.description, size: i.size })
+const itemFrom = (i) => ({
+  uid: newId('i'), upc: i.upc, facings: i.facings || 1, description: i.description, size: i.size,
+  ...(i.high > 1 ? { high: i.high } : {}), // AFI stacked it
+})
 
 /** A whole AFI reset as a plan: every shelf with AFI's facings; items AFI left off go to the tray. */
 export function planFromAfi(reset) {

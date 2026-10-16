@@ -45,6 +45,7 @@ scripts/       Data-prep tools (Python):
                  upc.py                 turns every UPC format into one 12-digit key
                  make_photo_pack.py     folder of pictures named by UPC -> one photo pack file for the app
                  read_movement_scan.py  scanned BRData movement report -> movement.json (UPC + units sold only)
+                 read_afi_sizes.py      real product sizes from the to-scale drawing in each AFI reset PDF
 tests/         Automatic checks for data prep. Run: python3 -m unittest discover -s tests
 app/           The web app (React + Vite).
                  src/lib/        fit math, dimension guesses, search, undo, on-device storage (with unit tests)
@@ -117,7 +118,9 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 
 ## Known limits
 
-- Sizes start as guesses (dashed outline and ~). Correct them under Edit size (tape = measured, or ≈ from a photo).
+- Sizes start as guesses (dashed outline and ~), except products in an AFI reset PDF: those use AFI's planogram
+  width and height (drawn to scale in 2022-24; a package may have changed since) and a depth estimate (≈) worked
+  out from AFI's shelf count. Correct any size under Edit size (tape = measured, or ≈ from a photo).
 - Photos are drawn inside the product's size box, so a photo can look short or narrow while its size is still a guess.
 - Measuring from a photo is about ±10% (camera distortion); a tape measure is better.
 - Stacks and empty spaces are modeled. A product hanging across two sections is not (the plan notes say where).

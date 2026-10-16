@@ -10,7 +10,7 @@ const pick = (obj, keys) => {
 // Must match scripts/build_catalog.py (ALLOWED_FIELDS and ALLOWED_RESET_ITEM).
 const CATALOG_ITEM = ['upc', 'description', 'pack', 'size', 'sizeValue', 'uom', 'sizeNote', 'classCode', 'subclassCode',
   'source', 'specialOrder', 'display', 'aisle']
-const RESET_ITEM = ['location', 'upc', 'description', 'casePack', 'size', 'facings', 'capacity', 'status', 'matchNote']
+const RESET_ITEM = ['location', 'upc', 'description', 'casePack', 'size', 'facings', 'capacity', 'status', 'matchNote', 'high']
 const RESET = ['id', 'name', 'date', 'source', 'widthFt', 'heightFt']
 
 /** The store-data file with only known fields; AFI resets with no shelves are left out. */
@@ -23,6 +23,12 @@ export function cleanCatalog(doc) {
       shelves: r.shelves.map((s) => ({ shelf: s.shelf, depthIn: s.depthIn, items: (s.items || []).map((i) => pick(i, RESET_ITEM)) })),
       unallocated: (r.unallocated || []).map((i) => pick(i, RESET_ITEM)),
     }))
+  const afiSizes = {}
+  for (const [upc, r] of Object.entries(doc.afiSizes || {})) {
+    const ok = (x) => typeof x === 'number' && x > 0 && x < 100
+    if (!/^\d{12}$/.test(upc) || !ok(r?.w) || !ok(r?.h)) continue
+    afiSizes[upc] = { w: r.w, h: r.h, ...(ok(r.d) ? { d: r.d } : {}), reset: String(r.reset || ''), date: String(r.date || '') }
+  }
   return {
     kind: 'shelf-planner-catalog',
     version: doc.version,
@@ -32,6 +38,7 @@ export function cleanCatalog(doc) {
     subclassNames: doc.subclassNames || {},
     items,
     resets,
+    afiSizes,
   }
 }
 

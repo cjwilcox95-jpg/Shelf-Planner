@@ -210,9 +210,9 @@ test('shelf size for one shelf or all, add and remove a shelf', async ({ page })
   await loadData(page)
   await page.getByTestId('shelf-head').nth(0).click()
   await page.getByRole('button', { name: 'Shelf', exact: true }).click()
-  await page.getByTestId('field-clearanceIn').fill('9')
+  await page.getByTestId('field-clearanceIn').fill('6')
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByTestId('section-status')).toHaveText('Width fits') // tall bottles no longer clear 9 in
+  await expect(page.getByTestId('section-status')).toHaveText('Width fits') // the 6.6 in mustard bottles no longer clear 6 in
   await expect(page.getByTestId('summary')).toContainText('taller than the clearance')
   await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await page.getByRole('button', { name: '36', exact: true }).click()
@@ -346,14 +346,18 @@ test('edit a product size: saved everywhere, marks change from ~ to measured', a
 
 test('change the default guesses for a package type', async ({ page }) => {
   await loadData(page)
-  const tile = rows(page).nth(0).getByTestId('tile').nth(0) // FRENCHS MUSTARD SQUEEZE HONEY 12 oz, 2 facings
-  const firstRow = page.getByTestId('item-list').locator('section').filter({ has: page.locator('h2', { hasText: 'Shelf 7 (top)' }) }).locator('.row-sub').first()
-  await expect(firstRow).toContainText('~4.5 in') // 2 x 2.25 in guess
+  // a squeeze bottle with no AFI size, so its size is a guess
+  await page.getByTestId('open-add').click()
+  await page.getByTestId('search-input').fill('021000026876') // KRAFT MAYO SQUEEZE 12 OZ
+  await page.getByTestId('add-result').first().click()
+  const tile = page.locator('.tile.selected')
+  const firstRow = page.getByTestId('item-list').locator('.row').filter({ hasText: 'KRAFT MAYO SQUEEZE' }).locator('.row-sub')
+  await expect(firstRow).toContainText('~2.3 in') // guess: 2.75 in at 20 oz -> 2.25 in at 12 oz (list rounds to 0.1)
   await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await page.getByTestId('open-guesses').click()
   await page.getByTestId('guess-squeeze-w').fill('4')
   await page.getByTestId('save-guesses').click()
-  await expect(firstRow).toContainText('~6.5 in') // 4 in at 20 oz -> 3.25 in at 12 oz, x 2
+  await expect(firstRow).toContainText('~3.3 in') // 4 in at 20 oz -> 3.25 in at 12 oz
   await expect(tile.locator('.guess-mark')).toHaveText('~') // still a guess
 })
 
@@ -379,9 +383,9 @@ test('measure a product from a photo', async ({ page }) => {
   await page.getByTestId('use-measure').click()
   await expect(page.getByTestId('size-w')).toHaveValue('2.75')
   await page.getByTestId('save-size').click()
-  await expect(rows(page).nth(0).getByTestId('tile').nth(0).locator('.guess-mark')).toHaveText('~') // depth still a guess
+  await expect(rows(page).nth(0).getByTestId('tile').nth(0).locator('.guess-mark')).toHaveText('≈') // depth: AFI's estimate
   await page.getByRole('button', { name: 'More', exact: true }).click()
-  await expect(page.getByTestId('selected-panel')).toContainText('W from photo · H from photo · D guess')
+  await expect(page.getByTestId('selected-panel')).toContainText('W from photo · H from photo · D estimated from AFI shelf count')
 })
 
 test('a size pack updates products but never overwrites a tape measurement', async ({ page }) => {
@@ -429,16 +433,16 @@ test('stack a product 2 high and leave an empty space on a shelf', async ({ page
   await expect.poll(async () => (await tile.boundingBox()).height).toBeGreaterThan(h1 * 1.8) // drawn twice as tall
   await expect(page.getByTestId('item-list').locator('.row.selected')).toContainText(', 2 high')
   // empty space after the selected product
-  const leftBefore = await rows(page).nth(0).getByTestId('shelf-left').innerText()
+  const usedBefore = await rows(page).nth(0).getByTestId('shelf-head').innerText()
   await page.getByTestId('open-add').click()
   await page.getByTestId('add-gap').click()
   await expect(page.getByTestId('selected-panel')).toContainText('Empty space')
   await expect(rows(page).nth(0).getByTestId('gap')).toHaveCount(1)
   for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Half an inch wider' }).click()
   await expect(page.getByTestId('gap-width')).toHaveText('3')
-  const n = (s) => Number(s.match(/[\d.]+/)[0])
-  const leftAfter = await rows(page).nth(0).getByTestId('shelf-left').innerText()
-  expect(n(leftBefore) - n(leftAfter)).toBeCloseTo(3, 1) // 3 in less room
+  const used = (s) => Number(s.match(/([\d.]+) of 48/)[1])
+  const usedAfter = await rows(page).nth(0).getByTestId('shelf-head').innerText()
+  expect(used(usedAfter) - used(usedBefore)).toBeCloseTo(3, 1) // the empty space takes 3 in
   await shot(page, '21-stack-and-gap')
   // positions skip the empty space: the product after it is still #2
   await expect(page.getByTestId('item-list').locator('section').filter({ has: page.locator('h2', { hasText: 'Shelf 7 (top)' }) })
@@ -591,4 +595,19 @@ test('importing an older backup keeps the newer store data on the phone', async 
   await page.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Shelf', exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText(`Store data: ${cat.items.length.toLocaleString('en-US')} products`)
+})
+
+test('real sizes from the AFI drawings: used for products, and AFI stacking comes along', async ({ page }) => {
+  await loadData(page)
+  // Ketchup-Mustard: every product now has AFI's width and height (no ~ guess marks, depth ≈ estimated)
+  await expect(page.getByTestId('summary')).not.toContainText('~ = guessed size')
+  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await page.getByRole('button', { name: 'More', exact: true }).click()
+  await expect(page.getByTestId('selected-panel')).toContainText('W from AFI planogram · H from AFI planogram · D estimated from AFI shelf count')
+  await expect(page.getByTestId('selected-panel')).toContainText('3.06 W × 6.64 H')
+  // Pickles-Relish: AFI stacks the 24 oz Vlasic jars 2 high
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
+  await expect(page.getByTestId('item-list').locator('.row').filter({ hasText: 'VLASIC KOSHER DILL BABY WHOLE' }).first()).toContainText('2 high')
+  await shot(page, '28-afi-sizes')
 })

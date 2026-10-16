@@ -54,7 +54,8 @@ export function makeProducts(catalog, { sizes = {}, guessEdits = {} } = {}) {
     const rec = sizes[item.upc]
     const g = guessDims({ text: `${i.description} ${i.subclass}`, scope: `${i.className} ${i.subclass}`, sizeValue: i.sizeValue, uom: i.uom, size: i.size },
       { types, typeId: rec?.type })
-    const d = { ...resolveDims(g, rec), guess: { w: g.w, h: g.h, d: g.d }, type: g.type, basis: g.basis, note: rec?.note || '' }
+    const afi = catalog?.afiSizes?.[item.upc] || null
+    const d = { ...resolveDims(g, rec, afi), guess: { w: g.w, h: g.h, d: g.d }, afi, type: g.type, basis: g.basis, note: rec?.note || '' }
     dimsCache.set(item.upc, d)
     return d
   }

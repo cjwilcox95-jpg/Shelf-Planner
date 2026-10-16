@@ -37,7 +37,7 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
       {(notes.length > 0 || anyGuess) && (
         <p className="summary-notes">
           {notes.map((w) => <span key={w} className="warn">{w}</span>)}
-          {anyGuess && <span>~ = guessed size · ≈ = from photo</span>}
+          {anyGuess && <span>~ = guessed size · ≈ = estimated</span>}
         </p>
       )}
     </section>
@@ -153,6 +153,7 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
           )}
           {info.specialOrder && <div><dt>Store</dt><dd>KEHE special order</dd></div>}
           {dims.source.w === 'guess' && <div><dt>Guess</dt><dd>from {dims.basis}</dd></div>}
+          {dims.afi && <div><dt>AFI</dt><dd>{dims.afi.w} W × {dims.afi.h} H{dims.afi.d ? ` × ≈${dims.afi.d} D` : ''} in, from the {dims.afi.reset} planogram ({dims.afi.date})</dd></div>}
           <div><dt>Photo</dt><dd>
             {photo
               ? <>{photo.source}{' '}<button className="link-btn" onClick={onRemovePhoto}>Remove photo</button></>

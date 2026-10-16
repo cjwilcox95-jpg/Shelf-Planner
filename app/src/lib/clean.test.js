@@ -36,3 +36,14 @@ describe('cleanPlan', () => {
     })
   })
 })
+
+describe('AFI sizes in the store data', () => {
+  it('keeps plain sizes and drops anything else', () => {
+    const c = cleanCatalog({ items: [], resets: [], afiSizes: {
+      '036800083004': { w: 3.6, h: 7, d: 2.2, reset: 'Ketchup', date: '2024-01-09', cost: 1.5 },
+      '036800083005': { w: 'x', h: 7 },
+      bad: { w: 1, h: 1 },
+    } })
+    expect(c.afiSizes).toEqual({ '036800083004': { w: 3.6, h: 7, d: 2.2, reset: 'Ketchup', date: '2024-01-09' } })
+  })
+})

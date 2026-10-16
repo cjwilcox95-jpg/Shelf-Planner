@@ -2,6 +2,18 @@
 
 Plain-English notes on what changed at each stage.
 
+## Real sizes from AFI's drawings (2026-10-16)
+
+- AFI draws each reset to scale with planogram software. scripts/read_afi_sizes.py reads those drawings:
+  real width and height for every product in the 3 reset PDFs (195 products), with depth worked out from AFI's
+  shelf count (marked ≈ as an estimate). Every shelf's box count matched AFI's facings exactly.
+- Products AFI stacks (49, e.g. Vlasic 24 oz jars 2 high, small olive cans 5 high) start stacked in a new plan from
+  that reset.
+- Which size is used: anything you entered (tape, then photo), then AFI's drawing, then AFI's depth estimate, then a guess.
+  Edit size shows "AFI" where AFI's size is used; More shows which planogram it came from.
+- Very thin or short tiles no longer show a number or mark that would not fit (zoom in to see them).
+- Load the new catalog.json on the phone (Shelf > Load a newer store-data file) to get these sizes.
+
 ## Scanner and review pass (2026-10-16)
 
 - Scan a barcode with the camera (or a photo, or typed digits) to find a product in the plan or add it.

@@ -4,21 +4,37 @@
 //   src is 'measured' (tape measure) or 'photo' (estimated from a photo). Missing = still a guess.
 
 export const SIZES_PACK_KIND = 'shelf-planner-sizes'
-export const SOURCE_LABEL = { measured: 'measured', photo: 'from photo', guess: 'guess' }
+export const SOURCE_LABEL = {
+  measured: 'measured',
+  afi: 'from AFI planogram',
+  afiEstimate: 'estimated from AFI shelf count',
+  photo: 'from photo',
+  guess: 'guess',
+}
 
-/** Mark shown next to a number: ~ for a guess, ≈ for a photo estimate, nothing when measured. */
-export const sourceMark = (src) => (src === 'guess' ? '~' : src === 'photo' ? '≈' : '')
+/**
+ * Mark shown next to a number: ~ for a guess, ≈ for an estimate (photo, or depth worked out from AFI's
+ * shelf count), nothing when measured with a tape or drawn to scale by AFI.
+ */
+export const sourceMark = (src) => (src === 'guess' ? '~' : src === 'photo' || src === 'afiEstimate' ? '≈' : '')
 const DIMS = ['w', 'h', 'd']
 
-/** Combine a guess with whatever real sizes are known. */
-export function resolveDims(guess, rec) {
+/**
+ * Combine a guess with whatever real sizes are known, one dimension at a time.
+ * Anything you entered yourself wins (tape measure, then a photo measurement); then AFI's to-scale drawing;
+ * then the depth worked out from AFI's shelf count; then a guess.
+ * afi: { w, h, d } from the store data (catalog.afiSizes), or null.
+ */
+export function resolveDims(guess, rec, afi = null) {
   const out = { w: guess.w, h: guess.h, d: guess.d, source: { w: 'guess', h: 'guess', d: 'guess' } }
+  const rank = { guess: 0, afiEstimate: 1, afi: 2, photo: 3, measured: 4 }
+  const offer = (k, v, src) => {
+    if (v > 0 && rank[src] > rank[out.source[k]]) { out[k] = v; out.source[k] = src }
+  }
   for (const k of DIMS) {
+    if (afi?.[k] > 0) offer(k, afi[k], k === 'd' ? 'afiEstimate' : 'afi')
     const x = rec?.[k]
-    if (x && x.v > 0 && (x.src === 'measured' || x.src === 'photo')) {
-      out[k] = x.v
-      out.source[k] = x.src
-    }
+    if (x && (x.src === 'measured' || x.src === 'photo')) offer(k, x.v, x.src)
   }
   return out
 }

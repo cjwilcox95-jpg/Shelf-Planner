@@ -193,3 +193,10 @@ describe('fixes from the code review', () => {
     expect(p.note).not.toMatch(/Infinity/)
   })
 })
+
+describe('AFI stacking', () => {
+  it('a product AFI stacks 2 high starts 2 high in the plan', () => {
+    const p = planFromAfi({ name: 'Pickles', date: '2024', widthFt: 8, shelves: [{ shelf: 1, depthIn: 20, items: [{ upc: '1', facings: 1, high: 2 }, { upc: '2', facings: 2 }] }], unallocated: [] })
+    expect(p.shelves[0].items.map((i) => i.high || 1)).toEqual([2, 1])
+  })
+})

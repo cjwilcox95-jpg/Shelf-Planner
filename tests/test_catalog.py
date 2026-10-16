@@ -77,6 +77,15 @@ class FinishedCatalog(unittest.TestCase):
                 self.assertLessEqual(set(row), bc.ALLOWED_RESET_ITEM, row)
                 self.assertTrue(upc.is_valid_upc12(row["upc"]), row)
 
+    def test_afi_sizes_are_plain_sizes(self):
+        sizes = self.doc.get("afiSizes", {})
+        for key, rec in sizes.items():
+            self.assertTrue(upc.is_valid_upc12(key), key)
+            self.assertLessEqual(set(rec), bc.ALLOWED_AFI_SIZE, rec)
+            self.assertTrue(0.3 < rec["w"] < 30 and 0.3 < rec["h"] < 30, rec)
+            if "d" in rec:
+                self.assertTrue(0.2 < rec["d"] < 30, rec)
+
     def test_every_item_has_names_for_its_class(self):
         for i in self.doc["items"]:
             self.assertIn(i["classCode"], self.doc["classNames"])

@@ -462,7 +462,7 @@ export async function renderPages(plan, check, products, photos, opts = {}) {
   const width = check.overCount ? `${check.overCount} ${check.overCount > 1 ? 'shelves' : 'shelf'} over` : extras.length ? 'width fits' : 'everything fits'
   const status = [width, ...extras].join(' · ')
   const sub = `${plan.shelves.length} shelves · ${productCount} products · ${status}`
-  const legend = 'Sizes: ~ = guessed, ≈ = from a photo, no mark = measured. Numbers count left to right on each shelf.'
+  const legend = 'Sizes: ~ = guessed, ≈ = estimated, no mark = measured or from the AFI planogram. Numbers count left to right on each shelf.'
   const plans = [] // what to draw, page by page
   if (drawing) plans.push({ kind: 'drawing', ...drawingLayout(plan, check) })
   const tables = []

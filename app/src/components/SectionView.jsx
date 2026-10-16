@@ -229,13 +229,14 @@ export default function SectionView({
                     const info = products.info(item)
                     const d = products.dims(item)
                     const guess = products.isGuess(d)
-                    const fromPhoto = !guess && Object.values(d.source).includes('photo')
+                    const estimated = !guess && Object.values(d.source).some((src) => src === 'photo' || src === 'afiEstimate')
                     const w = p.widthIn * scale
                     const h = p.heightIn * scale
                     const lines = Math.min(3, Math.floor((p.unitHeightIn * scale - 34) / 16.5))
                     // Labels must not pile up when zoomed out: no number on a very thin tile (the list has it),
                     // names written across wide tiles, or up the side of tall narrow ones (like a shelf tag).
-                    const showBadge = w >= 22
+                    const showBadge = w >= 22 && h >= 34
+                    const showMark = w >= 14 && h >= 26
                     const nameAcross = w >= 66 && lines >= 1
                     const nameUp = w >= 18 && h >= 84
                     const photo = photos[item.upc]
@@ -274,8 +275,8 @@ export default function SectionView({
                         </div>
                         {showBadge && <span className="pos-badge">{pos}</span>}
                         {p.high > 1 && showBadge && <span className="high-mark">×{p.high}</span>}
-                        {guess && <span className="guess-mark" aria-label="guessed size">~</span>}
-                        {fromPhoto && <span className="guess-mark" aria-label="size from a photo">≈</span>}
+                        {guess && showMark && <span className="guess-mark" aria-label="guessed size">~</span>}
+                        {estimated && showMark && <span className="guess-mark" aria-label="size partly estimated">≈</span>}
                         {!photo && nameAcross && (
                           <span className="tile-name" style={{ WebkitLineClamp: lines }}>{info.description}</span>
                         )}

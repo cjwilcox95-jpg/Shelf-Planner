@@ -5,6 +5,8 @@ import { prettyUpc } from '../lib/upc.js'
 import { measureFromPhoto, SOURCE_LABEL } from '../lib/sizes.js'
 import { FRACTIONS, parseInches, withFraction } from '../lib/tape.js'
 
+const CHIP_AUTO = { afi: 'AFI', afiEstimate: 'AFI estimate', guess: 'guess' }
+
 const DIMS = [
   { k: 'w', label: 'Width (side to side, facing you)' },
   { k: 'h', label: 'Height' },
@@ -15,7 +17,10 @@ const DIMS = [
  * Edit one product's real size. Saved for the product (by UPC), so it changes everywhere it is used.
  */
 export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave, onClose }) {
-  const start = (k) => ({ value: String(dims[k]), src: dims.source[k] })
+  // 'auto' = no size of your own: AFI's size when AFI has one, otherwise the guess
+  const autoSrc = (k) => (dims.afi?.[k] > 0 ? (k === 'd' ? 'afiEstimate' : 'afi') : 'guess')
+  const autoValue = (k) => (dims.afi?.[k] > 0 ? dims.afi[k] : dims.guess[k])
+  const start = (k) => ({ value: String(dims[k]), src: ['measured', 'photo'].includes(dims.source[k]) ? dims.source[k] : 'auto' })
   const [form, setForm] = useState({ w: start('w'), h: start('h'), d: start('d') })
   const [type, setType] = useState(rec?.type || '')
   const [note, setNote] = useState(rec?.note || '')
@@ -24,15 +29,15 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
   const inches = (k) => parseInches(form[k].value)
 
   const setValue = (k, value) =>
-    setForm({ ...form, [k]: { value, src: form[k].src === 'guess' ? 'measured' : form[k].src } })
+    setForm({ ...form, [k]: { value, src: form[k].src === 'auto' ? 'measured' : form[k].src } })
   const setSrc = (k, src) =>
-    setForm({ ...form, [k]: { value: src === 'guess' ? String(dims.guess[k]) : form[k].value, src } })
+    setForm({ ...form, [k]: { value: src === 'auto' ? String(autoValue(k)) : form[k].value, src } })
 
-  const valid = DIMS.every(({ k }) => form[k].src === 'guess' || (inches(k) > 0 && inches(k) < 200))
+  const valid = DIMS.every(({ k }) => form[k].src === 'auto' || (inches(k) > 0 && inches(k) < 200))
 
   const save = () => {
     const next = { updatedAt: new Date().toISOString() }
-    for (const { k } of DIMS) if (form[k].src !== 'guess') next[k] = { v: Math.round(inches(k) * 1000) / 1000, src: form[k].src }
+    for (const { k } of DIMS) if (form[k].src !== 'auto') next[k] = { v: Math.round(inches(k) * 1000) / 1000, src: form[k].src }
     if (type) next.type = type
     if (note.trim()) next.note = note.trim()
     const empty = !DIMS.some(({ k }) => next[k]) && !next.type && !next.note
@@ -74,17 +79,17 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
           <div className="field-row">
             <input
               type="text" inputMode="decimal" autoComplete="off"
-              value={form[k].value} className={form[k].src === 'guess' ? 'is-guess' : ''}
+              value={form[k].value} className={form[k].src === 'auto' ? 'is-guess' : ''}
               onFocus={() => setFocus(k)} onChange={(e) => setValue(k, e.target.value)} aria-label={label} data-testid={`size-${k}`}
             />
             <span className="unit">in</span>
             {/\//.test(form[k].value) && inches(k) > 0 && <span className="measure-read">= {fmtIn(inches(k), 3)}</span>}
           </div>
           <div className="chips" role="radiogroup" aria-label={`Where the ${label.toLowerCase()} came from`}>
-            {['measured', 'photo', 'guess'].map((src) => (
+            {['measured', 'photo', 'auto'].map((src) => (
               <button type="button" key={src} role="radio" aria-checked={form[k].src === src}
                 className={`chip${form[k].src === src ? ' on' : ''}`} onClick={() => setSrc(k, src)}>
-                {SOURCE_LABEL[src]}
+                {src === 'auto' ? CHIP_AUTO[autoSrc(k)] : SOURCE_LABEL[src]}
               </button>
             ))}
           </div>
@@ -93,7 +98,7 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
       <div className="chips fractions" aria-label="Add a fraction to the box you are typing in">
         {FRACTIONS.map((f) => (
           <button key={f} type="button" className="chip" onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setValue(focus, withFraction(form[focus].src === 'guess' ? '' : form[focus].value, f))}>{f}</button>
+            onClick={() => setValue(focus, withFraction(form[focus].src === 'auto' ? '' : form[focus].value, f))}>{f}</button>
         ))}
       </div>
       <button className="btn wide" onClick={() => setMeasuring(true)} data-testid="open-measure">Measure from a photo…</button>

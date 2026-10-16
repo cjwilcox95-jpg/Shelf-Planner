@@ -38,7 +38,9 @@ ALLOWED_FIELDS = {
     "classCode", "subclassCode", "source", "specialOrder", "display", "aisle",
 }
 # Top-level keys of catalog.json. Class and subclass names are stored once, here.
-ALLOWED_TOP = {"kind", "version", "built", "sources", "classNames", "subclassNames", "items", "resets"}
+ALLOWED_TOP = {"kind", "version", "built", "sources", "classNames", "subclassNames", "items", "resets", "afiSizes"}
+# Real product sizes read from AFI's to-scale planogram drawings (scripts/read_afi_sizes.py), by UPC.
+ALLOWED_AFI_SIZE = {"w", "h", "d", "reset", "date"}
 
 SPECIAL_ORDER_CLASS = "389"   # KEHE special order, 15 case minimum
 
@@ -123,7 +125,24 @@ def read_grocery(path, log, afi_item_of):
 
 # Fields a reset item may have in catalog.json. AFI's own item number is left out.
 ALLOWED_RESET_ITEM = {"location", "upc", "description", "casePack", "size", "facings",
-                      "capacity", "status", "matchNote"}
+                      "capacity", "status", "matchNote", "high"}
+
+
+def read_afi_drawing_sizes(resets, log):
+    """Sizes from each reset's drawing; also marks products AFI stacked ("high": 2). Newest reset wins."""
+    from read_afi_sizes import sizes_from_drawing
+    sizes = {}
+    for r in sorted(resets, key=lambda r: r.get("date") or ""):
+        found, problems = sizes_from_drawing(RAW / r["source"], r)
+        log["_afi_sizes"].append((r["name"], len(found), problems))
+        for s in r["shelves"]:
+            for item in s["items"]:
+                rec = found.get(item["upc"])
+                if rec and rec.get("high", 1) > 1:
+                    item["high"] = rec["high"]
+        for key, rec in found.items():
+            sizes[key] = {**{k: rec[k] for k in ("w", "h", "d") if k in rec}, "reset": r["name"], "date": r.get("date")}
+    return sizes
 
 
 def match_reset_item(raw_upc, afi_id, by_key, afi_item_of, upc_of_afi):
@@ -269,6 +288,10 @@ def main():
                 item["aisle"] = aisle_of[item["upc"]]
 
     resets = read_resets({i["upc"]: i for i in catalog}, afi_item_of, log)
+    afi_sizes = read_afi_drawing_sizes(resets, log)
+    for rec in afi_sizes.values():
+        if set(rec) - ALLOWED_AFI_SIZE:
+            raise SystemExit(f"BUG: unexpected AFI size fields {set(rec) - ALLOWED_AFI_SIZE}")
     for r in resets:
         for row in [i for s in r["shelves"] for i in s["items"]] + r["unallocated"]:
             extra = set(row) - ALLOWED_RESET_ITEM
@@ -280,7 +303,7 @@ def main():
     doc = {"kind": "shelf-planner-catalog", "version": 1, "built": built,
            "sources": ["AFITMGRC.csv", "HBC_BOOK.pdf"] + [Path(p).name for p in order_files[-1:]]
            + [r["source"] for r in resets],
-           "classNames": {}, "subclassNames": {}, "items": [], "resets": resets}
+           "classNames": {}, "subclassNames": {}, "items": [], "resets": resets, "afiSizes": afi_sizes}
     # A code should have one name. If the source disagrees, use the most common
     # name and list the odd ones in the report.
     votes = {"classNames": collections.defaultdict(collections.Counter),
@@ -414,6 +437,13 @@ def write_report(catalog, grocery, hbc, dup_groups, log, aisle_stats, built, res
             w("")
         for k in [k for k in log if k.startswith("reset ")]:
             w(f"- **{k}**: {'; '.join(log[k])}")
+        w("")
+        w("### Real sizes read from AFI's drawings\n")
+        w("Width and height from AFI's to-scale planogram drawing; depth worked out from AFI's shelf count "
+          "(estimate). See scripts/read_afi_sizes.py.\n")
+        w("| Reset | Products sized | Problems |\n|---|---|---|")
+        for name, n, problems in log["_afi_sizes"]:
+            w(f"| {name} | {n} | {'; '.join(problems) or 'none'} |")
         w("")
 
     w("## Sizes cut off or unclear\n")
