@@ -1,6 +1,8 @@
 // Backup file: every plan plus the store data, in one file you keep (Files app, email to yourself, etc.).
 // Importing MERGES into what is on the phone: nothing on the phone is deleted.
 
+import { cleanPlan } from './clean.js'
+
 export const BACKUP_KIND = 'shelf-planner-backup'
 
 export function makeBackup({ plans, catalog, photos = {}, sizes = {}, guessEdits = {}, movement = null, now = new Date().toISOString() }) {
@@ -33,7 +35,7 @@ export function mergePlans(existing, incoming) {
   const counts = { added: 0, updated: 0, keptPhone: 0, skipped: 0 }
   for (const p of incoming) {
     if (!looksLikePlan(p)) { counts.skipped++; continue }
-    const plan = { tray: [], ...p }
+    const plan = cleanPlan({ tray: [], ...p })
     const mine = merged[p.id]
     if (!mine) { merged[p.id] = plan; counts.added++ }
     else if ((p.updatedAt || '') > (mine.updatedAt || '')) { merged[p.id] = plan; counts.updated++ }

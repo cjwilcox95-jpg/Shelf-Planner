@@ -47,3 +47,10 @@ describe('photo records', () => {
     expect(merged['036800083004'].source).toBe('your photo')
   })
 })
+
+describe('photos of products not in the store files', () => {
+  it('survive a backup (their stand-in id is kept)', () => {
+    const raw = { 'photo-downy_fresh_light': { data: 'data:image/jpeg;base64,AAAA', w: 10, h: 20 }, 'photo-BAD!': { data: 'data:image/jpeg;base64,AA', w: 1, h: 1 } }
+    expect(Object.keys(cleanPhotos(raw))).toEqual(['photo-downy_fresh_light'])
+  })
+})

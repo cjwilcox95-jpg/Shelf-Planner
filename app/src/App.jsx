@@ -17,6 +17,7 @@ import { ToolsSheet } from './components/ToolsSheet.jsx'
 import { CompareSheet } from './components/CompareSheet.jsx'
 import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
 import { MovementSheet } from './components/MovementSheet.jsx'
+import { cleanCatalog } from './lib/clean.js'
 import { ScanSheet } from './components/ScanSheet.jsx'
 import { positions } from './lib/plan.js'
 import { loadReader } from './lib/barcode.js'
@@ -61,6 +62,7 @@ export default function App() {
   const [movement, setMovement] = useState(null) // units sold by UPC (no money), from a sales file
   const [pendingCsv, setPendingCsv] = useState(null) // a CSV waiting for its number of days
   const [deliveryDays, setDeliveryDays] = useState(7)
+  const [saveError, setSaveError] = useState(false)
   const boxRef = useRef(null)
   const toastTimer = useRef(null)
   const plan = hist.present
@@ -68,7 +70,10 @@ export default function App() {
   const commitPlans = useCallback((next) => {
     plansRef.current = next
     setPlans(next)
-    save('plans', next).catch((e) => console.error('save failed', e))
+    save('plans', next).then(() => setSaveError(false)).catch((e) => {
+      console.error('save failed', e)
+      setSaveError(true) // shown at the top of the screen until a save works again
+    })
   }, [])
 
   const openPlan = useCallback((p) => {
@@ -190,8 +195,8 @@ export default function App() {
     return changed
   }
 
-  const storeMovement = async (doc) => {
-    const m = cleanMovement({ ...doc, loadedAt: new Date().toISOString() })
+  const storeMovement = async (doc, { restoring = false } = {}) => {
+    const m = cleanMovement(restoring ? doc : { ...doc, loadedAt: new Date().toISOString() })
     await save('movement', m)
     setMovement(m)
     const onPlans = Object.values(plansRef.current).flatMap((p) => p.shelves.flatMap((x) => x.items)).filter((i) => i.kind !== 'gap')
@@ -201,7 +206,8 @@ export default function App() {
   }
 
   /** A .json movement file or a .csv export, picked under Tools > Sales help. */
-  const onMovementFile = async (file) => {
+  const onMovementFile = (file) => readMovementFile(file).catch((e) => `Could not load it: ${e.message || e}`)
+  const readMovementFile = async (file) => {
     const text = await file.text()
     if (/\.csv$/i.test(file.name) || !text.trim().startsWith('{')) {
       const r = parseMovementCsv(text, (u) => products.byUpc.has(u))
@@ -324,10 +330,11 @@ export default function App() {
     }
   }
 
-  /** catalog.json or a backup file, picked on the first screen or under Plans. */
-  const onImportFile = async (file) => {
+  /** catalog.json or a backup file, picked on the first screen or under Plans. Never fails silently. */
+  const onImportFile = (file) => importFile(file).catch((e) => `Could not finish loading that file: ${e.message || e}. Nothing on this phone was deleted; try again.`)
+  const importFile = async (file) => {
     let doc
-    try { doc = JSON.parse(await file.text()) } catch { return 'Could not read that file.' }
+    try { doc = JSON.parse((await file.text()).replace(/^\uFEFF/, '')) } catch { return 'Could not read that file.' }
     const kind = identifyFile(doc)
     if (!kind.type) return kind.problem
     if (kind.type === 'photos') {
@@ -350,17 +357,21 @@ export default function App() {
       return storeMovement(doc)
     }
     if (kind.type === 'catalog') {
-      await save('catalog', doc)
+      const cat = cleanCatalog(doc)
+      await save('catalog', cat)
       await askToKeepData()
-      setCatalog(doc)
-      if (phase !== 'ready') startWith(doc, await load('plans'), await load('currentPlanId'), await load('shelf'))
+      setCatalog(cat)
+      if (phase !== 'ready') startWith(cat, await load('plans'), await load('currentPlanId'), await load('shelf'))
       setSheet(null)
-      return `Store data loaded: ${doc.items.length.toLocaleString()} products.`
+      return `Store data loaded: ${cat.items.length.toLocaleString()} products.`
     }
     // backup
-    const cat = identifyFile(doc.catalog).type === 'catalog' ? doc.catalog : catalog
+    // Store data: the backup's copy is used only when this phone has none, or the backup's is newer.
+    const inBackup = identifyFile(doc.catalog).type === 'catalog' ? cleanCatalog(doc.catalog) : null
+    const useBackupCat = inBackup && (!catalog || (inBackup.built || '') > (catalog.built || ''))
+    const cat = useBackupCat ? inBackup : catalog
     if (!cat) return 'This backup has no store data. Load catalog.json first.'
-    if (cat !== catalog) { await save('catalog', cat); setCatalog(cat) }
+    if (useBackupCat) { await save('catalog', cat); setCatalog(cat) }
     await askToKeepData()
     const base = phase === 'ready' ? allPlans() : (await load('plans')) || {}
     const { merged, counts } = mergePlans(base, doc.plans)
@@ -372,7 +383,10 @@ export default function App() {
     }
     const pics = doc.photos ? await storePhotos(doc.photos) : { added: 0 }
     if (doc.sizes) await storeSizes(doc.sizes)
-    if (doc.movement && (!movement || (doc.movement.loadedAt || '') > (movement.loadedAt || ''))) await storeMovement(doc.movement)
+    if (doc.movement?.items) {
+      const newer = !movement || [doc.movement.to || '', doc.movement.loadedAt || ''].join() > [movement.to || '', movement.loadedAt || ''].join()
+      if (newer) await storeMovement(doc.movement, { restoring: true })
+    }
     if (doc.guessEdits && !Object.keys(guessEdits).length && Object.keys(doc.guessEdits).length) {
       await save('guessEdits', doc.guessEdits)
       setGuessEdits(doc.guessEdits)
@@ -380,7 +394,8 @@ export default function App() {
     if (sheet === 'data') setSheet(null)
     return `Backup loaded: ${counts.added} new plan${counts.added === 1 ? '' : 's'}, ${counts.updated} updated` +
       (counts.keptPhone ? `, ${counts.keptPhone} kept because this phone’s copy was newer` : '') +
-      (pics.added ? `, ${pics.added} photos added` : '') + '. Nothing was deleted.'
+      (pics.added ? `, ${pics.added} photos added` : '') +
+      (useBackupCat && catalog ? ', store data updated to the backup’s newer copy' : '') + '. Nothing was deleted.'
   }
 
   if (phase === 'loading') return <div className="center-msg">Loading…</div>
@@ -410,6 +425,12 @@ export default function App() {
       </header>
 
       <main>
+        {saveError && (
+          <div className="save-error" role="alert" data-testid="save-error">
+            Could not save on this phone (storage may be full). Export a backup now so nothing is lost.
+            <button className="btn" onClick={async () => showToast(await onExport())}>Export backup</button>
+          </div>
+        )}
         {backupDue && (
           <div className="backup-due" role="status" data-testid="backup-due">
             <span>{lastBackupAt ? `Last backup ${daysAgo(lastBackupAt)}.` : 'Your plans are not backed up yet.'} Plans live only on this phone.</span>
@@ -568,6 +589,7 @@ export default function App() {
           onFile={onMovementFile}
           onCsvDays={async (days) => {
             const msg = await storeMovement({ source: 'sales file (CSV)', days, items: pendingCsv.items })
+              .catch((e) => `Could not save the sales file on this phone: ${e.message || e}`)
             setPendingCsv(null)
             return msg
           }}

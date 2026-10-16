@@ -27,11 +27,12 @@ const itemFrom = (i) => ({ uid: newId('i'), upc: i.upc, facings: i.facings || 1,
 /** A whole AFI reset as a plan: every shelf with AFI's facings; items AFI left off go to the tray. */
 export function planFromAfi(reset) {
   const p = newPlan({ name: `${reset.name} (AFI ${reset.date})`, shelves: 0 })
-  p.shelves = [...reset.shelves]
+  p.shelves = [...(reset.shelves || [])]
     .sort((a, b) => a.shelf - b.shelf)
     .map((s) => newShelf({ widthIn: reset.widthFt * 12, items: s.items.map(itemFrom), afiDepthIn: s.depthIn }))
+  if (!p.shelves.length) p.shelves = [newShelf({ widthIn: (reset.widthFt || 4) * 12 })] // never a plan without shelves
   p.tray = (reset.unallocated || []).map(itemFrom)
-  const d = reset.shelves.map((s) => s.depthIn)
+  const d = reset.shelves?.length ? reset.shelves.map((s) => s.depthIn) : [24]
   const depths = Math.min(...d) === Math.max(...d) ? `${d[0]}` : `${Math.min(...d)}–${Math.max(...d)}`
   p.note = `From the AFI ${reset.name} reset (${reset.date}), ${reset.widthFt} ft. AFI planned these shelves ${depths} in deep; they are set to your standard 24 in.`
   return p
@@ -156,7 +157,8 @@ export function applyPlanAction(plan, a) {
       if (plan.shelves.length <= 1) return plan
       const s = plan.shelves.find((x) => x.id === a.shelfId)
       if (!s) return plan
-      return { ...plan, shelves: plan.shelves.filter((x) => x.id !== a.shelfId), tray: [...s.items, ...plan.tray] }
+      const products = s.items.filter((i) => i.kind !== 'gap') // empty spaces go with the shelf
+      return { ...plan, shelves: plan.shelves.filter((x) => x.id !== a.shelfId), tray: [...products, ...plan.tray] }
     }
     case 'rename':
       return { ...plan, name: a.name }
@@ -188,17 +190,20 @@ export function shelfLabel(plan, shelfId) {
 export const initHistory = (plan) => ({ past: [], present: plan, future: [] })
 
 export function historyReducer(h, a) {
+  // Undo and redo are changes too: they get a new "changed" time, so a backup made before an undo
+  // can never put the undone change back.
+  const now = a.now || new Date().toISOString()
   if (a.type === 'undo') {
     if (!h.past.length) return h
-    return { past: h.past.slice(0, -1), present: h.past[h.past.length - 1], future: [h.present, ...h.future] }
+    return { past: h.past.slice(0, -1), present: { ...h.past[h.past.length - 1], updatedAt: now }, future: [h.present, ...h.future] }
   }
   if (a.type === 'redo') {
     if (!h.future.length) return h
-    return { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1) }
+    return { past: [...h.past, h.present], present: { ...h.future[0], updatedAt: now }, future: h.future.slice(1) }
   }
   if (a.type === 'open') return initHistory(a.plan) // switching plans starts fresh undo
   const next = applyPlanAction(h.present, a)
   if (next === h.present) return h
-  const stamped = { ...next, updatedAt: a.now || new Date().toISOString() }
+  const stamped = { ...next, updatedAt: now }
   return { past: [...h.past, h.present].slice(-HISTORY_LIMIT), present: stamped, future: [] }
 }

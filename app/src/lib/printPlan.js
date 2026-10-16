@@ -490,20 +490,19 @@ export async function renderPages(plan, check, products, photos, opts = {}) {
       drawTable(ctx, p.page, p.rows, p.table.columns, px(MARGIN + HEADER - 0.1))
       footer(ctx, p.page, `${legend} Tick each box as you set the product.`)
     }
-    out.push({ canvas, page: p.page })
+    // Turn each page into JPEG bytes right away and free its canvas (phones limit canvas memory);
+    // only the first page's canvas is kept, for the preview and the picture.
+    const jpeg = dataUrlBytes(canvas.toDataURL('image/jpeg', 0.88))
+    if (jpeg.length < 1000) throw new Error('the phone ran out of memory drawing the pages; try fewer pages')
+    out.push({ canvas: n === 0 ? canvas : null, page: p.page, jpeg, pxW: canvas.width, pxH: canvas.height })
+    if (n > 0) { canvas.width = 0; canvas.height = 0 }
   }
   return out
 }
 
 /** All pages as one PDF file (Blob). */
 export function pagesToPdf(pages, title) {
-  const pdfPages = pages.map(({ canvas, page }) => ({
-    jpeg: dataUrlBytes(canvas.toDataURL('image/jpeg', 0.88)),
-    pxW: canvas.width,
-    pxH: canvas.height,
-    ptW: page.w * 72,
-    ptH: page.h * 72,
-  }))
+  const pdfPages = pages.map(({ jpeg, pxW, pxH, page }) => ({ jpeg, pxW, pxH, ptW: page.w * 72, ptH: page.h * 72 }))
   return new Blob([makePdf(pdfPages, { title })], { type: 'application/pdf' })
 }
 

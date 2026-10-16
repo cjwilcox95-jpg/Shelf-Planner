@@ -170,3 +170,26 @@ describe('stacking and empty spaces', () => {
     expect(moveTo(withGap, 'g2', TRAY, 0)).toBe(withGap) // dragging it to the tray does nothing
   })
 })
+
+describe('fixes from the code review', () => {
+  it('removing a shelf sends its products to the tray but not its empty spaces', () => {
+    const p = sample()
+    const withGap = applyPlanAction(p, { type: 'addGap', shelfId: p.shelves[BOT].id, uid: 'g' })
+    const q = applyPlanAction(withGap, { type: 'removeShelf', shelfId: p.shelves[BOT].id })
+    expect(ids(q.tray)).toBe('abc')
+  })
+  it('undo and redo get a new "changed" time, so an older backup cannot bring an undone change back', () => {
+    let h = initHistory({ ...sample(), updatedAt: '2026-01-01T09:59:00Z' })
+    h = historyReducer(h, { type: 'facings', uid: 'a', facings: 3, now: '2026-01-01T10:05:00Z' })
+    h = historyReducer(h, { type: 'undo', now: '2026-01-01T10:10:00Z' })
+    expect(findItem(h.present, 'a').item.facings).toBe(1)
+    expect(h.present.updatedAt).toBe('2026-01-01T10:10:00Z')
+    h = historyReducer(h, { type: 'redo', now: '2026-01-01T10:11:00Z' })
+    expect(h.present.updatedAt).toBe('2026-01-01T10:11:00Z')
+  })
+  it('an AFI reset with no shelves still makes a plan with one shelf', () => {
+    const p = planFromAfi({ name: 'Empty', date: '2024', widthFt: 4, shelves: [], unallocated: [] })
+    expect(p.shelves).toHaveLength(1)
+    expect(p.note).not.toMatch(/Infinity/)
+  })
+})

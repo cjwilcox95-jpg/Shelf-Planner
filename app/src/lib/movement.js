@@ -16,13 +16,16 @@ export function cleanMovement(doc) {
     if (!/^\d{12}$/.test(upc) || !Number.isFinite(units) || units < 0) continue
     items[upc] = { units, ...(typeof rec.check === 'string' ? { check: rec.check.slice(0, 80) } : {}) }
   }
-  const days = Number(doc?.days)
+  const from = /^\d{4}-\d\d-\d\d$/.test(doc?.from) ? doc.from : null
+  const to = /^\d{4}-\d\d-\d\d$/.test(doc?.to) ? doc.to : null
+  let days = Number(doc?.days)
+  if (!(days > 0) && from && to) days = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1 // both ends count
   return {
     kind: MOVEMENT_KIND,
     version: 1,
     source: String(doc?.source || 'sales file').slice(0, 120),
-    from: /^\d{4}-\d\d-\d\d$/.test(doc?.from) ? doc.from : null,
-    to: /^\d{4}-\d\d-\d\d$/.test(doc?.to) ? doc.to : null,
+    from,
+    to,
     days: days > 0 && days < 2000 ? Math.round(days) : null,
     selectedOnly: !!doc?.selectedOnly,
     loadedAt: doc?.loadedAt || new Date().toISOString(),
@@ -144,10 +147,19 @@ export function suggestions(plan, check, rows, { deliveryDays = 7 } = {}) {
   plan.shelves.forEach((s, k) => {
     const fit = check.byShelf[s.id]
     if (!fit.isOver) return
-    const cands = sold.filter((r) => r.shelfId === s.id && r.facings > 1 && r.daysOfSupply != null)
-      .map((r) => ({ ...r, unitWidth: r.inches / r.facings, daysAfter: r.daysOfSupply * ((r.facings - 1) / r.facings) }))
-      .filter((r) => r.daysAfter >= safeDays)
-      .sort((a, b) => b.daysAfter - a.daysAfter)
+    // One candidate per spot on THIS shelf (a product can sit on two shelves): give up one facing here,
+    // and the product must still last long enough counting all its spots.
+    const byUpc = new Map(sold.map((r) => [r.upc, r]))
+    const cands = []
+    s.items.forEach((item, i) => {
+      const r = byUpc.get(item.upc)
+      const p = fit.items[i]
+      if (!r || p.gap || item.facings < 2 || !(r.perWeek > 0)) return
+      const capAfter = r.capacity - p.capacity / item.facings
+      const daysAfter = capAfter / (r.perWeek / 7)
+      if (daysAfter >= safeDays) cands.push({ ...r, uid: item.uid, pos: positions(s.items).get(item.uid), facings: item.facings, unitWidth: p.unitWidthIn, daysAfter })
+    })
+    cands.sort((a, b) => b.daysAfter - a.daysAfter)
     const picks = []
     let freed = 0
     for (const c of cands) {
@@ -164,6 +176,7 @@ export function suggestions(plan, check, rows, { deliveryDays = 7 } = {}) {
 export function paceText(r) {
   if (!r) return ''
   if (r.units == null) return 'not in the sales file'
+  if (r.perWeek == null) return `${r.units} sold (dates of the file unknown)`
   if (r.perWeek === 0) return 'no sales in the period'
   const pw = r.perWeek >= 10 ? Math.round(r.perWeek) : r1(r.perWeek)
   const holds = r.daysOfSupply == null ? '' : r.daysOfSupply >= 14

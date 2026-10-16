@@ -83,6 +83,7 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
             {movement.days ? ` (${fmtIn(movement.days / 7)} weeks)` : ''} · {Object.keys(movement.items).length.toLocaleString()} products in the file.
             Units sold only.
           </p>
+          {!movement.days && <p className="error">This file does not say which dates it covers, so sales per week cannot be worked out. Load it again as a CSV and enter the days.</p>}
           <div className="field">
             <span>Deliveries come about every</span>
             <div className="chips">

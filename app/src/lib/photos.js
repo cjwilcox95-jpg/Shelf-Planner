@@ -97,7 +97,7 @@ function loadImage(blob) {
 export function cleanPhotos(raw) {
   const out = {}
   for (const [upc, p] of Object.entries(raw || {})) {
-    if (/^\d{12}$/.test(upc) && p && typeof p.data === 'string' && p.data.startsWith('data:image/') && p.w > 0 && p.h > 0) {
+    if (/^(\d{12}|photo-[a-z0-9_-]{1,60})$/.test(upc) && p && typeof p.data === 'string' && p.data.startsWith('data:image/') && p.w > 0 && p.h > 0) {
       out[upc] = { data: p.data, w: p.w, h: p.h, source: p.source || 'imported', addedAt: p.addedAt || '' }
     }
   }

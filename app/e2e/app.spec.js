@@ -576,3 +576,19 @@ test('reminders and shortcuts: backup reminder, "in this plan" in search, copy f
   await expect(page.getByTestId('plan-name')).toContainText('(copy)')
   await expect(page.getByTestId('compare-result')).toContainText('No changes')
 })
+
+test('importing an older backup keeps the newer store data on the phone', async ({ page }) => {
+  await loadData(page)
+  const cat = JSON.parse(fs.readFileSync(CATALOG, 'utf8'))
+  const old = { ...cat, built: '2000-01-01', items: cat.items.slice(0, 5), resets: cat.resets.slice(0, 1) }
+  const backup = { kind: 'shelf-planner-backup', version: 1, exportedAt: '2000-01-01T00:00:00Z', plans: [], catalog: old, photos: {}, sizes: {}, guessEdits: {} }
+  const file = path.join(SHOTS, 'old-backup.json')
+  fs.writeFileSync(file, JSON.stringify(backup))
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('import-file').setInputFiles(file)
+  await expect(page.getByRole('dialog')).toContainText('Backup loaded')
+  await expect(page.getByRole('dialog')).not.toContainText('store data updated')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText(`Store data: ${cat.items.length.toLocaleString('en-US')} products`)
+})

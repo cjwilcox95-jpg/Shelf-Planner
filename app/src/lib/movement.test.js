@@ -110,3 +110,28 @@ describe('suggestions', () => {
     expect(sq[0].freed).toBe(2)
   })
 })
+
+describe('fixes from the code review', () => {
+  it('works out the days from the dates when the file does not say', () => {
+    expect(cleanMovement({ from: '2025-09-14', to: '2025-12-31', items: {} }).days).toBe(109)
+  })
+  it('says the dates are unknown instead of "sells ~0/wk"', () => {
+    const noDays = cleanMovement({ items: { [KETCHUP]: { units: 40 } } })
+    const r = salesRows(plan, check, products, noDays).find((x) => x.upc === KETCHUP)
+    expect(paceText(r)).toBe('40 sold (dates of the file unknown)')
+  })
+  it('a product on two shelves: the squeeze looks at the facings on the shelf that is over', () => {
+    // mustard: 3 facings on the bottom shelf (over by 1 in) and 2 more on the top shelf
+    const two = {
+      shelves: [
+        { ...plan.shelves[0], widthIn: 14 },
+        { id: 's2', widthIn: 48, depthIn: 24, clearanceIn: 12, items: [{ uid: 'm2', upc: MUSTARD, facings: 2 }] },
+      ],
+      tray: [],
+    }
+    const c = checkPlan(two, (i) => products.dims(i))
+    const sq = suggestions(two, c, salesRows(two, c, products, movement)).squeeze
+    expect(sq).toHaveLength(1)
+    expect(sq[0].picks.map((r) => [r.uid, r.facings])).toEqual([['m', 3]]) // the spot on the shelf that is over
+  })
+})
