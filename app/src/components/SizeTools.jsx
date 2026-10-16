@@ -3,6 +3,7 @@ import { Sheet } from './Panels.jsx'
 import { fmtIn } from '../lib/fit.js'
 import { prettyUpc } from '../lib/upc.js'
 import { measureFromPhoto, SOURCE_LABEL } from '../lib/sizes.js'
+import { FRACTIONS, parseInches, withFraction } from '../lib/tape.js'
 
 const DIMS = [
   { k: 'w', label: 'Width (side to side, facing you)' },
@@ -19,17 +20,19 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
   const [type, setType] = useState(rec?.type || '')
   const [note, setNote] = useState(rec?.note || '')
   const [measuring, setMeasuring] = useState(false)
+  const [focus, setFocus] = useState('w')
+  const inches = (k) => parseInches(form[k].value)
 
   const setValue = (k, value) =>
     setForm({ ...form, [k]: { value, src: form[k].src === 'guess' ? 'measured' : form[k].src } })
   const setSrc = (k, src) =>
     setForm({ ...form, [k]: { value: src === 'guess' ? String(dims.guess[k]) : form[k].value, src } })
 
-  const valid = DIMS.every(({ k }) => form[k].src === 'guess' || (Number(form[k].value) > 0 && Number(form[k].value) < 200))
+  const valid = DIMS.every(({ k }) => form[k].src === 'guess' || (inches(k) > 0 && inches(k) < 200))
 
   const save = () => {
     const next = { updatedAt: new Date().toISOString() }
-    for (const { k } of DIMS) if (form[k].src !== 'guess') next[k] = { v: Number(form[k].value), src: form[k].src }
+    for (const { k } of DIMS) if (form[k].src !== 'guess') next[k] = { v: Math.round(inches(k) * 1000) / 1000, src: form[k].src }
     if (type) next.type = type
     if (note.trim()) next.note = note.trim()
     const empty = !DIMS.some(({ k }) => next[k]) && !next.type && !next.note
@@ -70,11 +73,12 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
           <span>{label}</span>
           <div className="field-row">
             <input
-              type="number" inputMode="decimal" step="0.25" min="0.25"
+              type="text" inputMode="decimal" autoComplete="off"
               value={form[k].value} className={form[k].src === 'guess' ? 'is-guess' : ''}
-              onChange={(e) => setValue(k, e.target.value)} aria-label={label} data-testid={`size-${k}`}
+              onFocus={() => setFocus(k)} onChange={(e) => setValue(k, e.target.value)} aria-label={label} data-testid={`size-${k}`}
             />
             <span className="unit">in</span>
+            {/\//.test(form[k].value) && inches(k) > 0 && <span className="measure-read">= {fmtIn(inches(k), 3)}</span>}
           </div>
           <div className="chips" role="radiogroup" aria-label={`Where the ${label.toLowerCase()} came from`}>
             {['measured', 'photo', 'guess'].map((src) => (
@@ -86,6 +90,12 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
           </div>
         </div>
       ))}
+      <div className="chips fractions" aria-label="Add a fraction to the box you are typing in">
+        {FRACTIONS.map((f) => (
+          <button key={f} type="button" className="chip" onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setValue(focus, withFraction(form[focus].src === 'guess' ? '' : form[focus].value, f))}>{f}</button>
+        ))}
+      </div>
       <button className="btn wide" onClick={() => setMeasuring(true)} data-testid="open-measure">Measure from a photo…</button>
 
       <label className="field">

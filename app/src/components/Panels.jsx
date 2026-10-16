@@ -268,7 +268,7 @@ export function Sheet({ title, onClose, children, tall }) {
 }
 
 /** Search the catalog by name or UPC and add to a shelf. */
-export function AddSheet({ index, catalog, targetLabel, onAdd, onAddGap, onClose }) {
+export function AddSheet({ index, catalog, targetLabel, onAdd, onAddGap, onScan, onClose }) {
   const [q, setQ] = useState('')
   const inputRef = useRef(null)
   const results = useMemo(() => search(index, q), [index, q])
@@ -276,6 +276,7 @@ export function AddSheet({ index, catalog, targetLabel, onAdd, onAddGap, onClose
   useEffect(() => { inputRef.current?.focus() }, [])
   return (
     <Sheet title={`Add to ${targetLabel}`} onClose={onClose} tall>
+      <button className="btn wide scan-btn" onClick={onScan} data-testid="open-scan">▥ Scan a barcode</button>
       <input
         ref={inputRef} className="search" type="search" inputMode="search"
         placeholder="Name or UPC, e.g. heinz ketchup 20"

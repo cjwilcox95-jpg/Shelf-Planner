@@ -17,6 +17,10 @@ import { ToolsSheet } from './components/ToolsSheet.jsx'
 import { CompareSheet } from './components/CompareSheet.jsx'
 import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
 import { MovementSheet } from './components/MovementSheet.jsx'
+import { ScanSheet } from './components/ScanSheet.jsx'
+import { positions } from './lib/plan.js'
+import { loadReader } from './lib/barcode.js'
+import { prettyUpc } from './lib/upc.js'
 import { cleanMovement, paceText, parseMovementCsv, salesRows, suggestions } from './lib/movement.js'
 import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
@@ -106,6 +110,13 @@ export default function App() {
       }
     })()
   }, [startWith])
+
+  // Fetch the barcode reader in the background once, so scanning also works later without a signal.
+  useEffect(() => {
+    if (phase !== 'ready') return undefined
+    const t = setTimeout(() => { loadReader().catch(() => {}) }, 5000)
+    return () => clearTimeout(t)
+  }, [phase])
 
   // Save the open plan after every change.
   useEffect(() => {
@@ -463,7 +474,7 @@ export default function App() {
       {sheet === 'add' && (
         <AddSheet index={index} catalog={catalog}
           targetLabel={sel && sel.where !== TRAY ? shelfLabel(plan, sel.where) : shelfLabel(plan, activeShelf.id)}
-          onAdd={onAdd} onAddGap={onAddGap} onClose={() => setSheet(null)} />
+          onAdd={onAdd} onAddGap={onAddGap} onScan={() => setSheet('scan')} onClose={() => setSheet(null)} />
       )}
       {sheet === 'shelf' && (
         <ShelfSheet plan={plan} shelf={activeShelf} catalog={catalog}
@@ -504,6 +515,29 @@ export default function App() {
             compareOptions={others} compareId={base ? compareId : null} onCompareId={setCompareId} onClose={() => setSheet(null)} />
         )
       })()}
+      {(sheet === 'scan' || sheet === 'measure') && (
+        <ScanSheet
+          mode={sheet === 'measure' ? 'measure' : 'find'}
+          products={products} sizes={sizes}
+          targetLabel={sel && sel.where !== TRAY ? shelfLabel(plan, sel.where) : shelfLabel(plan, activeShelf.id)}
+          whereInPlan={(upc) => {
+            const spots = plan.shelves.flatMap((s) => {
+              const posOf = positions(s.items)
+              return s.items.filter((i) => i.upc === upc && i.kind !== 'gap')
+                .map((i) => ({ uid: i.uid, label: shelfLabel(plan, s.id), pos: posOf.get(i.uid), facings: i.facings }))
+            }).reverse() // top shelf first
+            return spots.length ? { ...spots[0], more: spots.length - 1 } : null
+          }}
+          onShow={(uid) => {
+            setSelectedUid(uid)
+            setActiveShelfId(findItem(plan, uid).where)
+            setPlacing(false)
+            setSheet(null)
+          }}
+          onAdd={(hit) => onAdd(hit.inCatalog ? products.byUpc.get(hit.upc) : { upc: hit.upc, description: `UPC ${prettyUpc(hit.upc)}`, size: '' })}
+          onSaveSize={onSaveSize}
+          onClose={() => setSheet(null)} />
+      )}
       {sheet === 'sales' && (
         <MovementSheet movement={movement} rows={sales} tips={tips} pendingCsv={pendingCsv}
           deliveryDays={deliveryDays}
