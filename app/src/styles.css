@@ -134,7 +134,7 @@ main { padding: 0 12px calc(96px + env(safe-area-inset-bottom)); }
   /* one compact line per shelf; stays in view when the section is scrolled sideways */
   position: sticky; left: 0; z-index: 6;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  height: 32px; padding: 0 10px 3px;
+  height: 44px; padding: 0 10px 3px; /* 44 px: big enough for a finger */
   border: 0; background: var(--card);
   background-image: linear-gradient(var(--ok), var(--ok));
   background-repeat: no-repeat; background-position: 10px 100%; background-size: var(--used, 0%) 3px;
@@ -500,3 +500,18 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0 10px; }
 .chips.fractions { margin: 6px 0 10px; }
 .chips.fractions .chip { min-width: 48px; }
 .scan-btn { margin-bottom: 8px; }
+
+/* names on the shelf: across a wide tile, or up the side of a narrow one */
+.tile-name { background: rgba(255, 255, 255, 0.88); border-radius: 3px; padding: 0 2px; }
+.tile-name-up { position: absolute; left: 0; right: 0; top: 31px; bottom: 3px; display: flex; justify-content: center; pointer-events: none; overflow: hidden; }
+.tile-name-up.no-badge { top: 4px; }
+.tile-name-up > span {
+  writing-mode: vertical-rl; transform: rotate(180deg); /* reads bottom to top */
+  max-height: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 14px; font-weight: 650; line-height: 16px; background: rgba(255, 255, 255, 0.88); border-radius: 3px; padding: 2px 0;
+}
+
+/* backup reminder */
+.backup-due { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; padding: 8px 10px 8px 14px; background: #e9f1f7; border: 2px solid var(--primary); border-radius: 12px; font-weight: 600; }
+.backup-due .btn { flex: none; }
+.tag.in-plan { background: #e9f1f7; color: var(--primary); }

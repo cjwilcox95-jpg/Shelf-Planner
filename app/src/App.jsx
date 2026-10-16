@@ -32,6 +32,11 @@ function starterPlan(catalog) {
   return r ? planFromAfi(r) : newPlan({ name: 'My section' })
 }
 
+function daysAgo(iso) {
+  const d = Math.floor((Date.now() - Date.parse(iso)) / 864e5)
+  return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`
+}
+
 const mostRecent = (plans) =>
   Object.values(plans).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0]
 
@@ -383,6 +388,9 @@ export default function App() {
     return <ImportScreen onFile={onImportFile} onCancel={phase === 'ready' ? () => setSheet(null) : null} />
   }
 
+  // Remind about backups: never backed up after making changes, or the last one is over a week old.
+  const changedSince = (t) => Object.values(plans).some((p) => (p.updatedAt || '') > (t || p.createdAt || ''))
+  const backupDue = lastBackupAt ? Date.now() - Date.parse(lastBackupAt) > 7 * 864e5 && changedSince(lastBackupAt) : changedSince(null)
   const missing = plan.shelves.reduce((n, s) => n + s.items.filter((i) => !products.info(i).inCatalog).length, 0)
   const productCount = plan.shelves.reduce((n, s) => n + s.items.filter((i) => i.kind !== 'gap').length, 0)
   const anyGuess = plan.shelves.some((s) => s.items.some((i) => products.isGuess(products.dims(i))))
@@ -402,6 +410,12 @@ export default function App() {
       </header>
 
       <main>
+        {backupDue && (
+          <div className="backup-due" role="status" data-testid="backup-due">
+            <span>{lastBackupAt ? `Last backup ${daysAgo(lastBackupAt)}.` : 'Your plans are not backed up yet.'} Plans live only on this phone.</span>
+            <button className="btn" onClick={async () => showToast(await onExport())} data-testid="backup-now">Back up</button>
+          </div>
+        )}
         <SectionSummary plan={plan} check={check} anyGuess={anyGuess} missing={missing} productCount={productCount} />
 
         <section className={`shelf-card${placing ? ' placing' : ''}`} ref={boxRef}>
@@ -473,6 +487,15 @@ export default function App() {
 
       {sheet === 'add' && (
         <AddSheet index={index} catalog={catalog}
+          inPlan={(() => {
+            const m = new Map()
+            for (const s of [...plan.shelves].reverse()) {
+              const posOf = positions(s.items)
+              for (const i of s.items) if (i.kind !== 'gap' && !m.has(i.upc)) m.set(i.upc, `${shelfLabel(plan, s.id)}, #${posOf.get(i.uid)}`)
+            }
+            for (const i of plan.tray) if (!m.has(i.upc)) m.set(i.upc, 'off the shelf')
+            return m
+          })()}
           targetLabel={sel && sel.where !== TRAY ? shelfLabel(plan, sel.where) : shelfLabel(plan, activeShelf.id)}
           onAdd={onAdd} onAddGap={onAddGap} onScan={() => setSheet('scan')} onClose={() => setSheet(null)} />
       )}
@@ -559,6 +582,12 @@ export default function App() {
       )}
       {sheet === 'compare' && (
         <CompareSheet plan={plan} others={Object.values(plans).filter((p) => p.id !== plan.id)}
+          onCopyNow={() => {
+            const original = plan.id
+            onDuplicate(original)
+            setCompareId(original)
+            setSheet('compare')
+          }}
           compareId={compareId} onCompareId={setCompareId} products={products}
           onSelect={(uid) => {
             const f = findItem(plan, uid)

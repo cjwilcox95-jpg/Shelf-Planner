@@ -4,7 +4,7 @@ import { positions, shelfLabel } from '../lib/plan.js'
 
 const PAD = 14 // px left and right of the shelves
 const BOARD = 12 // px thickness of each drawn shelf board
-const TOP = 10 // px of air above the tallest product on each shelf
+const TOP = 4 // px of air above the tallest product on each shelf (the 44 px heading above gives the rest)
 const LONG_PRESS_MS = 380
 const MOVE_TOLERANCE = 10 // px a finger may wobble before we decide it is scrolling
 
@@ -233,6 +233,11 @@ export default function SectionView({
                     const w = p.widthIn * scale
                     const h = p.heightIn * scale
                     const lines = Math.min(3, Math.floor((p.unitHeightIn * scale - 34) / 16.5))
+                    // Labels must not pile up when zoomed out: no number on a very thin tile (the list has it),
+                    // names written across wide tiles, or up the side of tall narrow ones (like a shelf tag).
+                    const showBadge = w >= 22
+                    const nameAcross = w >= 66 && lines >= 1
+                    const nameUp = w >= 18 && h >= 84
                     const photo = photos[item.upc]
                     const classes = ['tile']
                     if (photo) classes.push('has-photo')
@@ -267,12 +272,15 @@ export default function SectionView({
                             </span>
                           ))}
                         </div>
-                        <span className="pos-badge">{pos}</span>
-                        {p.high > 1 && <span className="high-mark">×{p.high}</span>}
+                        {showBadge && <span className="pos-badge">{pos}</span>}
+                        {p.high > 1 && showBadge && <span className="high-mark">×{p.high}</span>}
                         {guess && <span className="guess-mark" aria-label="guessed size">~</span>}
                         {fromPhoto && <span className="guess-mark" aria-label="size from a photo">≈</span>}
-                        {!photo && w >= 66 && lines >= 1 && (
+                        {!photo && nameAcross && (
                           <span className="tile-name" style={{ WebkitLineClamp: lines }}>{info.description}</span>
+                        )}
+                        {!photo && !nameAcross && nameUp && (
+                          <span className={`tile-name-up${showBadge ? '' : ' no-badge'}`}><span>{info.description}</span></span>
                         )}
                         {p.tooDeep && <span className="warn-mark" title="Deeper than the shelf">!</span>}
                       </div>

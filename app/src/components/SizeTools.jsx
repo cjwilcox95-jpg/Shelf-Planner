@@ -137,6 +137,7 @@ export function GuessTableSheet({ types, onSave, onClose }) {
       <p className="muted small">
         Every product without a real size gets a guess: a typical product of its package type, scaled by its size
         (twice the ounces is about 1.26 times bigger each way). Change a row to change every guess of that type.
+        An “at oz” of 0 means that type is guessed the same size whatever it holds (dye boxes, pod bags, sheets).
       </p>
       <div className="guess-table">
         {types.map((t) => (

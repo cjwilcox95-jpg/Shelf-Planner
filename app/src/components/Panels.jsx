@@ -268,7 +268,7 @@ export function Sheet({ title, onClose, children, tall }) {
 }
 
 /** Search the catalog by name or UPC and add to a shelf. */
-export function AddSheet({ index, catalog, targetLabel, onAdd, onAddGap, onScan, onClose }) {
+export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), onAdd, onAddGap, onScan, onClose }) {
   const [q, setQ] = useState('')
   const inputRef = useRef(null)
   const results = useMemo(() => search(index, q), [index, q])
@@ -301,6 +301,7 @@ export function AddSheet({ index, catalog, targetLabel, onAdd, onAddGap, onScan,
               </div>
               <div className="row-sub">UPC {prettyUpc(p.upc)}
                 {p.specialOrder && <span className="tag">special order</span>}
+                {inPlan.has(p.upc) && <span className="tag in-plan">in this plan: {inPlan.get(p.upc)}</span>}
                 {p.display && <span className="tag">pallet/display</span>}
               </div>
             </div>

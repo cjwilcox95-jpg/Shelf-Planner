@@ -551,3 +551,28 @@ test('sales help with the real movement file on the Ketchup-Mustard set', async 
   const text = await page.getByRole('dialog').innerText()
   fs.writeFileSync(path.join(SHOTS, `${test.info().project.name}-25-sales-real.txt`), text)
 })
+
+test('reminders and shortcuts: backup reminder, "in this plan" in search, copy from Compare', async ({ page }, info) => {
+  await loadData(page)
+  await expect(page.getByTestId('backup-due')).toHaveCount(0) // nothing changed yet
+  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await page.getByRole('button', { name: 'One more facing' }).click()
+  await expect(page.getByTestId('backup-due')).toContainText('not backed up yet')
+  if (info.project.name === 'desktop') {
+    const dl = page.waitForEvent('download')
+    await page.getByTestId('backup-now').click()
+    await dl
+    await expect(page.getByTestId('backup-due')).toHaveCount(0)
+  }
+  // search marks products already in the plan
+  await page.getByTestId('open-add').click()
+  await page.getByTestId('search-input').fill('frenchs mustard squeeze honey')
+  await expect(page.locator('.results li').first()).toContainText('in this plan: Shelf 7 (top), #1')
+  await page.getByRole('button', { name: 'Done' }).click()
+  // Compare with only one plan: one tap makes the copy and comes back
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-compare').click()
+  await page.getByTestId('compare-copy').click()
+  await expect(page.getByTestId('plan-name')).toContainText('(copy)')
+  await expect(page.getByTestId('compare-result')).toContainText('No changes')
+})

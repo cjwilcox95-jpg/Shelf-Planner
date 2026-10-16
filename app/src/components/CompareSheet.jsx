@@ -6,7 +6,7 @@ const spot = (x) => `shelf ${x.shelf} #${x.pos}`
 const fac = (x) => `${x.facings}${x.high > 1 ? ` × ${x.high} high` : ''}`
 
 /** What changes from another plan to the open one, e.g. "current" -> "proposed". */
-export function CompareSheet({ plan, others, compareId, onCompareId, products, onSelect, onPrint, onClose }) {
+export function CompareSheet({ plan, others, compareId, onCompareId, products, onSelect, onPrint, onCopyNow, onClose }) {
   const base = others.find((p) => p.id === compareId) || null
   const c = useMemo(() => (base ? comparePlans(base, plan) : null), [base, plan])
   const name = (x) => products.info(x.item).description
@@ -30,7 +30,11 @@ export function CompareSheet({ plan, others, compareId, onCompareId, products, o
   return (
     <Sheet title="Compare plans" onClose={onClose} tall>
       {!others.length ? (
-        <p>Make a copy of this plan first (Plans, then Copy). Then change one and compare them here.</p>
+        <>
+          <p>To compare, you need two plans: the set as it is now, and a copy you change into the new set.</p>
+          <button className="btn primary wide" onClick={onCopyNow} data-testid="compare-copy">Copy this plan now</button>
+          <p className="muted small">You will be working in the copy. Change it, then come back here to see the changes.</p>
+        </>
       ) : (
         <>
           <label className="field">
