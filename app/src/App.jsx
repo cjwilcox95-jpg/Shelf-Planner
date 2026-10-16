@@ -17,6 +17,7 @@ import { ToolsSheet } from './components/ToolsSheet.jsx'
 import { CompareSheet } from './components/CompareSheet.jsx'
 import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
 import { MovementSheet } from './components/MovementSheet.jsx'
+import { makeAisleView, mergeAisles, newAisle, sectionOf, splitAisleView } from './lib/aisle.js'
 import { cleanCatalog } from './lib/clean.js'
 import { ScanSheet } from './components/ScanSheet.jsx'
 import { positions } from './lib/plan.js'
@@ -63,6 +64,8 @@ export default function App() {
   const [pendingCsv, setPendingCsv] = useState(null) // a CSV waiting for its number of days
   const [deliveryDays, setDeliveryDays] = useState(7)
   const [saveError, setSaveError] = useState(false)
+  const [aisles, setAisles] = useState({}) // id -> { id, name, planIds (left to right) }
+  const aislesRef = useRef({})
   const boxRef = useRef(null)
   const toastTimer = useRef(null)
   const plan = hist.present
@@ -84,6 +87,12 @@ export default function App() {
     setActiveShelfId(p.shelves[p.shelves.length - 1].id)
   }, [])
 
+  const commitAisles = useCallback((next) => {
+    aislesRef.current = next
+    setAisles(next)
+    save('aisles', next).catch(() => setSaveError(true))
+  }, [])
+
   const startWith = useCallback((cat, saved, currentId, oldShelf) => {
     let all = saved && Object.keys(saved).length ? saved : null
     if (!all) {
@@ -91,7 +100,9 @@ export default function App() {
       all = { [p.id]: p }
     }
     commitPlans(all)
-    openPlan(all[currentId] || mostRecent(all))
+    const aisle = typeof currentId === 'string' && currentId.startsWith('aisle:') ? aislesRef.current[currentId.slice(6)] : null
+    const view = aisle ? makeAisleView(aisle, all) : null
+    openPlan(view?.sections.length ? view : all[currentId] || mostRecent(all))
     setPhase('ready')
   }, [commitPlans, openPlan])
 
@@ -110,6 +121,9 @@ export default function App() {
         const mv = await load('movement').catch(() => null)
         if (mv) setMovement(cleanMovement(mv))
         setDeliveryDays((await load('deliveryDays').catch(() => null)) || 7)
+        const savedAisles = (await load('aisles').catch(() => null)) || {}
+        aislesRef.current = savedAisles
+        setAisles(savedAisles)
         if (identifyFile(cat).type === 'catalog') {
           setCatalog(cat)
           startWith(cat, saved, currentId, oldShelf)
@@ -131,7 +145,11 @@ export default function App() {
   // Save the open plan after every change.
   useEffect(() => {
     if (phase !== 'ready') return
-    commitPlans({ ...plansRef.current, [plan.id]: plan })
+    if (plan.sections) {
+      // an aisle: save each section plan that changed
+      const changed = splitAisleView(plan, plansRef.current)
+      if (Object.keys(changed).length) commitPlans({ ...plansRef.current, ...changed })
+    } else commitPlans({ ...plansRef.current, [plan.id]: plan })
     save('currentPlanId', plan.id).catch(() => {})
   }, [plan, phase, commitPlans])
 
@@ -150,7 +168,10 @@ export default function App() {
   const check = useMemo(() => checkPlan(plan, (item) => products.dims(item)), [plan, products])
   const sales = useMemo(() => (movement ? salesRows(plan, check, products, movement) : []), [plan, check, products, movement])
   const tips = useMemo(() => suggestions(plan, check, sales, { deliveryDays }), [plan, check, sales, deliveryDays])
-  const fitScale = Math.max(MIN_SCALE, (boxWidth - 28) / (check.widestIn + 3))
+  const spanIn = plan.sections
+    ? Math.max(...plan.shelves.map((s) => (sectionOf(plan, s.id)?.offsetIn || 0) + Math.max(s.widthIn, check.byShelf[s.id].usedIn)))
+    : check.widestIn
+  const fitScale = Math.max(MIN_SCALE, (boxWidth - 28) / (spanIn + 3))
   const scale = zoom ?? fitScale
 
   const showToast = useCallback((text, undoable = false) => {
@@ -277,7 +298,34 @@ export default function App() {
   const redo = () => { dispatch({ type: 'redo' }); setPlacing(false); showToast('Redone') }
 
   // ---------- plan actions ----------
-  const allPlans = () => ({ ...plansRef.current, [plan.id]: plan })
+  const allPlans = () => (plan.sections ? { ...plansRef.current } : { ...plansRef.current, [plan.id]: plan })
+
+  // ---------- aisles ----------
+  const onOpenAisle = (id) => {
+    const view = makeAisleView(aislesRef.current[id], plansRef.current)
+    if (!view.sections.length) { showToast('The plans in this aisle were deleted.'); return }
+    openPlan(view)
+    setSheet(null)
+    showToast(`Opened ${view.name}`)
+  }
+  const onNewAisle = (name, planIds) => {
+    const a = newAisle(name, planIds)
+    commitAisles({ ...aislesRef.current, [a.id]: a })
+    onOpenAisle(a.id)
+  }
+  const onRenameAisle = (id, name) => {
+    commitAisles({ ...aislesRef.current, [id]: { ...aislesRef.current[id], name, updatedAt: new Date().toISOString() } })
+    if (plan.aisleId === id) openPlan({ ...plan, name })
+  }
+  const onDeleteAisle = (id) => {
+    const a = aislesRef.current[id]
+    if (!window.confirm(`Delete the aisle “${a.name}”? Its sections stay as plans.`)) return
+    const rest = { ...aislesRef.current }
+    delete rest[id]
+    commitAisles(rest)
+    if (plan.aisleId === id) openPlan(plansRef.current[a.planIds.find((p) => plansRef.current[p])] || mostRecent(plansRef.current))
+    showToast(`Deleted the aisle ${a.name}. Its sections are still under Your plans.`)
+  }
 
   const onOpenPlan = (id) => {
     openPlan(plansRef.current[id])
@@ -301,7 +349,17 @@ export default function App() {
     if (!window.confirm(`Delete the plan “${victim.name}”? This cannot be undone.`)) return
     const rest = { ...allPlans() }
     delete rest[id]
-    if (id === plan.id) {
+    // take it out of any aisle; leave the aisle view if it was part of it
+    const inAisles = Object.values(aislesRef.current).filter((a) => a.planIds.includes(id))
+    if (inAisles.length) {
+      const next = { ...aislesRef.current }
+      for (const a of inAisles) next[a.id] = { ...a, planIds: a.planIds.filter((p) => p !== id), updatedAt: new Date().toISOString() }
+      commitAisles(next)
+    }
+    if (plan.sections?.some((s) => s.planId === id)) {
+      commitPlans(rest)
+      openPlan(mostRecent(rest) || newPlan({ name: 'My section' }))
+    } else if (id === plan.id) {
       const next = mostRecent(rest) || newPlan({ name: 'My section' })
       rest[next.id] = next
       commitPlans(rest)
@@ -318,7 +376,7 @@ export default function App() {
 
   const onExport = async () => {
     try {
-      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos, sizes, guessEdits, movement }))
+      const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos, sizes, guessEdits, movement, aisles: Object.values(aislesRef.current) }))
       const how = await shareOrDownload(text, backupFileName())
       if (how === 'cancelled') return 'Backup cancelled.'
       const now = new Date().toISOString()
@@ -375,11 +433,16 @@ export default function App() {
     await askToKeepData()
     const base = phase === 'ready' ? allPlans() : (await load('plans')) || {}
     const { merged, counts } = mergePlans(base, doc.plans)
+    if (Array.isArray(doc.aisles) && doc.aisles.length) {
+      const base = phase === 'ready' ? aislesRef.current : (await load('aisles')) || {}
+      commitAisles(mergeAisles(base, doc.aisles))
+    }
     if (phase !== 'ready') {
       startWith(cat, merged, await load('currentPlanId'), null)
     } else {
       commitPlans(merged)
-      if (merged[plan.id] !== plan) openPlan(merged[plan.id])
+      if (plan.sections) openPlan(makeAisleView(aislesRef.current[plan.aisleId], merged))
+      else if (merged[plan.id] !== plan) openPlan(merged[plan.id])
     }
     const pics = doc.photos ? await storePhotos(doc.photos) : { added: 0 }
     if (doc.sizes) await storeSizes(doc.sizes)
@@ -416,7 +479,7 @@ export default function App() {
       <header className="topbar">
         <button className="title-btn" onClick={() => setSheet('plans')} aria-label="Open plans and backup">
           <span className="title" data-testid="plan-name">{plan.name}</span>
-          <span className="muted">{plan.shelves.length} shelves · tap for plans & backup ▾</span>
+          <span className="muted">{plan.sections ? `Aisle of ${plan.sections.length} sections` : `${plan.shelves.length} shelves`} · tap for plans & backup ▾</span>
         </button>
         <div className="topbar-actions">
           <button className="icon-btn labeled" onClick={undo} disabled={!hist.past.length} aria-label="Undo">↶<small>Undo</small></button>
@@ -521,7 +584,7 @@ export default function App() {
           onAdd={onAdd} onAddGap={onAddGap} onScan={() => setSheet('scan')} onClose={() => setSheet(null)} />
       )}
       {sheet === 'shelf' && (
-        <ShelfSheet plan={plan} shelf={activeShelf} catalog={catalog}
+        <ShelfSheet plan={plan} shelf={activeShelf} catalog={catalog} inAisle={!!plan.sections}
           onSave={(changes, all) => act({ type: 'shelf', shelfId: activeShelf.id, changes, all }, all ? 'Every shelf updated' : 'Shelf updated')}
           onAddShelf={(position) => {
             const id = newId('s')
@@ -546,17 +609,21 @@ export default function App() {
           onClose={() => setSheet(null)} />
       )}
       {sheet === 'tools' && (
-        <ToolsSheet onPick={setSheet} onClose={() => setSheet(null)} />
+        <ToolsSheet onPick={setSheet} inAisle={!!plan.sections} onClose={() => setSheet(null)} />
       )}
       {sheet === 'print' && (() => {
-        const others = Object.values(plans).filter((p) => p.id !== plan.id)
+        const others = plan.sections ? [] : Object.values(plans).filter((p) => p.id !== plan.id)
         const base = others.find((p) => p.id === compareId)
+        const sections = plan.sections
+          ? plan.sections.map((sec) => plansRef.current[sec.planId]).filter(Boolean)
+            .map((p) => ({ plan: p, check: checkPlan(p, (item) => products.dims(item)) }))
+          : null
         const extraTables = base
           ? [{ title: `Changes from “${base.name}”`, columns: CHANGE_COLUMNS, rows: changeRows(comparePlans(base, plan), products) }]
           : []
         return (
           <PrintSheet plan={plan} check={check} products={products} photos={photos} extraTables={extraTables}
-            compareOptions={others} compareId={base ? compareId : null} onCompareId={setCompareId} onClose={() => setSheet(null)} />
+            compareOptions={others} compareId={base ? compareId : null} onCompareId={setCompareId} sections={sections} onClose={() => setSheet(null)} />
         )
       })()}
       {(sheet === 'scan' || sheet === 'measure') && (
@@ -625,6 +692,8 @@ export default function App() {
       {sheet === 'plans' && (
         <PlansSheet
           plans={plans} currentId={plan.id} resets={catalog.resets || []} lastBackupAt={lastBackupAt}
+          aisles={aisles} currentAisleId={plan.aisleId || null}
+          onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle}
           onOpen={onOpenPlan} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDeletePlan}
           onNewBlank={({ shelves, widthIn }) => onNewPlan(newPlan({ name: `New ${shelves}-shelf section`, shelves, widthIn }), 'New empty section')}
           onNewAfi={(r) => onNewPlan(planFromAfi(r), `New plan from AFI ${r.name}`)}

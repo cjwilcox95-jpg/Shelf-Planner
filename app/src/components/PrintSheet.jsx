@@ -7,7 +7,7 @@ import { shareOrDownload } from '../lib/backup.js'
  * Print or save the open plan: a drawing to scale and a product list with check boxes.
  * Step 1 makes the pages; step 2 saves or shares them (a separate tap, which phones require for sharing).
  */
-export function PrintSheet({ plan, check, products, photos, extraTables = [], compareOptions = [], compareId, onCompareId, onClose }) {
+export function PrintSheet({ plan, check, products, photos, extraTables = [], compareOptions = [], compareId, onCompareId, sections = null, onClose }) {
   const anyPhotos = plan.shelves.some((s) => s.items.some((i) => photos[i.upc]))
   const [opts, setOpts] = useState({ drawing: true, list: true, usePhotos: true })
   const [made, setMade] = useState(null) // { pdf, png, preview, pages }
@@ -22,7 +22,12 @@ export function PrintSheet({ plan, check, products, photos, extraTables = [], co
     setBusy(true)
     setMsg(null)
     try {
-      const pages = await renderPages(plan, check, products, photos, { ...opts, extraTables })
+      // an aisle prints each section in turn, left to right
+      const parts = sections || [{ plan, check }]
+      const pages = []
+      for (const [i, part] of parts.entries()) {
+        pages.push(...await renderPages(part.plan, part.check, products, photos, { ...opts, extraTables: i === 0 ? extraTables : [] }))
+      }
       const pdf = pagesToPdf(pages, plan.name)
       const png = await pageToPng(pages[0].canvas)
       setMade({ pdf, png, preview: URL.createObjectURL(png), pages: pages.length })
@@ -40,7 +45,7 @@ export function PrintSheet({ plan, check, products, photos, extraTables = [], co
   const nothing = !opts.drawing && !opts.list && !extraTables.length
   return (
     <Sheet title="Print or save as PDF" onClose={onClose} tall>
-      <p className="muted small">Makes a PDF of this plan: a drawing to scale and a list to tick off while you set the shelf. No prices, ever.</p>
+      <p className="muted small">Makes a PDF of this plan: a drawing to scale and a list to tick off while you set the shelf. No prices, ever.{sections ? ` This aisle prints its ${sections.length} sections one after another.` : ''}</p>
       <label className="check"><input type="checkbox" checked={opts.drawing} onChange={(e) => set('drawing', e.target.checked)} /><span>Drawing of the section</span></label>
       <label className="check"><input type="checkbox" checked={opts.list} onChange={(e) => set('list', e.target.checked)} /><span>Product list with check boxes</span></label>
       {anyPhotos && (

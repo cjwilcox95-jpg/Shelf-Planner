@@ -146,9 +146,13 @@ export function applyPlanAction(plan, a) {
       const n = Math.max(1, Math.min(99, Math.round(a.facings)))
       return mapItem(plan, a.uid, (i) => ({ ...i, facings: n }))
     }
-    case 'shelf': // width / depth / clearance for one shelf, or every shelf when a.all
-      return { ...plan, shelves: plan.shelves.map((s) => (a.all || s.id === a.shelfId ? { ...s, ...a.changes } : s)) }
+    case 'shelf': { // width / depth / clearance for one shelf, or every shelf of the section when a.all
+      const sec = plan.sections?.find((x) => x.shelfIds.includes(a.shelfId)) // in an aisle: only that section
+      const hit = (s) => s.id === a.shelfId || (a.all && (!sec || sec.shelfIds.includes(s.id)))
+      return { ...plan, shelves: plan.shelves.map((s) => (hit(s) ? { ...s, ...a.changes } : s)) }
+    }
     case 'addShelf': {
+      if (plan.sections) return plan // in an aisle, add shelves to the section itself
       const top = plan.shelves[plan.shelves.length - 1]
       const bottom = plan.shelves[0]
       const like = a.position === 'bottom' ? bottom : top
@@ -157,6 +161,7 @@ export function applyPlanAction(plan, a) {
       return { ...plan, shelves: a.position === 'bottom' ? [s, ...plan.shelves] : [...plan.shelves, s] }
     }
     case 'removeShelf': {
+      if (plan.sections) return plan
       if (plan.shelves.length <= 1) return plan
       const s = plan.shelves.find((x) => x.id === a.shelfId)
       if (!s) return plan
@@ -182,8 +187,10 @@ export function positions(items) {
 export const shelfNumber = (plan, shelfId) => plan.shelves.findIndex((s) => s.id === shelfId) + 1
 
 export function shelfLabel(plan, shelfId) {
-  const n = shelfNumber(plan, shelfId)
-  const total = plan.shelves.length
+  const sec = plan.sections?.find((s) => s.shelfIds.includes(shelfId)) // in an aisle: "B · Shelf 3"
+  const n = sec ? sec.shelfIds.indexOf(shelfId) + 1 : shelfNumber(plan, shelfId)
+  const total = sec ? sec.shelfIds.length : plan.shelves.length
+  if (sec) return `${sec.letter} · Shelf ${n}${n === 1 ? ' (bottom)' : n === total ? ' (top)' : ''}`
   if (total === 1) return 'Shelf 1'
   return `Shelf ${n}${n === 1 ? ' (bottom)' : n === total ? ' (top)' : ''}`
 }

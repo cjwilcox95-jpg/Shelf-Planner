@@ -611,3 +611,61 @@ test('real sizes from the AFI drawings: used for products, and AFI stacking come
   await expect(page.getByTestId('item-list').locator('.row').filter({ hasText: 'VLASIC KOSHER DILL BABY WHOLE' }).first()).toContainText('2 high')
   await shot(page, '28-afi-sizes')
 })
+
+test('aisle: the 4 laundry sections side by side, drag a product from A into B, and B keeps it', async ({ page }, info) => {
+  test.skip(!fs.existsSync(AISLE), 'no aisle file')
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('import-file').setInputFiles(AISLE)
+  await expect(page.getByRole('dialog')).toContainText('Backup loaded: 4 new plans')
+  await page.getByTestId('aisle-list').locator('li').filter({ hasText: 'Laundry aisle' }).getByTestId('open-aisle').click()
+  await expect(page.getByTestId('plan-name')).toHaveText('Laundry aisle')
+  await expect(page.getByTestId('summary')).toContainText('4 sections · 24 shelves')
+  await expect(rows(page)).toHaveCount(6) // 6 levels, each with 4 shelves side by side
+  await expect(rows(page).nth(5).getByTestId('shelf-head')).toHaveCount(4)
+  await shot(page, '29-aisle')
+  // zoom in, then drag the last product of A's bottom shelf to the start of B's bottom shelf
+  for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
+  const bottom = rows(page).nth(5)
+  const aTiles = bottom.locator('.shelf-canvas').nth(0).getByTestId('tile')
+  const bTiles = bottom.locator('.shelf-canvas').nth(1).getByTestId('tile')
+  const lastA = aTiles.last()
+  const name = (await lastA.getAttribute('aria-label')).split(': ')[1].split(',')[0]
+  await lastA.scrollIntoViewIfNeeded()
+  const from = await center(lastA)
+  const b0 = await bTiles.first().boundingBox()
+  await drag(page, info, from, { x: b0.x + 3, y: b0.y + b0.height / 2 })
+  await expect(bTiles.first()).toHaveAttribute('aria-label', new RegExp(`^B · Shelf 1 \\(bottom\\), position 1: ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+  const moved = await page.getByTestId('selected-panel').locator('.selected-name').innerText() // the dropped product is selected
+  // open Laundry B on its own: the product is there, first after the 9 in empty space; and gone from A
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry B' }).getByRole('button', { name: 'Open', exact: true }).click()
+  expect((await shelfNames(page, 'Shelf 1 (bottom)')).filter((n) => n !== 'Empty space')[0]).toBe(moved)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry A' }).getByRole('button', { name: 'Open', exact: true }).click()
+  expect(await shelfNames(page, 'Shelf 1 (bottom)')).not.toContain(moved)
+  // and back in the aisle after a reload
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('aisle-list').locator('li').filter({ hasText: 'Laundry aisle' }).getByTestId('open-aisle').click()
+  await page.reload()
+  await expect(page.getByTestId('plan-name')).toHaveText('Laundry aisle')
+})
+
+test('aisle: make one from two plans; print makes pages for each section', async ({ page }) => {
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('new-aisle').click()
+  const pick = (t) => page.getByTestId('make-aisle').locator('.row').filter({ hasText: t }).click()
+  await pick('Ketchup'); await pick('Pickles')
+  await page.getByTestId('aisle-name').fill('Condiments')
+  await page.getByTestId('save-aisle').click()
+  await expect(page.getByTestId('plan-name')).toHaveText('Condiments')
+  await expect(rows(page).first().getByTestId('shelf-head').first()).toContainText('A7')
+  await page.getByTestId('open-tools').click()
+  await expect(page.getByTestId('tool-compare')).toHaveCount(0) // compare is for single plans
+  await page.getByTestId('tool-print').click()
+  await page.getByTestId('make-pdf').click()
+  await expect(page.getByTestId('print-ready')).toContainText(/Ready: [6-9] pages/) // each section's drawing and list
+})

@@ -28,7 +28,7 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
               <span className="row-pos">{r.pos ?? '–'}</span>
               <span className="row-main">
                 <span className="row-name">{r.name}</span>
-                <span className="row-sub">Shelf {r.shelf} · {line ? line(r) : `${r.facings} facing${r.facings > 1 ? 's' : ''} · ${paceText(r)}`}</span>
+                <span className="row-sub">{r.shelf} · {line ? line(r) : `${r.facings} facing${r.facings > 1 ? 's' : ''} · ${paceText(r)}`}</span>
               </span>
             </button>
           </li>
@@ -96,7 +96,7 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
 
           {tips.squeeze.map((sq) => (
             <section className="tips" key={sq.shelfId} data-testid="tips-squeeze">
-              <h3 className="sheet-section">Shelf {sq.shelf} is {fmtIn(sq.overIn)} in over</h3>
+              <h3 className="sheet-section">{sq.shelf} is {fmtIn(sq.overIn)} in over</h3>
               {sq.picks.length ? (
                 <>
                   <p className="muted small">Giving up one facing of these frees {fmtIn(sq.freed)} in{sq.enough ? ', enough to fit' : ', not quite enough'}. They would still last at least {Math.round(deliveryDays * 1.5)} days.</p>

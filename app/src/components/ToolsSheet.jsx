@@ -10,11 +10,11 @@ const TOOLS = [
 ]
 
 /** Everything that is not used every minute. */
-export function ToolsSheet({ tools = TOOLS, onPick, onClose }) {
+export function ToolsSheet({ tools = TOOLS, inAisle, onPick, onClose }) {
   return (
     <Sheet title="Tools" onClose={onClose}>
       <ul className="item-list">
-        {tools.map((t) => (
+        {tools.filter((t) => !(inAisle && t.id === 'compare')).map((t) => (
           <li key={t.id}>
             <button className="row" onClick={() => onPick(t.id)} data-testid={`tool-${t.id}`}>
               <span className="row-main">

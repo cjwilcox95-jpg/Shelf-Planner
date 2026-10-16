@@ -120,6 +120,12 @@ test('tour of every screen', async ({ page }, info) => {
     await page.getByTestId('import-file').setInputFiles(AISLE)
     await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry C' }).getByRole('button', { name: 'Open', exact: true }).click()
     await snap('laundry-c')
+    await page.getByRole('button', { name: 'Plans', exact: true }).click()
+    await page.getByTestId('aisle-list').locator('li').filter({ hasText: 'Laundry aisle' }).getByTestId('open-aisle').click()
+    await snap('aisle')
+    await page.getByRole('button', { name: 'Plans', exact: true }).click()
+    await snap('plans-with-aisle')
+    await page.getByRole('button', { name: 'Done' }).click()
   }
   fs.writeFileSync(path.join(SHOTS, `${info.project.name}-tour-problems.txt`), problems.join('\n') + '\n')
   expect(problems, problems.join('\n')).toEqual([])

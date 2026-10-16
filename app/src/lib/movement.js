@@ -4,7 +4,7 @@
 // Everything here is a suggestion ("worth a look"); nothing changes a plan.
 
 import { candidateKeys } from './upc.js'
-import { positions } from './plan.js'
+import { positions, shelfLabel } from './plan.js'
 
 export const MOVEMENT_KIND = 'shelf-planner-movement'
 
@@ -105,7 +105,7 @@ export function salesRows(plan, check, products, movement) {
       const sold = movement?.items?.[item.upc]
       byUpc.set(item.upc, {
         uid: item.uid, upc: item.upc, name: info.description, size: info.size, pack: Number(info.pack) || null,
-        shelf: k + 1, shelfId: s.id, pos: posOf.get(item.uid),
+        shelf: shelfLabel(plan, s.id), shelfId: s.id, pos: posOf.get(item.uid),
         facings: item.facings, inches: p.widthIn, capacity: p.capacity, spots: 1,
         depthGuess: products.dims(item).source.d === 'guess',
         inFile: !!sold,
@@ -167,7 +167,7 @@ export function suggestions(plan, check, rows, { deliveryDays = 7 } = {}) {
       picks.push(c)
       freed += c.unitWidth
     }
-    out.squeeze.push({ shelf: k + 1, shelfId: s.id, overIn: fit.overIn, picks, freed: r1(freed), enough: freed >= fit.overIn - 1e-6 })
+    out.squeeze.push({ shelf: shelfLabel(plan, s.id), shelfId: s.id, overIn: fit.overIn, picks, freed: r1(freed), enough: freed >= fit.overIn - 1e-6 })
   })
   return out
 }

@@ -2,6 +2,18 @@
 
 Plain-English notes on what changed at each stage.
 
+## Aisles: sections side by side (2026-10-16)
+
+- Plans > Aisles > Make an aisle from plans: tap the sections left to right and name it. Opening the aisle shows every
+  section side by side, shelf 1 of each along the bottom, with an upright between sections.
+- Drag (or tap, Move, tap) a product from one section to another. Each change is saved into the section plans
+  themselves, so every section still opens on its own.
+- Anything past the end of its section's shelf is drawn in red, hanging into the next section.
+- Shelf names say which section they are in ("B · Shelf 3"), with the letters explained above the drawing.
+- Print makes each section's pages in turn. Shelf sizes "for every shelf" apply to that one section; adding or removing
+  shelves and Compare are done on a single section.
+- Aisles are included in backups. The laundry file now includes the "Laundry aisle" (A, B, C, D).
+
 ## Real sizes from AFI's drawings (2026-10-16)
 
 - AFI draws each reset to scale with planogram software. scripts/read_afi_sizes.py reads those drawings:

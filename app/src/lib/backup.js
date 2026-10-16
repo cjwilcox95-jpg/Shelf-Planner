@@ -5,8 +5,8 @@ import { cleanPlan } from './clean.js'
 
 export const BACKUP_KIND = 'shelf-planner-backup'
 
-export function makeBackup({ plans, catalog, photos = {}, sizes = {}, guessEdits = {}, movement = null, now = new Date().toISOString() }) {
-  return { kind: BACKUP_KIND, version: 1, exportedAt: now, plans: Object.values(plans), catalog: catalog || null, photos, sizes, guessEdits, movement }
+export function makeBackup({ plans, catalog, photos = {}, sizes = {}, guessEdits = {}, movement = null, aisles = [], now = new Date().toISOString() }) {
+  return { kind: BACKUP_KIND, version: 1, exportedAt: now, plans: Object.values(plans), catalog: catalog || null, photos, sizes, guessEdits, movement, aisles }
 }
 
 export function backupFileName(now = new Date()) {

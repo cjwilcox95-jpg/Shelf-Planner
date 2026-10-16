@@ -79,6 +79,8 @@ To rebuild the catalog after getting new files: put them in `data/raw/`, then ru
   per foot of shelf, best sellers, no sales, and for a shelf that is over, which facings to give up first.
   **Units sold only**: sales dollars, cost, margin and on-hand are ignored and never saved. Nothing changes a plan.
 - **Default size guesses**: the typical size per package type that every guess starts from.
+- **Aisles** (under Plans): several sections side by side. Move products from one section to the next and see what hangs
+  over into the neighbour. Changes are saved into each section's own plan.
 
 On a selected product, **More** shows *Stacked* (stack 2 or more high), and **＋ Add** can add an **empty space**
 (a gap of any width that counts toward the shelf).

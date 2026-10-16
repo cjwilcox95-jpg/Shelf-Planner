@@ -3,6 +3,7 @@ import { fmtIn } from '../lib/fit.js'
 import { search } from '../lib/search.js'
 import { prettyUpc } from '../lib/upc.js'
 import { positions, shelfLabel, TRAY } from '../lib/plan.js'
+import { LETTERS } from '../lib/aisle.js'
 import { sourceMark, SOURCE_LABEL } from '../lib/sizes.js'
 
 const shortDate = (iso) => {
@@ -29,11 +30,16 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
         <div>
           <div className="big" data-testid="section-status">{status}</div>
           <div className="sub">
-            {plan.shelves.length} shelves · {productCount} products
+            {plan.sections ? `${plan.sections.length} sections · ` : ''}{plan.shelves.length} shelves · {productCount} products
             {plan.tray.length ? ` · ${plan.tray.length} off the shelf` : ''}
           </div>
         </div>
       </div>
+      {plan.sections && (
+        <p className="summary-notes aisle-key" data-testid="aisle-key">
+          {plan.sections.map((s) => <span key={s.planId}><strong>{s.letter}</strong> {s.name}</span>)}
+        </p>
+      )}
       {(notes.length > 0 || anyGuess) && (
         <p className="summary-notes">
           {notes.map((w) => <span key={w} className="warn">{w}</span>)}
@@ -316,7 +322,7 @@ export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), onAd
 }
 
 /** Size of one shelf (or all of them), and adding/removing shelves. */
-export function ShelfSheet({ plan, shelf, catalog, onSave, onAddShelf, onRemoveShelf, onClose, onReplaceData, onOpenGuesses }) {
+export function ShelfSheet({ plan, shelf, catalog, inAisle, onSave, onAddShelf, onRemoveShelf, onClose, onReplaceData, onOpenGuesses }) {
   const [form, setForm] = useState({ widthIn: shelf.widthIn, depthIn: shelf.depthIn, clearanceIn: shelf.clearanceIn })
   const [all, setAll] = useState(false)
   const valid = ['widthIn', 'depthIn', 'clearanceIn'].every((k) => Number(form[k]) > 0 && Number(form[k]) <= 600)
@@ -351,13 +357,19 @@ export function ShelfSheet({ plan, shelf, catalog, onSave, onAddShelf, onRemoveS
       </label>
       <button className="btn primary wide" onClick={save} disabled={!valid}>Save</button>
       <hr />
-      <div className="btn-grid">
-        <button className="btn" onClick={() => { onAddShelf('top'); onClose() }}>Add a shelf on top</button>
-        <button className="btn" onClick={() => { onAddShelf('bottom'); onClose() }}>Add a shelf at bottom</button>
-        <button className="btn danger" disabled={plan.shelves.length <= 1}
-          onClick={() => { onRemoveShelf(shelf.id); onClose() }}>Remove this shelf</button>
-      </div>
-      <p className="muted small">Removing a shelf moves its products to “Off the shelf”. You can undo.</p>
+      {inAisle ? (
+        <p className="muted small">To add or remove shelves, open that section on its own (Plans, then Open).</p>
+      ) : (
+        <>
+          <div className="btn-grid">
+            <button className="btn" onClick={() => { onAddShelf('top'); onClose() }}>Add a shelf on top</button>
+            <button className="btn" onClick={() => { onAddShelf('bottom'); onClose() }}>Add a shelf at bottom</button>
+            <button className="btn danger" disabled={plan.shelves.length <= 1}
+              onClick={() => { onRemoveShelf(shelf.id); onClose() }}>Remove this shelf</button>
+          </div>
+          <p className="muted small">Removing a shelf moves its products to “Off the shelf”. You can undo.</p>
+        </>
+      )}
       <hr />
       <button className="btn wide" onClick={onOpenGuesses} data-testid="open-guesses">Default size guesses…</button>
       <p className="muted small">Store data: {catalog.items.length.toLocaleString()} products, built {catalog.built}.</p>
@@ -370,6 +382,7 @@ export function ShelfSheet({ plan, shelf, catalog, onSave, onAddShelf, onRemoveS
 export function PlansSheet({
   plans, currentId, resets, lastBackupAt, onOpen, onDuplicate, onRename, onDelete,
   onNewBlank, onNewAfi, onExport, onImportFile, onClose,
+  aisles = {}, currentAisleId, onOpenAisle, onNewAisle, onRenameAisle, onDeleteAisle,
 }) {
   const [renaming, setRenaming] = useState(null)
   const [name, setName] = useState('')
@@ -383,6 +396,9 @@ export function PlansSheet({
   }
   return (
     <Sheet title="Plans" onClose={onClose} tall>
+      <AislesPart plans={plans} aisles={aisles} currentAisleId={currentAisleId}
+        onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle} />
+
       <h3 className="sheet-section">Your plans</h3>
       <ul className="plan-list" data-testid="plan-list">
         {list.map((p) => (
@@ -459,5 +475,79 @@ export function PlansSheet({
       </label>
       {msg && <p className={msg.startsWith('Could not') || msg.startsWith('This is not') ? 'error' : 'ok-msg'} role="status">{msg}</p>}
     </Sheet>
+  )
+}
+
+/** Aisles: several plans side by side. Pick the sections in order, left to right. */
+function AislesPart({ plans, aisles, currentAisleId, onOpenAisle, onNewAisle, onRenameAisle, onDeleteAisle }) {
+  const [making, setMaking] = useState(false)
+  const [picked, setPicked] = useState([])
+  const [name, setName] = useState('')
+  const [renaming, setRenaming] = useState(null)
+  const list = Object.values(aisles).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+  const planList = Object.values(plans).sort((a, b) => a.name.localeCompare(b.name))
+  const toggle = (id) => setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id])
+  return (
+    <>
+      <h3 className="sheet-section">Aisles</h3>
+      {list.length === 0 && !making && <p className="muted small">An aisle shows several sections side by side, so you can move products from one to the next.</p>}
+      <ul className="plan-list" data-testid="aisle-list">
+        {list.map((a) => (
+          <li key={a.id} className={a.id === currentAisleId ? 'current' : ''}>
+            {renaming === a.id ? (
+              <form className="rename" onSubmit={(e) => { e.preventDefault(); onRenameAisle(a.id, name.trim() || a.name); setRenaming(null) }}>
+                <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Aisle name" />
+                <button className="btn primary">Save</button>
+              </form>
+            ) : (
+              <div className="plan-name">
+                <strong>{a.name}</strong>
+                <span className="muted small">
+                  {a.id === currentAisleId ? 'Open now · ' : ''}
+                  {a.planIds.filter((id) => plans[id]).map((id, i) => `${LETTERS[i]} = ${plans[id].name}`).join(' · ') || 'no sections left'}
+                </span>
+              </div>
+            )}
+            <div className="plan-btns">
+              {a.id !== currentAisleId && <button className="btn primary" onClick={() => onOpenAisle(a.id)} data-testid="open-aisle">Open</button>}
+              <button className="btn" onClick={() => { setRenaming(a.id); setName(a.name) }}>Rename</button>
+              <button className="btn danger" onClick={() => onDeleteAisle(a.id)} aria-label={`Delete aisle ${a.name}`}>Delete</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {!making ? (
+        <button className="btn wide" onClick={() => { setMaking(true); setPicked([]); setName('') }} data-testid="new-aisle"
+          disabled={planList.length < 2}>Make an aisle from plans…</button>
+      ) : (
+        <div className="make-aisle" data-testid="make-aisle">
+          <p className="muted small">Tap the sections in order, left to right as you face the aisle.</p>
+          <ul className="item-list">
+            {planList.map((p) => {
+              const n = picked.indexOf(p.id)
+              return (
+                <li key={p.id}>
+                  <button className={`row${n >= 0 ? ' selected' : ''}`} onClick={() => toggle(p.id)} aria-pressed={n >= 0}>
+                    <span className="row-pos">{n >= 0 ? n + 1 : ''}</span>
+                    <span className="row-main"><span className="row-name">{p.name}</span>
+                      <span className="row-sub">{p.shelves.length} shelves · {Math.max(...p.shelves.map((s) => s.widthIn)) / 12} ft</span></span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <label className="field">
+            <span>Aisle name</span>
+            <input className="search" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Laundry aisle" data-testid="aisle-name" />
+          </label>
+          <div className="btn-grid two">
+            <button className="btn primary" disabled={picked.length < 2} onClick={() => { onNewAisle(name.trim() || 'New aisle', picked); setMaking(false) }} data-testid="save-aisle">
+              Make the aisle ({picked.length})
+            </button>
+            <button className="btn" onClick={() => setMaking(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

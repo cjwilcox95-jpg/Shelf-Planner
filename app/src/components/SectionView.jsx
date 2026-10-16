@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fmtIn, insertIndexAt } from '../lib/fit.js'
 import { positions, shelfLabel } from '../lib/plan.js'
+import { aisleRows, sectionOf } from '../lib/aisle.js'
 
 const PAD = 14 // px left and right of the shelves
 const BOARD = 12 // px thickness of each drawn shelf board
@@ -25,7 +26,10 @@ export default function SectionView({
   const drag = useRef(null)
   const [dragView, setDragView] = useState(null)
 
-  const widestIn = Math.max(...plan.shelves.map((s) => Math.max(s.widthIn, fits[s.id].usedIn)))
+  // How far right anything reaches, in inches (an aisle: every section side by side, plus what hangs past the end)
+  const widestIn = plan.sections
+    ? Math.max(...plan.shelves.map((s) => (sectionOf(plan, s.id)?.offsetIn || 0) + Math.max(s.widthIn, fits[s.id].usedIn)))
+    : Math.max(...plan.shelves.map((s) => Math.max(s.widthIn, fits[s.id].usedIn)))
   const width = Math.ceil(PAD * 2 + (widestIn + 3) * scale)
   const xPx = (inches) => PAD + inches * scale
   const topFirst = [...plan.shelves].reverse()
@@ -52,7 +56,9 @@ export default function SectionView({
       const el = canvasRefs.current[s.id]
       if (!el) continue
       const r = el.getBoundingClientRect()
-      const dist = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0
+      const dy = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0
+      const dx = clientX < r.left ? r.left - clientX : clientX > r.right ? clientX - r.right : 0
+      const dist = dy * 4 + dx // same row first (an aisle has several shelves side by side)
       if (!best || dist < best.dist) best = { shelf: s, dist, xIn: (clientX - r.left - PAD) / scale }
     }
     return best
@@ -161,42 +167,18 @@ export default function SectionView({
     return x
   }
 
-  const rulerIn = Math.max(...plan.shelves.map((s) => s.widthIn))
-  const ticks = []
-  for (let inch = 0; inch <= rulerIn + 0.001; inch += 6) ticks.push(inch)
-  if (ticks[ticks.length - 1] !== rulerIn) ticks.push(rulerIn)
-
-  return (
-    <>
-      <div className={`section-scroll${placing ? ' placing' : ''}`} ref={scrollRef} data-testid="section-scroll">
-        <div className="section-inner" style={{ width }}>
-          {topFirst.map((shelf) => {
-            const fit = fits[shelf.id]
-            const tallestIn = Math.max(shelf.clearanceIn, ...fit.items.map((p) => p.heightIn), 1)
-            const canvasH = TOP + Math.ceil(tallestIn * scale)
-            const byUid = new Map(shelf.items.map((i) => [i.uid, i]))
-            const posOf = positions(shelf.items)
-            const isTarget = dragView?.shelfId === shelf.id
-            const pct = Math.min(100, fit.percentUsed)
-            return (
-              <div key={shelf.id} className={`shelf-row${shelf.id === activeShelfId ? ' active' : ''}`} data-testid="shelf-row" data-shelf={shelf.id}>
-                <button
-                  type="button"
-                  className={`shelf-head${fit.isOver ? ' over' : ''}`}
-                  style={{ width: viewWidth, '--used': `calc((100% - 20px) * ${pct / 100})` }}
-                  onClick={(e) => { e.stopPropagation(); onHeadClick(shelf) }}
-                  data-testid="shelf-head"
-                >
-                  <span className="shelf-head-name">{shelfLabel(plan, shelf.id)}</span>
-                  <span className="shelf-head-nums">
-                    {fmtIn(fit.usedIn)} of {fmtIn(shelf.widthIn)} ·{' '}
-                    <strong data-testid="shelf-left">{fit.isOver ? `${fmtIn(fit.overIn)} in OVER` : `${fmtIn(fit.remainingIn)} in left`}</strong>
-                  </span>
-                </button>
+  /** One shelf: its back, its products and its board. In an aisle, segStyle places it in its section. */
+  const renderCanvas = (shelf, canvasH, segStyle = {}) => {
+    const fit = fits[shelf.id]
+    const byUid = new Map(shelf.items.map((i) => [i.uid, i]))
+    const posOf = positions(shelf.items)
+    const isTarget = dragView?.shelfId === shelf.id
+    return (
                 <div
                   className="shelf-canvas"
+                  key={shelf.id}
                   ref={(el) => { canvasRefs.current[shelf.id] = el }}
-                  style={{ height: canvasH + BOARD }}
+                  style={{ height: canvasH + BOARD, ...segStyle }}
                   onClick={(e) => onCanvasClick(e, shelf)}
                 >
                   <div className="shelf-back" style={{ left: xPx(0), width: shelf.widthIn * scale, top: canvasH - shelf.clearanceIn * scale, height: shelf.clearanceIn * scale }} />
@@ -293,15 +275,83 @@ export default function SectionView({
                   )}
                   <div className="board" style={{ left: xPx(0), width: shelf.widthIn * scale, top: canvasH, height: BOARD }} />
                 </div>
+    )
+  }
+
+  const rulerIn = plan.sections ? plan.sections.reduce((n, sec) => n + sec.widthIn, 0) : Math.max(...plan.shelves.map((s) => s.widthIn))
+  const ticks = []
+  for (let inch = 0; inch <= rulerIn + 0.001; inch += 6) ticks.push(inch)
+  if (ticks[ticks.length - 1] !== rulerIn) ticks.push(rulerIn)
+
+  return (
+    <>
+      <div className={`section-scroll${placing ? ' placing' : ''}`} ref={scrollRef} data-testid="section-scroll">
+        <div className="section-inner" style={{ width }}>
+          {plan.sections && aisleRows(plan).map((cells, r) => {
+            const live = cells.filter(Boolean)
+            const tallestIn = Math.max(1, ...live.map((c) => Math.max(c.shelf.clearanceIn, ...fits[c.shelf.id].items.map((p) => p.heightIn))))
+            const canvasH = TOP + Math.ceil(tallestIn * scale)
+            return (
+              <div key={`level-${r}`} className={`shelf-row aisle-row${live.some((c) => c.shelf.id === activeShelfId) ? ' active' : ''}`} data-testid="shelf-row">
+                <div className="aisle-heads">
+                  {live.map((c) => {
+                    const fit = fits[c.shelf.id]
+                    const pct = Math.min(100, fit.percentUsed)
+                    return (
+                      <button
+                        type="button" key={c.shelf.id}
+                        className={`shelf-head seg-head${fit.isOver ? ' over' : ''}${c.shelf.id === activeShelfId ? ' on' : ''}`}
+                        style={{ left: xPx(c.section.offsetIn), width: c.shelf.widthIn * scale, '--used': `calc((100% - 12px) * ${pct / 100})` }}
+                        onClick={(e) => { e.stopPropagation(); onHeadClick(c.shelf) }}
+                        aria-label={`${shelfLabel(plan, c.shelf.id)}: ${fit.isOver ? `${fmtIn(fit.overIn)} inches over` : `${fmtIn(fit.remainingIn)} inches left`}`}
+                        data-testid="shelf-head"
+                      >
+                        <span className="shelf-head-name">{c.section.letter}{c.level}</span>
+                        <strong data-testid="shelf-left">{fit.isOver ? `${fmtIn(fit.overIn)} OVER` : `${fmtIn(fit.remainingIn)} left`}</strong>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="aisle-level" style={{ height: canvasH + BOARD }}>
+                  {live.map((c) => renderCanvas(c.shelf, canvasH, { position: 'absolute', left: c.section.offsetIn * scale, top: 0, width: PAD * 2 + c.shelf.widthIn * scale }))}
+                  {plan.sections.slice(1).map((sec) => (
+                    <div key={sec.planId} className="upright" style={{ left: xPx(sec.offsetIn) - 1, height: canvasH + BOARD }} />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+          {!plan.sections && topFirst.map((shelf) => {
+            const fit = fits[shelf.id]
+            const tallestIn = Math.max(shelf.clearanceIn, ...fit.items.map((p) => p.heightIn), 1)
+            const canvasH = TOP + Math.ceil(tallestIn * scale)
+            const pct = Math.min(100, fit.percentUsed)
+            return (
+              <div key={shelf.id} className={`shelf-row${shelf.id === activeShelfId ? ' active' : ''}`} data-testid="shelf-row" data-shelf={shelf.id}>
+                <button
+                  type="button"
+                  className={`shelf-head${fit.isOver ? ' over' : ''}`}
+                  style={{ width: viewWidth, '--used': `calc((100% - 20px) * ${pct / 100})` }}
+                  onClick={(e) => { e.stopPropagation(); onHeadClick(shelf) }}
+                  data-testid="shelf-head"
+                >
+                  <span className="shelf-head-name">{shelfLabel(plan, shelf.id)}</span>
+                  <span className="shelf-head-nums">
+                    {fmtIn(fit.usedIn)} of {fmtIn(shelf.widthIn)} ·{' '}
+                    <strong data-testid="shelf-left">{fit.isOver ? `${fmtIn(fit.overIn)} in OVER` : `${fmtIn(fit.remainingIn)} in left`}</strong>
+                  </span>
+                </button>
+                {renderCanvas(shelf, canvasH)}
               </div>
             )
           })}
           <div className="ruler">
             {ticks.map((t) => {
               const major = t === rulerIn || t % 12 === 0
+              const label = plan.sections ? (t % 48 === 0 ? `${t / 12} ft` : null) : major ? `${fmtIn(t)}"` : null
               return (
                 <span key={t} className={`tick${major ? ' major' : ''}`} style={{ left: xPx(t) }}>
-                  {major && <span className="tick-label">{fmtIn(t)}"</span>}
+                  {label && <span className="tick-label">{label}</span>}
                 </span>
               )
             })}
