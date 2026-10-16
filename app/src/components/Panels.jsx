@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Archive, CheckCircle2, ChevronRight, Copy, Download, FolderOpen, Pencil, Plus, Search, Snowflake, Store, Trash2, Upload, XCircle } from 'lucide-react'
 import { fmtIn } from '../lib/fit.js'
 import { search } from '../lib/search.js'
 import { prettyUpc } from '../lib/upc.js'
@@ -24,10 +25,13 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
   let status = 'Everything fits'
   if (over) status = `${over} ${over > 1 ? 'shelves' : 'shelf'} over`
   else if (otherProblems) status = 'Width fits'
+  const tone = over ? 'over' : otherProblems ? 'caution' : 'ok'
+  const Icon = over ? XCircle : otherProblems ? AlertTriangle : CheckCircle2
   return (
-    <section className={`summary${over ? ' over' : otherProblems ? ' caution' : ''}`} aria-live="polite" data-testid="summary">
+    <section className={`summary ${tone}`} aria-live="polite" data-testid="summary">
       <div className="summary-main">
-        <div>
+        <Icon className="summary-icon" size={30} aria-hidden="true" />
+        <div className="summary-text">
           <div className="big" data-testid="section-status">{status}</div>
           <div className="sub">
             {plan.sections ? `${plan.sections.length} sections · ` : ''}{plan.shelves.length} shelves · {productCount} products
@@ -35,17 +39,17 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
           </div>
         </div>
       </div>
+      {(notes.length > 0 || plan.sections) && (
+        <div className="summary-chips">
+          {notes.map((w) => <span key={w} className={`chip-note${/store's item files/.test(w) ? ' info' : ''}`}>{w}</span>)}
+        </div>
+      )}
       {plan.sections && (
         <p className="summary-notes aisle-key" data-testid="aisle-key">
-          {plan.sections.map((s) => <span key={s.planId}><strong>{s.letter}</strong> {s.name}</span>)}
+          {plan.sections.map((sec) => <span key={sec.planId}><strong>{sec.letter}</strong> {sec.name}</span>)}
         </p>
       )}
-      {(notes.length > 0 || anyGuess) && (
-        <p className="summary-notes">
-          {notes.map((w) => <span key={w} className="warn">{w}</span>)}
-          {anyGuess && <span>~ = guessed size · ≈ = estimated</span>}
-        </p>
-      )}
+      {anyGuess && <p className="summary-legend">~ = guessed size · ≈ = estimated</p>}
     </section>
   )
 }
@@ -395,97 +399,137 @@ export function PlansSheet({
     e.target.value = ''
     if (f) setMsg(await onImportFile(f))
   }
+  const [tab, setTab] = useState('plans')
+  const matches = resets.filter((r) => resetQ.trim().split(/\s+/).every((w) => `${r.name} ${r.fixture || ''} ${r.date}`.toLowerCase().includes(w.toLowerCase())))
+  const groups = [
+    ['Shelves', matches.filter((r) => !r.fixture)],
+    ['Freezer', matches.filter((r) => r.fixture)],
+  ].filter(([, list]) => list.length)
+  const Tab = ({ id, label, icon: I }) => (
+    <button type="button" role="tab" aria-selected={tab === id} className={`tabs-btn${tab === id ? ' on' : ''}`} onClick={() => setTab(id)} data-testid={`tab-${id}`}>
+      <I size={18} aria-hidden="true" /> {label}
+    </button>
+  )
   return (
     <Sheet title="Plans" onClose={onClose} tall>
-      <AislesPart plans={plans} aisles={aisles} currentAisleId={currentAisleId}
-        onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle} />
+      <div className="tabs" role="tablist" aria-label="Plans, AFI sets and backup">
+        <Tab id="plans" label="Your plans" icon={FolderOpen} />
+        <Tab id="afi" label="AFI sets" icon={Store} />
+        <Tab id="backup" label="Backup" icon={Archive} />
+      </div>
+      {msg && <p className={msg.startsWith('Could not') || msg.startsWith('This is not') ? 'error' : 'ok-msg'} role="status">{msg}</p>}
 
-      <h3 className="sheet-section">Your plans</h3>
-      <ul className="plan-list" data-testid="plan-list">
-        {list.map((p) => (
-          <li key={p.id} className={p.id === currentId ? 'current' : ''}>
-            {renaming === p.id ? (
-              <form className="rename" onSubmit={(e) => { e.preventDefault(); onRename(p.id, name.trim() || p.name); setRenaming(null) }}>
-                <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Plan name" />
-                <button className="btn primary">Save</button>
-              </form>
-            ) : (
-              <div className="plan-name">
-                <strong>{p.name}</strong>
-                <span className="muted small">
-                  {p.id === currentId ? 'Open now · ' : ''}{p.shelves.length} shelves · changed {shortDate(p.updatedAt)}
-                </span>
+      <div role="tabpanel" hidden={tab !== 'plans'}>
+        <div className="new-plan-row">
+          <button className="btn primary" onClick={() => setTab('afi')}><Store size={18} aria-hidden="true" /> AFI set</button>
+          <button className="btn" onClick={() => setTab('blank')} data-testid="new-blank"><Plus size={18} aria-hidden="true" /> Empty section</button>
+        </div>
+        <AislesPart plans={plans} aisles={aisles} currentAisleId={currentAisleId}
+          onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle} />
+
+        <h3 className="sheet-section">Sections ({list.length})</h3>
+        <ul className="plan-list" data-testid="plan-list">
+          {list.map((p) => (
+            <li key={p.id} className={p.id === currentId ? 'current' : ''}>
+              {renaming === p.id ? (
+                <form className="rename" onSubmit={(e) => { e.preventDefault(); onRename(p.id, name.trim() || p.name); setRenaming(null) }}>
+                  <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Plan name" />
+                  <button className="btn primary">Save</button>
+                </form>
+              ) : (
+                <div className="plan-name">
+                  <strong>{p.name}</strong>
+                  <span className="muted small">
+                    {p.id === currentId && <span className="badge">Open now</span>}
+                    {p.shelves.length} shelves · {Number((Math.max(...p.shelves.map((x) => x.widthIn)) / 12).toFixed(1))} ft · changed {shortDate(p.updatedAt)}
+                  </span>
+                </div>
+              )}
+              <div className="plan-btns">
+                {p.id !== currentId && <button className="btn primary" onClick={() => onOpen(p.id)}>Open</button>}
+                <button className="btn ghost" onClick={() => onDuplicate(p.id)}><Copy size={16} aria-hidden="true" />Copy</button>
+                <button className="btn ghost" onClick={() => { setRenaming(p.id); setName(p.name) }}><Pencil size={16} aria-hidden="true" />Rename</button>
+                <button className="btn ghost danger icon-only" onClick={() => onDelete(p.id)} aria-label={`Delete ${p.name}`} title="Delete"><Trash2 size={18} aria-hidden="true" /></button>
               </div>
-            )}
-            <div className="plan-btns">
-              {p.id !== currentId && <button className="btn primary" onClick={() => onOpen(p.id)}>Open</button>}
-              <button className="btn" onClick={() => onDuplicate(p.id)}>Copy</button>
-              <button className="btn" onClick={() => { setRenaming(p.id); setName(p.name) }}>Rename</button>
-              <button className="btn danger" onClick={() => onDelete(p.id)} aria-label={`Delete ${p.name}`}>Delete</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <p className="muted small">Tip: “Copy” a plan to keep the current set and try a proposed one next to it.</p>
-
-      <h3 className="sheet-section">New plan</h3>
-      <div className="new-blank">
-        <div>
-          <span className="field-label">Shelves</span>
-          <div className="chips">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-              <button key={n} type="button" className={`chip${blank.shelves === n ? ' on' : ''}`} onClick={() => setBlank({ ...blank, shelves: n })}>{n}</button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <span className="field-label">Width</span>
-          <div className="chips">
-            {[36, 48, 96].map((w) => (
-              <button key={w} type="button" className={`chip${blank.widthIn === w ? ' on' : ''}`} onClick={() => setBlank({ ...blank, widthIn: w })}>{w} in</button>
-            ))}
-          </div>
-        </div>
-        <button className="btn primary wide" onClick={() => onNewBlank(blank)}>Start an empty section</button>
+            </li>
+          ))}
+        </ul>
+        <p className="muted small">Tip: “Copy” a plan to keep the current set and try a proposed one next to it.</p>
       </div>
 
-      <h3 className="sheet-section">Start from an AFI reset ({resets.length})</h3>
-      <p className="muted small">Copies a whole AFI set, every shelf with AFI's facings and sizes, into a new plan. A freezer set with several doors opens as an aisle, one section per door.</p>
-      {resets.length > 6 && (
-        <input className="search" type="search" placeholder="Find a set, e.g. ketchup or freezer" value={resetQ}
-          onChange={(e) => setResetQ(e.target.value)} aria-label="Find an AFI set" data-testid="reset-search" />
-      )}
-      <ul className="item-list">
-        {resets.filter((r) => resetQ.trim().split(/\s+/).every((w) => `${r.name} ${r.fixture || ''} ${r.date}`.toLowerCase().includes(w.toLowerCase())))
-          .map((r) => {
-            const levels = new Set(r.shelves.map((s) => s.shelf)).size
-            const products = r.shelves.reduce((n, s) => n + s.items.length, 0)
-            return (
-              <li key={r.id}>
-                <button className="row" onClick={() => onNewAfi(r)} data-testid={`afi-${r.id}`}>
-                  <span className="row-main">
-                    <span className="row-name">{r.name}</span>
-                    <span className="row-sub">
-                      {r.fixture ? `${r.fixture} · ` : ''}{Number(r.widthFt.toFixed(2))} ft · {levels} shelves · {products} products · AFI {r.date}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-      </ul>
+      <div role="tabpanel" hidden={tab !== 'blank'}>
+        <h3 className="sheet-section">New empty section</h3>
+        <div className="new-blank">
+          <div>
+            <span className="field-label">Shelves</span>
+            <div className="chips">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                <button key={n} type="button" className={`chip${blank.shelves === n ? ' on' : ''}`} onClick={() => setBlank({ ...blank, shelves: n })}>{n}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className="field-label">Width</span>
+            <div className="chips">
+              {[30, 36, 48, 96].map((w) => (
+                <button key={w} type="button" className={`chip${blank.widthIn === w ? ' on' : ''}`} onClick={() => setBlank({ ...blank, widthIn: w })}>{w} in</button>
+              ))}
+            </div>
+          </div>
+          <button className="btn primary wide" onClick={() => onNewBlank(blank)}>Start an empty section</button>
+          <button className="btn wide" onClick={() => setTab('plans')}>Back to your plans</button>
+        </div>
+      </div>
 
-      <h3 className="sheet-section">Backup</h3>
-      <p className="muted small">
-        One file with all your plans and the store data. Save it to Files (or email it to yourself).
-        Photos and sizes are included. Use it to move to a new phone. Last backup: <strong>{lastBackupAt ? shortDate(lastBackupAt) : 'never'}</strong>.
-      </p>
-      <button className="btn primary wide" onClick={async () => setMsg(await onExport())} data-testid="export-backup">Export backup</button>
-      <label className="btn wide file-btn">
-        Import backup, photo/size pack or catalog file
-        <input type="file" accept=".json,application/json" onChange={pick} data-testid="import-file" />
-      </label>
-      {msg && <p className={msg.startsWith('Could not') || msg.startsWith('This is not') ? 'error' : 'ok-msg'} role="status">{msg}</p>}
+      <div role="tabpanel" hidden={tab !== 'afi'}>
+        <p className="muted small">Copies a whole AFI set into a new plan: every shelf with AFI’s facings, sizes and shelf heights. A freezer set with several doors opens as an aisle, one section per door.</p>
+        <div className="search-wrap">
+          <Search size={20} aria-hidden="true" />
+          <input className="search" type="search" placeholder="Find a set, e.g. ketchup or freezer" value={resetQ}
+            onChange={(e) => setResetQ(e.target.value)} aria-label="Find an AFI set" data-testid="reset-search" />
+        </div>
+        {groups.map(([title, list]) => (
+          <section key={title}>
+            <h3 className="sheet-section">{title === 'Freezer' ? <Snowflake size={18} aria-hidden="true" /> : <Store size={18} aria-hidden="true" />} {title} ({list.length})</h3>
+            <ul className="item-list">
+              {list.map((r) => {
+                const levels = new Set(r.shelves.map((x) => x.shelf)).size
+                const products = r.shelves.reduce((n, x) => n + x.items.length, 0)
+                return (
+                  <li key={r.id}>
+                    <button className="row" onClick={() => onNewAfi(r)} data-testid={`afi-${r.id}`}>
+                      <span className="row-main">
+                        <span className="row-name">{r.name}</span>
+                        <span className="row-sub">
+                          {r.fixture ? `${r.fixture} · ` : ''}{Number(r.widthFt.toFixed(2))} ft · {levels} shelves · {products} products · AFI {r.date}
+                        </span>
+                      </span>
+                      <ChevronRight size={20} className="row-go" aria-hidden="true" />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        ))}
+        {!matches.length && <p className="empty">No AFI set matches “{resetQ}”.</p>}
+      </div>
+
+      <div role="tabpanel" hidden={tab !== 'backup'}>
+        <div className="backup-card">
+          <p>
+            One file with all your plans, aisles, photos, sizes and the store data. Save it to Files (or email it to yourself),
+            and use it to move to a new phone.
+          </p>
+          <p className="muted small">Last backup: <strong>{lastBackupAt ? shortDate(lastBackupAt) : 'never'}</strong></p>
+          <button className="btn primary wide" onClick={async () => setMsg(await onExport())} data-testid="export-backup"><Download size={18} aria-hidden="true" /> Export backup</button>
+          <label className="btn wide file-btn">
+            <Upload size={18} aria-hidden="true" /> Import backup, photo/size pack or catalog file
+            <input type="file" accept=".json,application/json" onChange={pick} data-testid="import-file" />
+          </label>
+          <p className="muted small">Importing adds and updates; it never deletes anything on this phone.</p>
+        </div>
+      </div>
     </Sheet>
   )
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { ChevronLeft, LayoutGrid, Plus, Redo2, Ruler, ScanBarcode, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
 import SectionView from './components/SectionView.jsx'
 import { AddSheet, PlansSheet, SectionList, SectionSummary, SelectedBar, ShelfSheet } from './components/Panels.jsx'
 import { checkPlan } from './lib/fit.js'
@@ -487,14 +488,21 @@ export default function App() {
 
   return (
     <div className={`app${sel ? ' has-selection' : ''}`}>
-      <header className="topbar">
-        <button className="title-btn" onClick={() => setSheet('plans')} aria-label="Open plans and backup">
-          <span className="title" data-testid="plan-name">{plan.name}</span>
-          <span className="muted">{plan.sections ? `Aisle of ${plan.sections.length} sections` : `${plan.shelves.length} shelves`} · tap for plans & backup ▾</span>
+      <header className="appbar">
+        <button className="appbar-back" onClick={() => setSheet('plans')} aria-label="Plans">
+          <ChevronLeft size={22} aria-hidden="true" /><span>Plans</span>
         </button>
-        <div className="topbar-actions">
-          <button className="icon-btn labeled" onClick={undo} disabled={!hist.past.length} aria-label="Undo">↶<small>Undo</small></button>
-          <button className="icon-btn labeled" onClick={redo} disabled={!hist.future.length} aria-label="Redo">↷<small>Redo</small></button>
+        <div className="appbar-title">
+          <span className="title" data-testid="plan-name">{plan.name}</span>
+          <span className="appbar-sub">
+            {plan.sections
+              ? `Aisle · ${plan.sections.length} sections`
+              : `${plan.shelves.length} shelves · ${Number((Math.max(...plan.shelves.map((s) => s.widthIn)) / 12).toFixed(1))} ft`}
+          </span>
+        </div>
+        <div className="appbar-actions">
+          <button className="icon-btn ghost" onClick={undo} disabled={!hist.past.length} aria-label="Undo"><Undo2 size={22} aria-hidden="true" /></button>
+          <button className="icon-btn ghost" onClick={redo} disabled={!hist.future.length} aria-label="Redo"><Redo2 size={22} aria-hidden="true" /></button>
         </div>
       </header>
 
@@ -515,11 +523,11 @@ export default function App() {
 
         <section className={`shelf-card${placing ? ' placing' : ''}`} ref={boxRef}>
           <div className="zoom-row">
-            <span className="muted small">{placing ? 'Tap a shelf where it goes' : 'Hold a product to drag it'}</span>
-            <div className="zoom-btns">
-              <button className="icon-btn" onClick={() => setZoom(Math.max(MIN_SCALE, scale / 1.4))} aria-label="Zoom out">−</button>
-              <button className="btn small-btn" onClick={() => setZoom(null)} aria-pressed={zoom == null}>Fit</button>
-              <button className="icon-btn" onClick={() => setZoom(Math.min(MAX_SCALE, scale * 1.4))} aria-label="Zoom in">+</button>
+            <span className={`hint${placing ? ' placing' : ''}`}>{placing ? 'Tap a shelf where it goes' : 'Hold a product to drag it'}</span>
+            <div className="segmented" role="group" aria-label="Zoom">
+              <button onClick={() => setZoom(Math.max(MIN_SCALE, scale / 1.4))} aria-label="Zoom out"><ZoomOut size={20} aria-hidden="true" /></button>
+              <button onClick={() => setZoom(null)} aria-pressed={zoom == null} className={zoom == null ? 'on' : ''}>Fit</button>
+              <button onClick={() => setZoom(Math.min(MAX_SCALE, scale * 1.4))} aria-label="Zoom in"><ZoomIn size={20} aria-hidden="true" /></button>
             </div>
           </div>
           <SectionView
@@ -573,11 +581,19 @@ export default function App() {
         />
       )}
 
-      <nav className="bottombar">
-        <button className="btn primary" onClick={() => setSheet('add')} data-testid="open-add">＋ Add</button>
-        <button className="btn" onClick={() => setSheet('plans')}>Plans</button>
-        <button className="btn" onClick={() => setSheet('shelf')} aria-label="Shelf">Shelf</button>
-        <button className="btn" onClick={() => setSheet('tools')} data-testid="open-tools">Tools</button>
+      <nav className="tabbar" aria-label="Main">
+        <button className="tab primary" onClick={() => setSheet('add')} data-testid="open-add" aria-label="Add">
+          <Plus size={24} aria-hidden="true" /><span>Add</span>
+        </button>
+        <button className="tab" onClick={() => setSheet('scan')} data-testid="open-scan-bar" aria-label="Scan">
+          <ScanBarcode size={24} aria-hidden="true" /><span>Scan</span>
+        </button>
+        <button className="tab" onClick={() => setSheet('shelf')} aria-label="Shelf">
+          <Ruler size={24} aria-hidden="true" /><span>Shelf</span>
+        </button>
+        <button className="tab" onClick={() => setSheet('tools')} data-testid="open-tools" aria-label="Tools">
+          <LayoutGrid size={24} aria-hidden="true" /><span>Tools</span>
+        </button>
       </nav>
 
       {sheet === 'add' && (

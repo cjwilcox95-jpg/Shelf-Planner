@@ -196,6 +196,7 @@ test('plans: copy, rename, switch, start from AFI, delete', async ({ page }) => 
   expect(await shelfNames(page, 'Shelf 7 (top)')).toHaveLength(10)
   // new plan from the 8 ft Pickles reset
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-afi').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
   await expect(page.getByTestId('plan-name')).toContainText('Pickles')
   await expect(rows(page)).toHaveCount(7)
@@ -236,6 +237,7 @@ test('export a backup, then load it on a fresh phone', async ({ page, browser },
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByRole('button', { name: 'Copy' }).first().click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-backup').click()
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-backup').click()])
   expect(download.suggestedFilename()).toMatch(/^shelf-planner-backup-\d{4}-\d\d-\d\d\.json$/)
   const file = path.join(SHOTS, '..', 'test-backup.json')
@@ -607,6 +609,7 @@ test('real sizes from the AFI drawings: used for products, and AFI stacking come
   await expect(page.getByTestId('selected-panel')).toContainText('3.06 W × 6.64 H')
   // Pickles-Relish: AFI stacks the 24 oz Vlasic jars 2 high
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-afi').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
   await expect(page.getByTestId('item-list').locator('.row').filter({ hasText: 'VLASIC KOSHER DILL BABY WHOLE' }).first()).toContainText('2 high')
   await shot(page, '28-afi-sizes')
@@ -654,6 +657,7 @@ test('aisle: the 4 laundry sections side by side, drag a product from A into B, 
 test('aisle: make one from two plans; print makes pages for each section', async ({ page }) => {
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-afi').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByTestId('new-aisle').click()
@@ -673,6 +677,7 @@ test('aisle: make one from two plans; print makes pages for each section', async
 test('a two-door freezer set opens as an aisle, one 30 in section per door', async ({ page }) => {
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-afi').click()
   await page.getByTestId('reset-search').fill('banquet')
   await expect(page.locator('[data-testid^="afi-"]')).toHaveCount(1)
   await expect(page.locator('[data-testid^="afi-"]')).toContainText('2 freezer doors · 5 ft · 6 shelves')

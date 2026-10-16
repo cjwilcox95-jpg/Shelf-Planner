@@ -2,6 +2,17 @@
 
 Plain-English notes on what changed at each stage.
 
+## Visual overhaul (2026-10-16)
+
+- New look throughout: calm colors, rounded cards, lighter buttons, icons (lucide, free), a cleaner shelf drawing.
+- Top bar: "‹ Plans" to get back to your plans, the plan name on one line, undo and redo.
+- A one-line status ("Everything fits", "Width fits", "2 shelves over") with problems as small tags, instead of the big
+  colored box.
+- Bottom tabs: Add, Scan (now one tap), Shelf, Tools. Tools is a grid of tiles.
+- Plans is split into tabs: Your plans (aisles, sections, new), AFI sets (grouped Shelves / Freezer, with search) and
+  Backup.
+- Nothing about how plans work changed; all tests pass, including the screen rules (text 14 px+, buttons 44 px+).
+
 ## All 32 AFI sets (2026-10-16)
 
 - Loaded every AFI set CJ has: 32 sets (8 grocery, 22 freezer, charcoal, and a 2026 laundry recommendation), 1,191
