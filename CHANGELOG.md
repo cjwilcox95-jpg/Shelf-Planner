@@ -2,6 +2,17 @@
 
 Plain-English notes on what changed at each stage.
 
+## Scanner and review pass (2026-10-16)
+
+- Scan a barcode with the camera (or a photo, or typed digits) to find a product in the plan or add it.
+- Measure as you go: scan, type the tape-measured size with fraction buttons, save, scan the next.
+  Edit size also takes tape fractions like 2 3/4.
+- Reviewed every screen at phone size against the brief's rules; a tour test now checks them on every run.
+- Shelf headings are finger-sized (44 px). Position numbers no longer pile up on thin tiles; narrow tiles show the
+  name up the side.
+- Backup reminder when plans changed and were never backed up, or the last backup is over a week old.
+- Search results say when a product is already in the plan. Compare offers "Copy this plan now".
+
 ## Stage 6: sales help (2026-10-15)
 
 - Tools > Sales help: load a sales movement file (movement.json, or a CSV export with UPC and units columns).

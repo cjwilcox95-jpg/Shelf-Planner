@@ -64,6 +64,11 @@ To rebuild the catalog after getting new files: put them in `data/raw/`, then ru
 
 ## Tools in the app
 
+- **Scan a barcode** (＋ Add, or Tools): point the phone camera at a product's barcode to see where it is in the
+  plan or add it. A photo of the barcode or the typed digits work too. Reads UPC-A, UPC-E (small packages) and
+  EAN-13, on the phone, with the free zxing-wasm library bundled in the app (nothing is sent anywhere).
+- **Measure as you go** (Tools): scan, type the tape-measured width, height and depth (whole inches plus a
+  fraction button: 1/8 ... 7/8), save as *measured*, scan the next product.
 - **Print or save as PDF**: a drawing of the section to scale with a numbered key, and a product list with check
   boxes. Optionally a change list compared with another plan. Save to Files, print, or save page 1 as a picture.
 - **Compare with another plan**: what to add, take out, move (to another shelf or along the same one), facings
@@ -132,6 +137,10 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
   depths, which are mostly still guesses. A sales file made "for selected UPCs" leaves products out; missing is not
   the same as not selling. The BRData scan is read by OCR: check `movement_report.md` for lines that were left out or flagged.
 - Comparing plans matches products by UPC and shelves by number (1 = bottom).
+- The scanner was tested with a simulated camera showing a real, slightly blurry barcode, and with photos; not yet on
+  CJ's iPhone. Some store shelf tags print AFI's own code instead of the product UPC; scan the product itself.
+  Foreign EAN-13 barcodes (not starting with 0) cannot match the store's 12-digit UPCs.
+- On a phone, zoomed out, very thin tiles show no position number (the list below the drawing has every number).
 - Clearance defaults to 12 in on every shelf; set each shelf's real clearance under "Shelf size".
 - No vendor names: neither AFI file has a vendor column.
 - Product names are AFI's 30-character abbreviations (e.g. "HNZ KETCHUP JUG").
