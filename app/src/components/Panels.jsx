@@ -388,6 +388,7 @@ export function PlansSheet({
   const [name, setName] = useState('')
   const [blank, setBlank] = useState({ shelves: 5, widthIn: 48 })
   const [msg, setMsg] = useState(null)
+  const [resetQ, setResetQ] = useState('')
   const list = Object.values(plans).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
   const pick = async (e) => {
     const f = e.target.files?.[0]
@@ -448,19 +449,30 @@ export function PlansSheet({
         <button className="btn primary wide" onClick={() => onNewBlank(blank)}>Start an empty section</button>
       </div>
 
-      <h3 className="sheet-section">Start from an AFI reset</h3>
-      <p className="muted small">Copies a whole AFI section, every shelf with AFI's facings, into a new plan.</p>
+      <h3 className="sheet-section">Start from an AFI reset ({resets.length})</h3>
+      <p className="muted small">Copies a whole AFI set, every shelf with AFI's facings and sizes, into a new plan. A freezer set with several doors opens as an aisle, one section per door.</p>
+      {resets.length > 6 && (
+        <input className="search" type="search" placeholder="Find a set, e.g. ketchup or freezer" value={resetQ}
+          onChange={(e) => setResetQ(e.target.value)} aria-label="Find an AFI set" data-testid="reset-search" />
+      )}
       <ul className="item-list">
-        {resets.map((r) => (
-          <li key={r.id}>
-            <button className="row" onClick={() => onNewAfi(r)} data-testid={`afi-${r.id}`}>
-              <span className="row-main">
-                <span className="row-name">{r.name}</span>
-                <span className="row-sub">{r.widthFt} ft · {r.shelves.length} shelves · AFI {r.date}</span>
-              </span>
-            </button>
-          </li>
-        ))}
+        {resets.filter((r) => resetQ.trim().split(/\s+/).every((w) => `${r.name} ${r.fixture || ''} ${r.date}`.toLowerCase().includes(w.toLowerCase())))
+          .map((r) => {
+            const levels = new Set(r.shelves.map((s) => s.shelf)).size
+            const products = r.shelves.reduce((n, s) => n + s.items.length, 0)
+            return (
+              <li key={r.id}>
+                <button className="row" onClick={() => onNewAfi(r)} data-testid={`afi-${r.id}`}>
+                  <span className="row-main">
+                    <span className="row-name">{r.name}</span>
+                    <span className="row-sub">
+                      {r.fixture ? `${r.fixture} · ` : ''}{Number(r.widthFt.toFixed(2))} ft · {levels} shelves · {products} products · AFI {r.date}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
       </ul>
 
       <h3 className="sheet-section">Backup</h3>

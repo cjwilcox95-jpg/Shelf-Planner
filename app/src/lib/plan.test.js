@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  TRAY, newPlan, planFromAfi, planFromOldShelf, duplicatePlan, findItem, moveTo,
+  TRAY, newPlan, planFromAfi, plansFromAfi, planFromOldShelf, duplicatePlan, findItem, moveTo,
   applyPlanAction, historyReducer, initHistory, shelfLabel,
 } from './plan.js'
 
@@ -198,5 +198,31 @@ describe('AFI stacking', () => {
   it('a product AFI stacks 2 high starts 2 high in the plan', () => {
     const p = planFromAfi({ name: 'Pickles', date: '2024', widthFt: 8, shelves: [{ shelf: 1, depthIn: 20, items: [{ upc: '1', facings: 1, high: 2 }, { upc: '2', facings: 2 }] }], unallocated: [] })
     expect(p.shelves[0].items.map((i) => i.high || 1)).toEqual([2, 1])
+  })
+})
+
+describe('freezer sets with doors', () => {
+  const reset = {
+    name: 'Banquet Dinners', date: '2024-02-02', widthFt: 5, doors: 2,
+    shelves: [
+      { shelf: 1, door: 1, depthIn: 22, items: [{ upc: 'a', facings: 2 }] },
+      { shelf: 2, door: 1, depthIn: 22, items: [{ upc: 'b', facings: 1 }] },
+      { shelf: 1, door: 2, depthIn: 22, items: [{ upc: 'c', facings: 1 }] },
+      { shelf: 2, door: 2, depthIn: 22, items: [] },
+    ],
+    unallocated: [{ upc: 'z', facings: 1 }],
+  }
+  it('makes one 30 in plan per door, to show side by side', () => {
+    const { plans, aisleName } = plansFromAfi(reset)
+    expect(aisleName).toBe('Banquet Dinners (AFI 2024-02-02)')
+    expect(plans.map((p) => p.name)).toEqual(['Banquet Dinners (AFI 2024-02-02) · door 1', 'Banquet Dinners (AFI 2024-02-02) · door 2'])
+    expect(plans.map((p) => p.shelves.map((s) => s.items.map((i) => i.upc).join('')))).toEqual([['a', 'b'], ['c', '']])
+    expect(plans[0].shelves[0].widthIn).toBe(30)
+    expect(plans[0].tray.map((i) => i.upc)).toEqual(['z'])
+  })
+  it('a set without doors is one plan', () => {
+    const { plans, aisleName } = plansFromAfi({ ...reset, doors: 1, widthFt: 4, shelves: reset.shelves.map(({ door, ...s }) => s) })
+    expect(aisleName).toBe(null)
+    expect(plans).toHaveLength(1)
   })
 })

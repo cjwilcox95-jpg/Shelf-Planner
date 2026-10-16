@@ -669,3 +669,17 @@ test('aisle: make one from two plans; print makes pages for each section', async
   await page.getByTestId('make-pdf').click()
   await expect(page.getByTestId('print-ready')).toContainText(/Ready: [6-9] pages/) // each section's drawing and list
 })
+
+test('a two-door freezer set opens as an aisle, one 30 in section per door', async ({ page }) => {
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('reset-search').fill('banquet')
+  await expect(page.locator('[data-testid^="afi-"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid^="afi-"]')).toContainText('2 freezer doors · 5 ft · 6 shelves')
+  await page.locator('[data-testid^="afi-"]').click()
+  await expect(page.getByTestId('plan-name')).toHaveText('Banquet Dinners (AFI 2024-02-02)')
+  await expect(page.getByTestId('summary')).toContainText('2 sections · 12 shelves')
+  await expect(rows(page).first().getByTestId('shelf-head')).toHaveCount(2) // door 1 and door 2 side by side
+  await expect(rows(page).first().getByTestId('shelf-head').first()).toContainText('A6')
+  await shot(page, '30-freezer')
+})

@@ -11,7 +11,7 @@ const pick = (obj, keys) => {
 const CATALOG_ITEM = ['upc', 'description', 'pack', 'size', 'sizeValue', 'uom', 'sizeNote', 'classCode', 'subclassCode',
   'source', 'specialOrder', 'display', 'aisle']
 const RESET_ITEM = ['location', 'upc', 'description', 'casePack', 'size', 'facings', 'capacity', 'status', 'matchNote', 'high']
-const RESET = ['id', 'name', 'date', 'source', 'widthFt', 'heightFt']
+const RESET = ['id', 'name', 'date', 'source', 'widthFt', 'heightFt', 'doors', 'fixture', 'source2026']
 
 /** The store-data file with only known fields; AFI resets with no shelves are left out. */
 export function cleanCatalog(doc) {
@@ -20,7 +20,7 @@ export function cleanCatalog(doc) {
     .filter((r) => r && Array.isArray(r.shelves) && r.shelves.length > 0)
     .map((r) => ({
       ...pick(r, RESET),
-      shelves: r.shelves.map((s) => ({ shelf: s.shelf, depthIn: s.depthIn, items: (s.items || []).map((i) => pick(i, RESET_ITEM)) })),
+      shelves: r.shelves.map((s) => ({ shelf: s.shelf, ...(s.door ? { door: s.door } : {}), ...(s.clearanceIn > 0 ? { clearanceIn: s.clearanceIn } : {}), depthIn: s.depthIn, items: (s.items || []).map((i) => pick(i, RESET_ITEM)) })),
       unallocated: (r.unallocated || []).map((i) => pick(i, RESET_ITEM)),
     }))
   const afiSizes = {}

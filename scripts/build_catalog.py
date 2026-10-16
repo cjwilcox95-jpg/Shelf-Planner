@@ -135,6 +135,14 @@ def read_afi_drawing_sizes(resets, log):
     for r in sorted(resets, key=lambda r: r.get("date") or ""):
         found, problems = sizes_from_drawing(RAW / r["source"], r)
         log["_afi_sizes"].append((r["name"], len(found), problems))
+        top = max((s["shelf"] for s in r["shelves"]), default=0)
+        for s in r["shelves"]:  # the room above each shelf, measured on AFI's drawing
+            room = r.get("_clearances", {}).get(s["shelf"])
+            if s["shelf"] == top and not r.get("fixture"):
+                continue  # a gondola's top shelf is open above; only a freezer door stops it
+            if room:
+                s["clearanceIn"] = room
+        r.pop("_clearances", None)
         for s in r["shelves"]:
             for item in s["items"]:
                 rec = found.get(item["upc"])
@@ -166,6 +174,17 @@ def match_reset_item(raw_upc, afi_id, by_key, afi_item_of, upc_of_afi):
     return key, status, note
 
 
+def reset_name(r, path):
+    """A readable set name from AFI's title: 'BANQUET DINNERS-2DR-AFI-2-1-24' -> 'Banquet Dinners'."""
+    if r.get("layout") == "reco":  # the 2026 manufacturer list has no set name of its own
+        return "Fabric Care - Laundry (2026 recommendation)"
+    t = r["title"] or path.stem
+    t = re.sub(r"-?AFI-.*$", "", t)
+    t = re.sub(r"-\d{1,2}-\d{1,2}-\d{2}$", "", t)         # a date at the end
+    t = re.sub(r"[-\s]*\d\s*DR\b", "", t, flags=re.I)        # "-2DR"
+    return re.sub(r"\s*-\s*", " - ", t).strip(" -").title()
+
+
 def read_resets(by_key, afi_item_of, log):
     from read_afi_reset_pdf import read as read_reset
     upc_of_afi = {}
@@ -178,13 +197,15 @@ def read_resets(by_key, afi_item_of, log):
             log[f"reset {path.name}"].append(p)
         m = re.search(r"(\d\d)-(\d\d)-(\d\d)", path.name)
         date = f"20{m[3]}-{m[1]}-{m[2]}" if m else None
-        name = re.sub(r"-?AFI-.*$", "", r["title"] or path.stem).replace("-", " - ").title()
+        name = reset_name(r, path)
 
         def convert(items):
             out = []
             for i in items:
                 key, status, note = match_reset_item(i["upcRaw"], i["afiId"], by_key,
                                                      afi_item_of, upc_of_afi)
+                if i["afiId"] is None and status != "notFound":
+                    note = "UPC found (this list has no AFI item numbers)"
                 log["_reset_notes"].append((name, i["description"], note))
                 row = {"location": i["location"], "upc": key, "description": i["description"],
                        "casePack": i["casePack"], "size": i["size"], "facings": i["facings"],
@@ -196,8 +217,13 @@ def read_resets(by_key, afi_item_of, log):
             "id": path.stem.removeprefix("AFI_"),
             "name": name, "date": date, "source": path.name,
             "widthFt": r["widthFt"], "heightFt": r["heightFt"],
-            "shelves": [{"shelf": s["shelf"], "depthIn": s["depthIn"], "items": convert(s["items"])}
-                        for s in sorted(r["shelves"], key=lambda s: s["shelf"])],
+            "doors": max([1] + [s.get("door", 1) for s in r["shelves"]]),
+            **({"fixture": f"{m[1]} freezer doors" if m[1] != "1" else "1 freezer door"}
+               if (m := re.search(r"-\s*(\d)\s*DR\b", r["title"] or "", re.I)) else {}),
+            **({"source2026": True} if r.get("layout") == "reco" else {}),
+            "shelves": [{"shelf": s["shelf"], **({"door": s["door"]} if s.get("door", 1) > 1 or any(x.get("door", 1) > 1 for x in r["shelves"]) else {}),
+                         "depthIn": s["depthIn"], "items": convert(s["items"])}
+                        for s in sorted(r["shelves"], key=lambda s: (s.get("door", 1), s["shelf"]))],
             "unallocated": convert(r["unallocated"]),
         })
     return resets

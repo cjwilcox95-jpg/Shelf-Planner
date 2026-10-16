@@ -2,6 +2,19 @@
 
 Plain-English notes on what changed at each stage.
 
+## All 32 AFI sets (2026-10-16)
+
+- Loaded every AFI set CJ has: 32 sets (8 grocery, 22 freezer, charcoal, and a 2026 laundry recommendation), 1,191
+  products on shelves. The reader now handles freezer doors ("Shelf 1/3" = door 1, shelf 3), widths like 2 ft 6 in,
+  AFI's older 2022 report, a few lines where AFI swapped the UPC and item number, and the 2026 Fabric Care
+  recommendation (shelf 1 = top there; no AFI item numbers, so matched by UPC).
+- Real sizes from AFI's drawings for 1,065 products (31 of 32 sets; the 2026 list has no measurable drawing). Products
+  drawn as pictures are measured too, and "caps" (units laid flat on top) are not mistaken for stacks.
+- The room above each shelf is measured from the drawing too (a gondola's top shelf stays open at 12 in).
+- A freezer set with several doors opens as an aisle, one 30 in section per door. The set list has a search box.
+- Frozen products are not in the store's item files yet (AFITMGRC and the HBC book have no frozen), so freezer sets
+  show their products as "not in store files" until AFI's frozen item file is added.
+
 ## Aisles: sections side by side (2026-10-16)
 
 - Plans > Aisles > Make an aisle from plans: tap the sections left to right and name it. Opening the aisle shows every

@@ -150,5 +150,6 @@ Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, whic
 - No vendor names: neither AFI file has a vendor column.
 - Product names are AFI's 30-character abbreviations (e.g. "HNZ KETCHUP JUG").
 - Only about 380 items have an aisle (from the store order list).
-- AFI resets: 3 of the 35 reset PDFs are loaded (Ketchup-Mustard, Pickles-Relish, Glass Peppers-Olives).
+- AFI resets: all 32 sets CJ has are loaded. Freezer products are not in the store files yet (no frozen item file), so
+  they show as "not in store files". The 2026 Fabric Care list has no AFI item numbers and no measurable drawing.
 - No source file prints full 12-digit barcodes, so check digits are calculated. AFI reset matches are confirmed by AFI item number instead.

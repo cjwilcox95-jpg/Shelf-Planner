@@ -5,7 +5,7 @@ import { checkPlan } from './lib/fit.js'
 import { buildIndex } from './lib/search.js'
 import {
   TRAY, applyPlanAction, duplicatePlan, findItem, historyReducer, initHistory, newId, newPlan,
-  planFromAfi, planFromOldShelf, shelfLabel,
+  planFromAfi, planFromOldShelf, plansFromAfi, shelfLabel,
 } from './lib/plan.js'
 import { makeProducts } from './lib/products.js'
 import { askToKeepData, load, loadPrefix, remove, save } from './lib/storage.js'
@@ -367,6 +367,17 @@ export default function App() {
     } else commitPlans(rest)
     showToast(`Deleted ${victim.name}`)
   }
+  /** Start from an AFI set: one plan, or for a freezer set with several doors, one plan per door shown as an aisle. */
+  const onNewAfi = (r) => {
+    const { plans: made, aisleName } = plansFromAfi(r)
+    if (!aisleName) { onNewPlan(made[0], `New plan from AFI ${r.name}`); return }
+    commitPlans({ ...allPlans(), ...Object.fromEntries(made.map((p) => [p.id, p])) })
+    const a = newAisle(aisleName, made.map((p) => p.id))
+    commitAisles({ ...aislesRef.current, [a.id]: a })
+    onOpenAisle(a.id)
+    showToast(`New plan from AFI ${r.name}: ${made.length} doors side by side`)
+  }
+
   const onNewPlan = (p, message) => {
     commitPlans({ ...allPlans(), [p.id]: p })
     openPlan(p)
@@ -696,7 +707,7 @@ export default function App() {
           onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle}
           onOpen={onOpenPlan} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDeletePlan}
           onNewBlank={({ shelves, widthIn }) => onNewPlan(newPlan({ name: `New ${shelves}-shelf section`, shelves, widthIn }), 'New empty section')}
-          onNewAfi={(r) => onNewPlan(planFromAfi(r), `New plan from AFI ${r.name}`)}
+          onNewAfi={onNewAfi}
           onExport={onExport} onImportFile={onImportFile} onClose={() => setSheet(null)} />
       )}
 
