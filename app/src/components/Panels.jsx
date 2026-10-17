@@ -7,6 +7,9 @@ import { positions, shelfLabel, TRAY } from '../lib/plan.js'
 import { LETTERS } from '../lib/aisle.js'
 import { sourceMark, SOURCE_LABEL } from '../lib/sizes.js'
 
+/** A list line: the parts that have something, joined by dots (a product with no size has no stray dot). */
+const joinParts = (...parts) => parts.filter(Boolean).join(' · ')
+
 const shortDate = (iso) => {
   if (!iso) return ''
   const d = new Date(iso)
@@ -205,7 +208,7 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
               const info = products.info(item)
               return (
                 <Row key={item.uid} item={item} position="–" info={info} photo={photos[item.upc]}
-                  sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''}`}
+                  sub={joinParts(info.size, `${item.facings} facing${item.facings > 1 ? 's' : ''}`)}
                   warn={!info.inCatalog ? 'not in store files' : ''}
                   selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, TRAY)} />
               )
@@ -245,7 +248,7 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
                 if (!info.inCatalog) notes.push('not in store files')
                 return (
                   <Row key={item.uid} item={item} position={posOf.get(item.uid)} info={info} photo={photos[item.upc]}
-                    sub={`${info.size} · ${item.facings} facing${item.facings > 1 ? 's' : ''}${high > 1 ? `, ${high} high` : ''} · ${mark}${fmtIn(p.widthIn)} in${info.specialOrder ? ' · special order' : ''}`}
+                    sub={joinParts(info.size, `${item.facings} facing${item.facings > 1 ? 's' : ''}${high > 1 ? `, ${high} high` : ''}`, `${mark}${fmtIn(p.widthIn)} in`, info.specialOrder && 'special order')}
                     warn={notes.join(' · ')}
                     selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, shelf.id)} />
                 )

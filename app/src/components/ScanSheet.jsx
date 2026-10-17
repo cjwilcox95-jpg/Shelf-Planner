@@ -143,7 +143,7 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
       {hit && (
         <div className="scan-hit" data-testid="scan-hit">
           <div className="scan-hit-name">{hit.inCatalog ? hit.info.description : 'Not in your store data'}</div>
-          <div className="muted small">{hit.inCatalog ? `${hit.info.size} · ` : ''}UPC {prettyUpc(hit.upc)}</div>
+          <div className="muted small">{hit.inCatalog && hit.info.size ? `${hit.info.size} · ` : ''}UPC {prettyUpc(hit.upc)}</div>
           {mode === 'find' ? (
             <FindResult hit={hit} where={where} targetLabel={targetLabel} onShow={onShow} onAdd={onAdd}
               onMeasure={() => setMode('measure')} onNext={next} />

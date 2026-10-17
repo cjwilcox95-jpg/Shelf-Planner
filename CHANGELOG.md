@@ -11,6 +11,7 @@ Plain-English notes on what changed at each stage.
 - Bottom tabs: Add, Scan (now one tap), Shelf, Tools. Tools is a grid of tiles.
 - Plans is split into tabs: Your plans (aisles, sections, new), AFI sets (grouped Shelves / Freezer, with search) and
   Backup.
+- A product with no size on file no longer shows a stray dot at the start of its list line.
 - Nothing about how plans work changed; all tests pass, including the screen rules (text 14 px+, buttons 44 px+).
 
 ## All 32 AFI sets (2026-10-16)
