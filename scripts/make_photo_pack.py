@@ -8,6 +8,7 @@ imports under Plans > Import.
 The pack is store data: write it under data/build/ (never committed).
 
 Usage: python3 -I scripts/make_photo_pack.py data/build/photos/raw data/build/photos-ketchup.json --source "store website"
+       (add --max-edge 300 --quality 78 for a smaller file when packing hundreds of pictures)
 """
 import argparse
 import base64
@@ -40,11 +41,11 @@ def trim_white(img, threshold=242):
     return flat.crop(box)
 
 
-def to_record(path, source, when):
+def to_record(path, source, when, max_edge=MAX_EDGE, quality=85):
     img = trim_white(Image.open(path))
-    img.thumbnail((MAX_EDGE, MAX_EDGE))
+    img.thumbnail((max_edge, max_edge))
     buf = io.BytesIO()
-    img.save(buf, "JPEG", quality=85)
+    img.save(buf, "JPEG", quality=quality)
     data = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
     return {"data": data, "w": img.width, "h": img.height, "source": source, "addedAt": when}
 
@@ -59,6 +60,8 @@ def main():
     ap.add_argument("folder")
     ap.add_argument("out")
     ap.add_argument("--source", default="imported")
+    ap.add_argument("--max-edge", type=int, default=MAX_EDGE, help="longest side in pixels (smaller = smaller file)")
+    ap.add_argument("--quality", type=int, default=85, help="JPEG quality 1-95")
     a = ap.parse_args()
     when = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     photos, skipped = {}, []
@@ -69,7 +72,7 @@ def main():
         if not key:
             skipped.append(p.name)
             continue
-        photos[key] = to_record(p, a.source, when)
+        photos[key] = to_record(p, a.source, when, a.max_edge, a.quality)
     Path(a.out).write_text(json.dumps({"kind": "shelf-planner-photos", "version": 1, "made": when, "photos": photos}))
     kb = Path(a.out).stat().st_size // 1024
     print(f"{len(photos)} photos -> {a.out} ({kb} KB); skipped (name is not a UPC): {skipped or 'none'}")
