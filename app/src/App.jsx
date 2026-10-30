@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { ChevronLeft, LayoutGrid, Plus, Redo2, Ruler, ScanBarcode, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { FolderOpen, LayoutGrid, Plus, Ruler, ScanBarcode, Undo2 } from 'lucide-react'
 import SectionView from './components/SectionView.jsx'
-import { AddSheet, PlansSheet, SectionList, SectionSummary, SelectedBar, ShelfSheet } from './components/Panels.jsx'
+import { AddSheet, PlansSheet, SectionSummary, SelectedBar, Sheet, ShelfSheet } from './components/Panels.jsx'
+import { MiniMap, ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf } from './components/Focus.jsx'
+import { fmtIn } from './lib/fit.js'
 import { checkPlan } from './lib/fit.js'
 import { buildIndex } from './lib/search.js'
 import {
@@ -18,7 +20,7 @@ import { ToolsSheet } from './components/ToolsSheet.jsx'
 import { CompareSheet } from './components/CompareSheet.jsx'
 import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
 import { MovementSheet } from './components/MovementSheet.jsx'
-import { makeAisleView, mergeAisles, newAisle, sectionOf, splitAisleView } from './lib/aisle.js'
+import { aisleRows, makeAisleView, mergeAisles, newAisle, sectionOf, splitAisleView } from './lib/aisle.js'
 import { cleanCatalog } from './lib/clean.js'
 import { ScanSheet } from './components/ScanSheet.jsx'
 import { positions } from './lib/plan.js'
@@ -28,7 +30,7 @@ import { cleanMovement, paceText, parseMovementCsv, salesRows, suggestions } fro
 import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
-const MAX_SCALE = 40
+const PEEK = 26 // px of the shelves above and below shown around the shelf you are on
 
 function starterPlan(catalog) {
   const r = catalog.resets?.find((x) => /KETCHUP/i.test(x.name))
@@ -53,7 +55,9 @@ export default function App() {
   const [activeShelfId, setActiveShelfId] = useState(null)
   const [placing, setPlacing] = useState(false)
   const [sheet, setSheet] = useState(null)
-  const [zoom, setZoom] = useState(null) // null = fit the section to the screen
+  const [zoomed, setZoomed] = useState(false) // false = the whole set; true = one shelf with its list
+  const [wholeScale, setWholeScale] = useState(null) // px per inch that fits the whole set on the screen
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [lastBackupAt, setLastBackupAt] = useState(null)
   const [photos, setPhotos] = useState({}) // UPC -> { data, w, h, source, addedAt }
@@ -68,6 +72,7 @@ export default function App() {
   const [aisles, setAisles] = useState({}) // id -> { id, name, planIds (left to right) }
   const aislesRef = useRef({})
   const boxRef = useRef(null)
+  const winRef = useRef(null)
   const toastTimer = useRef(null)
   const plan = hist.present
 
@@ -84,7 +89,8 @@ export default function App() {
     dispatch({ type: 'open', plan: p })
     setSelectedUid(null)
     setPlacing(false)
-    setZoom(null)
+    setZoomed(false)
+    setDetailsOpen(false)
     setActiveShelfId(p.shelves[p.shelves.length - 1].id)
   }, [])
 
@@ -173,7 +179,12 @@ export default function App() {
     ? Math.max(...plan.shelves.map((s) => (sectionOf(plan, s.id)?.offsetIn || 0) + Math.max(s.widthIn, check.byShelf[s.id].usedIn)))
     : check.widestIn
   const fitScale = Math.max(MIN_SCALE, (boxWidth - 28) / (spanIn + 3))
-  const scale = zoom ?? fitScale
+  const scale = zoomed ? fitScale : Math.min(fitScale, wholeScale ?? fitScale)
+  // inches of height that grow with the scale: each row of shelves is as tall as its clearance or tallest product
+  const rowsTallestIn = (plan.sections
+    ? aisleRows(plan).map((cells) => cells.filter(Boolean).map((c) => c.shelf))
+    : plan.shelves.map((s) => [s])
+  ).reduce((n, row) => n + Math.max(1, ...row.map((s) => Math.max(s.clearanceIn, ...check.byShelf[s.id].items.map((p) => p.heightIn)))), 0)
 
   const showToast = useCallback((text, undoable = false) => {
     clearTimeout(toastTimer.current)
@@ -263,6 +274,60 @@ export default function App() {
   const activeShelf = plan.shelves.find((s) => s.id === activeShelfId) || plan.shelves[plan.shelves.length - 1]
   const sel = selectedUid ? findItem(plan, selectedUid) : null
 
+  // Whole set: shrink the drawing until every shelf fits on the screen.
+  // One shelf: the drawing becomes a window onto that shelf, with a peek of the shelves above and below.
+  useLayoutEffect(() => {
+    const win = winRef.current
+    const inner = win?.querySelector('.section-inner')
+    if (!inner) return
+    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (!zoomed) {
+      win.style.height = ''
+      const room = win.clientHeight - 8
+      const fixedPx = inner.offsetHeight - rowsTallestIn * scale // headings, boards and ruler don't grow
+      const want = Math.max(MIN_SCALE, Math.min(fitScale, (room - fixedPx) / rowsTallestIn))
+      if (Math.abs(want - scale) > 0.05 && Math.abs(want - (wholeScale ?? 0)) > 0.05) setWholeScale(want)
+      win.scrollTop = 0
+      return
+    }
+    const row = [...win.querySelectorAll('[data-testid="shelf-row"]')].find((r) => (r.dataset.shelves || '').split(' ').includes(activeShelf.id))
+    if (!row) return
+    win.style.height = `${Math.min(row.offsetHeight + PEEK * 2, Math.round(window.innerHeight * 0.5))}px`
+    const top = win.scrollTop + row.getBoundingClientRect().top - win.getBoundingClientRect().top - PEEK
+    win.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
+  })
+
+  // ---------- moving around the set ----------
+  /** Work on one shelf (zoomed in). */
+  const focusShelf = (shelfId) => { setActiveShelfId(shelfId); setZoomed(true); setPlacing(false) }
+  /** Show a product: zoom in to its shelf with its row open. */
+  const focusItem = (uid) => {
+    const f = findItem(plan, uid)
+    setSelectedUid(uid)
+    setDetailsOpen(false)
+    if (f && f.where !== TRAY) focusShelf(f.where)
+  }
+  const onStepShelf = (d) => {
+    const next = neighbourShelf(plan, activeShelf.id, d)
+    if (!next) return
+    setActiveShelfId(next.id)
+    setSelectedUid(null)
+    setDetailsOpen(false)
+  }
+  /** The arrow buttons on a product's row. Up and down keep it in the same section and follow it there. */
+  const onArrow = (uid, dir) => {
+    const f = findItem(plan, uid)
+    if (!f || f.where === TRAY) return
+    if (dir === 'left' || dir === 'right') {
+      act({ type: 'move', uid, to: f.where, insertBefore: dir === 'left' ? f.index - 1 : f.index + 2 })
+      return
+    }
+    const to = neighbourShelf(plan, f.where, dir === 'up' ? 1 : -1)
+    if (!to) return
+    act({ type: 'move', uid, to: to.id, insertBefore: Math.min(f.index, to.items.length) }, `Moved to ${shelfLabel(plan, to.id)}`)
+    setActiveShelfId(to.id)
+  }
+
   // ---------- product actions ----------
   const onMove = (uid, shelfId, insertBefore) => {
     const fromTray = findItem(plan, uid)?.where === TRAY
@@ -280,7 +345,8 @@ export default function App() {
     act({ type: 'add', shelfId, index: at, uid, upc: p.upc, description: p.description, size: p.size },
       `Added to ${shelfLabel(plan, shelfId)}`)
     setSelectedUid(uid)
-    setActiveShelfId(shelfId)
+    setDetailsOpen(false)
+    focusShelf(shelfId)
     setSheet(null)
   }
 
@@ -291,7 +357,8 @@ export default function App() {
     act({ type: 'addGap', shelfId, index: onShelf ? sel.index + 1 : undefined, uid, widthIn: 2 },
       `Empty space added to ${shelfLabel(plan, shelfId)}`)
     setSelectedUid(uid)
-    setActiveShelfId(shelfId)
+    setDetailsOpen(false)
+    focusShelf(shelfId)
     setSheet(null)
   }
 
@@ -486,50 +553,47 @@ export default function App() {
   const anyGuess = plan.shelves.some((s) => s.items.some((i) => products.isGuess(products.dims(i))))
   const placed = sel && sel.where !== TRAY ? check.byShelf[sel.where].items[sel.index] : null
 
+  const focusFit = check.byShelf[activeShelf.id]
+  const subLine = plan.sections
+    ? `Aisle · ${plan.sections.length} sections`
+    : `${Number((Math.max(...plan.shelves.map((s) => s.widthIn)) / 12).toFixed(1))} ft · ${plan.shelves.length} shelves`
+
   return (
-    <div className={`app${sel ? ' has-selection' : ''}`}>
-      <header className="appbar">
-        <button className="appbar-back" onClick={() => setSheet('plans')} aria-label="Plans">
-          <ChevronLeft size={22} aria-hidden="true" /><span>Plans</span>
-        </button>
+    <div className={`app d-app${zoomed ? ' zoomed' : ' whole'}`}>
+      <header className="appbar d-bar">
         <div className="appbar-title">
           <span className="title" data-testid="plan-name">{plan.name}</span>
           <span className="appbar-sub">
-            {plan.sections
-              ? `Aisle · ${plan.sections.length} sections`
-              : `${plan.shelves.length} shelves · ${Number((Math.max(...plan.shelves.map((s) => s.widthIn)) / 12).toFixed(1))} ft`}
+            {subLine}{plan.tray.length > 0 ? ` · ${plan.tray.length} off shelf` : ''}
           </span>
         </div>
-        <div className="appbar-actions">
-          <button className="icon-btn ghost" onClick={undo} disabled={!hist.past.length} aria-label="Undo"><Undo2 size={22} aria-hidden="true" /></button>
-          <button className="icon-btn ghost" onClick={redo} disabled={!hist.future.length} aria-label="Redo"><Redo2 size={22} aria-hidden="true" /></button>
-        </div>
+        <StatusPill check={check} onClick={() => setSheet('status')} />
       </header>
 
-      <main>
-        {saveError && (
-          <div className="save-error" role="alert" data-testid="save-error">
-            Could not save on this phone (storage may be full). Export a backup now so nothing is lost.
-            <button className="btn" onClick={async () => showToast(await onExport())}>Export backup</button>
-          </div>
-        )}
-        {backupDue && (
-          <div className="backup-due" role="status" data-testid="backup-due">
-            <span>{lastBackupAt ? `Last backup ${daysAgo(lastBackupAt)}.` : 'Your plans are not backed up yet.'} Plans live only on this phone.</span>
-            <button className="btn" onClick={async () => showToast(await onExport())} data-testid="backup-now">Back up</button>
-          </div>
-        )}
-        <SectionSummary plan={plan} check={check} anyGuess={anyGuess} missing={missing} productCount={productCount} />
+      {saveError && (
+        <div className="save-error" role="alert" data-testid="save-error">
+          Could not save on this phone (storage may be full). Export a backup now so nothing is lost.
+          <button className="btn" onClick={async () => showToast(await onExport())}>Export backup</button>
+        </div>
+      )}
+      {backupDue && (
+        <div className="backup-due" role="status" data-testid="backup-due">
+          <span>{lastBackupAt ? `Last backup ${daysAgo(lastBackupAt)}.` : 'Your plans are not backed up yet.'} Plans live only on this phone.</span>
+          <button className="btn" onClick={async () => showToast(await onExport())} data-testid="backup-now">Back up</button>
+        </div>
+      )}
 
-        <section className={`shelf-card${placing ? ' placing' : ''}`} ref={boxRef}>
-          <div className="zoom-row">
-            <span className={`hint${placing ? ' placing' : ''}`}>{placing ? 'Tap a shelf where it goes' : 'Hold a product to drag it'}</span>
-            <div className="segmented" role="group" aria-label="Zoom">
-              <button onClick={() => setZoom(Math.max(MIN_SCALE, scale / 1.4))} aria-label="Zoom out"><ZoomOut size={20} aria-hidden="true" /></button>
-              <button onClick={() => setZoom(null)} aria-pressed={zoom == null} className={zoom == null ? 'on' : ''}>Fit</button>
-              <button onClick={() => setZoom(Math.min(MAX_SCALE, scale * 1.4))} aria-label="Zoom in"><ZoomIn size={20} aria-hidden="true" /></button>
-            </div>
-          </div>
+      <main className="stage" ref={boxRef}>
+        <div className={`d-window${placing ? ' placing' : ''}`} ref={winRef} data-testid="d-window"
+          onTouchStart={(e) => { winRef.current.swipeY = e.touches.length === 1 ? e.touches[0].clientY : null }}
+          onTouchEnd={(e) => {
+            const y0 = winRef.current.swipeY
+            winRef.current.swipeY = null
+            if (!zoomed || placing || y0 == null) return
+            const dy = e.changedTouches[0].clientY - y0
+            if (Math.abs(dy) > 50) onStepShelf(dy > 0 ? 1 : -1) // pull down = the shelf above
+          }}>
+          {placing && <p className="placing-note">Tap a shelf where it goes</p>}
           <SectionView
             plan={plan}
             fits={check.byShelf}
@@ -539,19 +603,55 @@ export default function App() {
             viewWidth={boxWidth - 4}
             selectedUid={selectedUid}
             activeShelfId={activeShelf.id}
+            focusShelfId={zoomed ? activeShelf.id : null}
+            compact={!zoomed}
             placing={placing}
-            onTapItem={(uid, shelfId) => { setSelectedUid(uid === selectedUid ? null : uid); setActiveShelfId(shelfId); setPlacing(false) }}
+            onTapItem={(uid, shelfId) => {
+              if (!zoomed) { focusItem(uid); return }
+              setSelectedUid(uid === selectedUid ? null : uid)
+              setDetailsOpen(false)
+              setActiveShelfId(shelfId)
+              setPlacing(false)
+            }}
             onMove={onMove}
-            onTapShelf={(shelfId) => { setActiveShelfId(shelfId); setSelectedUid(null); setPlacing(false) }}
+            onTapShelf={(shelfId) => { setSelectedUid(null); setDetailsOpen(false); focusShelf(shelfId) }}
           />
-        </section>
+        </div>
 
-        <SectionList plan={plan} fits={check.byShelf} products={products} photos={photos} selectedUid={selectedUid}
-          onSelect={(uid, where) => { setSelectedUid(uid); setPlacing(false); if (where !== TRAY) setActiveShelfId(where) }} />
-        {plan.note && <p className="muted small note">{plan.note}</p>}
+        {zoomed && (
+          <>
+            <div className="d-head">
+              <div className="d-head-text">
+                <b data-testid="focus-name">{shelfLabel(plan, activeShelf.id)}</b>
+                <small data-testid="focus-left">
+                  {fmtIn(focusFit.usedIn)} of {fmtIn(activeShelf.widthIn)} in used ·{' '}
+                  <span className={focusFit.isOver ? 'warn' : ''}>{focusFit.isOver ? `${fmtIn(focusFit.overIn)} in over` : `${fmtIn(focusFit.remainingIn)} in left`}</span>
+                </small>
+              </div>
+              <div className="d-head-btns">
+                {plan.tray.length > 0 && <button className="btn ghost" onClick={() => setSheet('tray')} data-testid="open-tray">Off shelf ({plan.tray.length})</button>}
+                <button className="btn ghost" onClick={() => setSheet('shelf')} data-testid="open-shelf"><Ruler size={18} aria-hidden="true" />Size</button>
+              </div>
+            </div>
+            <div className="d-list" data-testid="item-list">
+              <ShelfRows plan={plan} shelf={activeShelf} fit={focusFit} products={products} photos={photos} selectedUid={selectedUid}
+                onSelect={(uid) => { setSelectedUid(uid); setDetailsOpen(false); setPlacing(false) }}
+                onFacings={(uid, n) => act({ type: 'facings', uid, facings: n })}
+                onGapWidth={(uid, w) => act({ type: 'gapWidth', uid, widthIn: w })}
+                onMove={onArrow}
+                onTakeOff={(uid) => {
+                  const gap = findItem(plan, uid)?.item.kind === 'gap'
+                  act({ type: 'takeOff', uid }, gap ? 'Empty space removed' : 'Taken off the shelf')
+                  setSelectedUid(null)
+                }}
+                onDetails={(uid) => { setSelectedUid(uid); setDetailsOpen(true) }} />
+              {plan.note && <p className="muted small note">{plan.note}</p>}
+            </div>
+          </>
+        )}
       </main>
 
-      {sel && (
+      {sel && (detailsOpen || placing) && (
         <SelectedBar
           plan={plan}
           where={sel.where}
@@ -569,32 +669,61 @@ export default function App() {
           onFacings={(n) => act({ type: 'facings', uid: sel.item.uid, facings: n })}
           onHigh={(n) => act({ type: 'high', uid: sel.item.uid, high: n })}
           onGapWidth={(w) => act({ type: 'gapWidth', uid: sel.item.uid, widthIn: w })}
-          onStartPlace={() => setPlacing(true)}
+          onStartPlace={() => { setPlacing(true); setDetailsOpen(false) }}
           onCancelPlace={() => setPlacing(false)}
           onTakeOff={() => {
             const gap = sel.item.kind === 'gap'
             act({ type: 'takeOff', uid: sel.item.uid }, gap ? 'Empty space removed' : 'Taken off the shelf')
-            if (gap) setSelectedUid(null)
+            setSelectedUid(null)
+            setDetailsOpen(false)
           }}
-          onDelete={() => { act({ type: 'deleteItem', uid: sel.item.uid }, `Deleted ${products.info(sel.item).description}`); setSelectedUid(null) }}
-          onClose={() => { setSelectedUid(null); setPlacing(false) }}
+          onDelete={() => { act({ type: 'deleteItem', uid: sel.item.uid }, `Deleted ${products.info(sel.item).description}`); setSelectedUid(null); setDetailsOpen(false) }}
+          onClose={() => { setDetailsOpen(false); setPlacing(false) }}
         />
       )}
 
-      <nav className="tabbar" aria-label="Main">
-        <button className="tab primary" onClick={() => setSheet('add')} data-testid="open-add" aria-label="Add">
+      <Switcher plan={plan} activeShelfId={activeShelf.id} zoomed={zoomed} onStep={onStepShelf} onZoomIn={() => focusShelf(activeShelf.id)}>
+        <MiniMap plan={plan} fits={check.byShelf} products={products} activeShelfId={activeShelf.id}
+          onClick={() => { setZoomed(false); setSelectedUid(null); setDetailsOpen(false); setPlacing(false) }} />
+      </Switcher>
+
+      <nav className="tabbar d-tabs" aria-label="Main">
+        <button className="tab" onClick={() => setSheet('plans')} aria-label="Plans" data-testid="open-plans">
+          <FolderOpen size={24} aria-hidden="true" /><span>Plans</span>
+        </button>
+        <button className="tab" onClick={undo} disabled={!hist.past.length} aria-label="Undo" data-testid="undo">
+          <Undo2 size={24} aria-hidden="true" /><span>Undo</span>
+        </button>
+        <button className="tab scan" onClick={() => setSheet('scan')} data-testid="open-scan-bar" aria-label="Scan">
+          <span className="scan-bubble"><ScanBarcode size={28} aria-hidden="true" /></span><span>Scan</span>
+        </button>
+        <button className="tab" onClick={() => setSheet('add')} data-testid="open-add" aria-label="Add">
           <Plus size={24} aria-hidden="true" /><span>Add</span>
-        </button>
-        <button className="tab" onClick={() => setSheet('scan')} data-testid="open-scan-bar" aria-label="Scan">
-          <ScanBarcode size={24} aria-hidden="true" /><span>Scan</span>
-        </button>
-        <button className="tab" onClick={() => setSheet('shelf')} aria-label="Shelf">
-          <Ruler size={24} aria-hidden="true" /><span>Shelf</span>
         </button>
         <button className="tab" onClick={() => setSheet('tools')} data-testid="open-tools" aria-label="Tools">
           <LayoutGrid size={24} aria-hidden="true" /><span>Tools</span>
         </button>
       </nav>
+
+      {sheet === 'status' && (
+        <Sheet title="This section" onClose={() => setSheet(null)}>
+          <SectionSummary plan={plan} check={check} anyGuess={anyGuess} missing={missing} productCount={productCount} />
+          {plan.tray.length > 0 && <button className="btn wide" onClick={() => setSheet('tray')} data-testid="status-tray">Off the shelf ({plan.tray.length})</button>}
+          {plan.note && <p className="muted small note">{plan.note}</p>}
+        </Sheet>
+      )}
+      {sheet === 'tray' && (
+        <TraySheet plan={plan} products={products} photos={photos} targetLabel={shelfLabel(plan, activeShelf.id)}
+          onPut={(uid) => {
+            act({ type: 'move', uid, to: activeShelf.id, insertBefore: activeShelf.items.length }, `Put on ${shelfLabel(plan, activeShelf.id)}`)
+            setSelectedUid(uid)
+            setDetailsOpen(false)
+            focusShelf(activeShelf.id)
+            setSheet(null) // close the list so you see it land on the shelf
+          }}
+          onDelete={(uid) => act({ type: 'deleteItem', uid }, `Deleted ${products.info(findItem(plan, uid).item).description}`)}
+          onClose={() => setSheet(null)} />
+      )}
 
       {sheet === 'add' && (
         <AddSheet index={index} catalog={catalog}
@@ -636,7 +765,8 @@ export default function App() {
           onClose={() => setSheet(null)} />
       )}
       {sheet === 'tools' && (
-        <ToolsSheet onPick={setSheet} inAisle={!!plan.sections} onClose={() => setSheet(null)} />
+        <ToolsSheet onPick={setSheet} inAisle={!!plan.sections} onClose={() => setSheet(null)}
+          canRedo={hist.future.length > 0} onRedo={() => { redo(); setSheet(null) }} onShelf={() => setSheet('shelf')} />
       )}
       {sheet === 'print' && (() => {
         const others = plan.sections ? [] : Object.values(plans).filter((p) => p.id !== plan.id)
@@ -666,12 +796,7 @@ export default function App() {
             }).reverse() // top shelf first
             return spots.length ? { ...spots[0], more: spots.length - 1 } : null
           }}
-          onShow={(uid) => {
-            setSelectedUid(uid)
-            setActiveShelfId(findItem(plan, uid).where)
-            setPlacing(false)
-            setSheet(null)
-          }}
+          onShow={(uid) => { focusItem(uid); setSheet(null) }}
           onAdd={(hit) => onAdd(hit.inCatalog ? products.byUpc.get(hit.upc) : { upc: hit.upc, description: `UPC ${prettyUpc(hit.upc)}`, size: '' })}
           onSaveSize={onSaveSize}
           onClose={() => setSheet(null)} />
@@ -688,12 +813,7 @@ export default function App() {
             return msg
           }}
           onRemove={async () => { await remove('movement'); setMovement(null); showToast('Sales data removed from this phone') }}
-          onSelect={(uid) => {
-            const f = findItem(plan, uid)
-            setSelectedUid(uid)
-            if (f && f.where !== TRAY) setActiveShelfId(f.where)
-            setSheet(null)
-          }}
+          onSelect={(uid) => { focusItem(uid); setSheet(null) }}
           onClose={() => { setPendingCsv(null); setSheet(null) }} />
       )}
       {sheet === 'compare' && (
@@ -705,12 +825,7 @@ export default function App() {
             setSheet('compare')
           }}
           compareId={compareId} onCompareId={setCompareId} products={products}
-          onSelect={(uid) => {
-            const f = findItem(plan, uid)
-            setSelectedUid(uid)
-            if (f && f.where !== TRAY) setActiveShelfId(f.where)
-            setSheet(null)
-          }}
+          onSelect={(uid) => { focusItem(uid); setSheet(null) }}
           onPrint={() => setSheet('print')} onClose={() => setSheet(null)} />
       )}
       {sheet === 'guesses' && (

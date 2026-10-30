@@ -19,8 +19,10 @@ const MOVE_TOLERANCE = 10 // px a finger may wobble before we decide it is scrol
  */
 export default function SectionView({
   plan, fits, products, photos = {}, scale, viewWidth, selectedUid, activeShelfId, placing,
-  onTapItem, onMove, onTapShelf,
+  onTapItem, onMove, onTapShelf, focusShelfId = null, compact = false,
 }) {
+  // compact (the whole set at a glance): no heading rows; each shelf's name and room left are written on its board
+  const BOARD_H = compact ? 22 : BOARD
   const scrollRef = useRef(null)
   const canvasRefs = useRef({})
   const drag = useRef(null)
@@ -178,7 +180,7 @@ export default function SectionView({
                   className="shelf-canvas"
                   key={shelf.id}
                   ref={(el) => { canvasRefs.current[shelf.id] = el }}
-                  style={{ height: canvasH + BOARD, ...segStyle }}
+                  style={{ height: canvasH + BOARD_H, ...segStyle }}
                   onClick={(e) => onCanvasClick(e, shelf)}
                 >
                   <div className="shelf-back" style={{ left: xPx(0), width: shelf.widthIn * scale, top: canvasH - shelf.clearanceIn * scale, height: shelf.clearanceIn * scale }} />
@@ -236,6 +238,7 @@ export default function SectionView({
                         className={classes.join(' ')}
                         data-testid="tile"
                         data-uid={p.uid}
+                        data-name={info.description}
                         role="button"
                         aria-label={`${shelfLabel(plan, shelf.id)}, position ${pos}: ${info.description} ${info.size}, ${item.facings} facings${p.high > 1 ? `, ${p.high} high` : ''}`}
                         style={{ left: xPx(p.xIn), width: w, height: h, top: canvasH - h, '--brand': info.color }}
@@ -273,7 +276,14 @@ export default function SectionView({
                   {isTarget && (
                     <div className="drop-marker" style={{ left: xPx(markerIn(fit, dragView.uid, dragView.gap)) - 2, top: 0, height: canvasH }} />
                   )}
-                  <div className="board" style={{ left: xPx(0), width: shelf.widthIn * scale, top: canvasH, height: BOARD }} />
+                  <div className={`board${compact ? ' labeled' : ''}${fit.isOver ? ' over' : ''}`} style={{ left: xPx(0), width: shelf.widthIn * scale, top: canvasH, height: BOARD_H }}>
+                    {compact && (
+                      <span className="board-label" data-testid="board-label">
+                        <span>{shelfLabel(plan, shelf.id).replace(/ \((top|bottom)\)$/, '')}</span>
+                        <strong>{fit.isOver ? `${fmtIn(fit.overIn)} in over` : `${fmtIn(fit.remainingIn)} in left`}</strong>
+                      </span>
+                    )}
+                  </div>
                 </div>
     )
   }
@@ -292,8 +302,9 @@ export default function SectionView({
             const tallestIn = Math.max(1, ...live.map((c) => Math.max(c.shelf.clearanceIn, ...fits[c.shelf.id].items.map((p) => p.heightIn))))
             const canvasH = TOP + Math.ceil(tallestIn * scale)
             return (
-              <div key={`level-${r}`} className={`shelf-row aisle-row${live.some((c) => c.shelf.id === activeShelfId) ? ' active' : ''}`} data-testid="shelf-row">
-                <div className="aisle-heads">
+              <div key={`level-${r}`} className={`shelf-row aisle-row${live.some((c) => c.shelf.id === activeShelfId) ? ' active' : ''}${focusShelfId && !live.some((c) => c.shelf.id === focusShelfId) ? ' dim' : ''}`}
+                data-testid="shelf-row" data-shelves={live.map((c) => c.shelf.id).join(' ')}>
+                {!compact && <div className="aisle-heads">
                   {live.map((c) => {
                     const fit = fits[c.shelf.id]
                     const pct = Math.min(100, fit.percentUsed)
@@ -311,11 +322,11 @@ export default function SectionView({
                       </button>
                     )
                   })}
-                </div>
-                <div className="aisle-level" style={{ height: canvasH + BOARD }}>
+                </div>}
+                <div className="aisle-level" style={{ height: canvasH + BOARD_H }}>
                   {live.map((c) => renderCanvas(c.shelf, canvasH, { position: 'absolute', left: c.section.offsetIn * scale, top: 0, width: PAD * 2 + c.shelf.widthIn * scale }))}
                   {plan.sections.slice(1).map((sec) => (
-                    <div key={sec.planId} className="upright" style={{ left: xPx(sec.offsetIn) - 1, height: canvasH + BOARD }} />
+                    <div key={sec.planId} className="upright" style={{ left: xPx(sec.offsetIn) - 1, height: canvasH + BOARD_H }} />
                   ))}
                 </div>
               </div>
@@ -327,8 +338,9 @@ export default function SectionView({
             const canvasH = TOP + Math.ceil(tallestIn * scale)
             const pct = Math.min(100, fit.percentUsed)
             return (
-              <div key={shelf.id} className={`shelf-row${shelf.id === activeShelfId ? ' active' : ''}`} data-testid="shelf-row" data-shelf={shelf.id}>
-                <button
+              <div key={shelf.id} className={`shelf-row${shelf.id === activeShelfId ? ' active' : ''}${focusShelfId && shelf.id !== focusShelfId ? ' dim' : ''}`}
+                data-testid="shelf-row" data-shelf={shelf.id} data-shelves={shelf.id}>
+                {!compact && <button
                   type="button"
                   className={`shelf-head${fit.isOver ? ' over' : ''}`}
                   style={{ width: viewWidth, '--used': `calc((100% - 20px) * ${pct / 100})` }}
@@ -340,7 +352,7 @@ export default function SectionView({
                     {fmtIn(fit.usedIn)} of {fmtIn(shelf.widthIn)} ·{' '}
                     <strong data-testid="shelf-left">{fit.isOver ? `${fmtIn(fit.overIn)} in OVER` : `${fmtIn(fit.remainingIn)} in left`}</strong>
                   </span>
-                </button>
+                </button>}
                 {renderCanvas(shelf, canvasH)}
               </div>
             )

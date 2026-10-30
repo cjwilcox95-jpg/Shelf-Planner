@@ -768,3 +768,126 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
 .btn.icon-only { width: 44px; padding: 0; margin-left: auto; }
 .plan-btns { align-items: center; }
 .tile-name { overflow-wrap: normal; word-break: normal; }
+
+/* =====================================================================
+   Main screen "D" (2026-10-30): the whole set, or one shelf with its products listed under it.
+   Built for one hand: everything you tap often sits in the bottom half. The page itself never scrolls;
+   the drawing window and the list do.
+   ===================================================================== */
+.d-app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+.d-app .d-bar { position: static; grid-template-columns: 1fr auto; gap: 8px; padding-left: 14px; padding-right: 10px; }
+.d-app .appbar-sub .link-btn { font-size: 14px; min-height: 0; padding: 0; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; max-width: 46vw;
+  border: 0; border-radius: 999px; font-size: 14px; font-weight: 750; cursor: pointer; white-space: nowrap;
+}
+.status-pill span { overflow: hidden; text-overflow: ellipsis; }
+.status-pill.ok { background: #e4f3ea; color: var(--ok); }
+.status-pill.caution { background: #fff3de; color: #8a5200; }
+.status-pill.bad { background: var(--danger-bg); color: var(--danger); }
+.d-app .save-error, .d-app .backup-due { margin: 8px 12px 0; flex: none; }
+
+.d-app main.stage { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.d-window { position: relative; flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; background: var(--card); transition: height 0.28s ease; }
+.d-app.zoomed .d-window { flex: none; overflow: hidden; border-bottom: 1px solid var(--line); box-shadow: 0 4px 10px rgba(24, 33, 43, 0.05); }
+.d-window.placing { box-shadow: inset 0 0 0 3px var(--primary); }
+.placing-note { position: sticky; top: 0; z-index: 8; margin: 0; padding: 6px 12px; background: var(--primary); color: #fff; font-weight: 700; font-size: 14px; }
+.shelf-row { transition: opacity 0.2s; }
+.shelf-row.dim { opacity: 0.38; }
+@media (prefers-reduced-motion: reduce) { .d-window, .shelf-row { transition: none; } }
+
+.d-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 8px 14px; }
+.d-head-text { min-width: 0; display: flex; flex-direction: column; }
+.d-head-text b { font-size: 19px; font-weight: 800; }
+.d-head-text small { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.d-head-text .warn { color: var(--danger); font-weight: 750; }
+.d-head .btn { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }
+.d-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 12px 14px; }
+
+/* the shelf's products, one row each */
+.frows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.frow { background: #fff; border: 1.5px solid var(--line); border-radius: 14px; }
+.frow.open { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(30, 95, 140, 0.14); }
+.frow.is-gap { border-style: dashed; background: #faf9f6; }
+.frow-top { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 0; }
+.frow-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 54px;
+  padding: 4px 0 4px 10px; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; font: inherit;
+}
+.frow-main.static { cursor: default; }
+.frow-main .row-pos { flex: none; }
+.frow-thumb { flex: none; width: 30px; height: 46px; object-fit: contain; }
+.frow-main .row-main { min-width: 0; display: flex; flex-direction: column; }
+.frow-main .row-name { font-size: 16px; line-height: 1.25; }
+.frow-main .row-sub { font-size: 14px; color: var(--muted); }
+.frow-main .row-warn { font-size: 14px; font-weight: 700; color: var(--danger); }
+.frow-step { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 14px; background: #f3f1ed; }
+.frow-step button {
+  width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 11px;
+  background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); cursor: pointer;
+}
+.frow-step button:disabled { opacity: 0.35; }
+.frow-step span { min-width: 44px; text-align: center; line-height: 1; }
+.frow-step b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.frow-step small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.frow-acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); gap: 6px; padding: 0 8px 8px; }
+.frow-acts button {
+  min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1.5px solid var(--line-strong); border-radius: 12px; background: #fff; color: var(--ink);
+  font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; padding: 2px;
+}
+.frow-acts button:active { background: var(--primary-soft); }
+.frow-acts button:disabled { opacity: 0.35; }
+.frow-acts .red { color: var(--danger); border-color: #efc2bd; }
+.tray-acts { display: flex; gap: 8px; padding: 0 8px 8px; }
+.tray-acts .btn.primary { flex: 1; }
+
+/* shelf switcher with the mini picture of the whole set */
+.switcher {
+  flex: none; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: stretch;
+  padding: 8px 12px 26px; background: #fff; border-top: 1px solid var(--line);
+}
+.switcher > .btn { min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 15px; }
+.switcher.whole { grid-template-columns: 1fr auto; align-items: center; padding-bottom: 26px; }
+.switcher-where { display: flex; flex-direction: column; font-size: 14px; color: var(--muted); }
+.switcher-where b { font-size: 17px; color: var(--ink); }
+.switcher.whole .btn.primary { min-height: 48px; }
+.minimap {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 8px;
+  border: 1.5px solid var(--line-strong); border-radius: 12px; background: #fff; cursor: pointer;
+}
+.minimap:active { background: var(--primary-soft); }
+.minimap-pic { display: flex; flex-direction: column; }
+.mm-level, .mm-bay, .mm-board { display: block; }
+.mm-bay { position: relative; }
+.mm-cell { position: absolute; top: 0; bottom: 0; background: #ece7df; overflow: hidden; }
+.mm-cell.on { background: var(--primary-soft); box-shadow: 0 0 0 2px var(--primary); z-index: 1; }
+.mm-cell i { position: absolute; bottom: 0; border-right: 1px solid #fff; }
+.mm-board { height: 3px; background: #4f5962; }
+.mm-board.over { background: var(--danger); }
+.mm-cap { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 750; color: var(--primary); }
+
+/* bottom bar: Plans, Undo, Scan, Add, Tools */
+.d-app .tabbar.d-tabs { position: static; flex: none; grid-template-columns: repeat(5, 1fr); align-items: end; max-width: none; }
+.d-tabs .tab { font-size: 13px; min-height: 54px; color: var(--ink); }
+.d-tabs .tab:disabled { opacity: 0.35; }
+.d-tabs .tab.scan { position: relative; }
+.scan-bubble {
+  width: 58px; height: 58px; margin-top: -26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: #fff; box-shadow: 0 4px 14px rgba(24, 33, 43, 0.25);
+}
+.d-app .selected-bar { bottom: calc(70px + env(safe-area-inset-bottom)); max-height: 70vh; overflow-y: auto; }
+.redo-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.board.labeled { display: flex; align-items: center; overflow: hidden; }
+.board-label { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 0 8px; color: #fff; font-size: 14px; line-height: 22px; font-weight: 650; white-space: nowrap; }
+.board-label strong { font-weight: 750; }
+.board.labeled.over { background: linear-gradient(#e7a49c 0 2px, #b42318 2px); }
+/* whole set: pictures and names speak for themselves; numbers and marks appear when you zoom in to a shelf */
+.d-app.whole .pos-badge, .d-app.whole .guess-mark, .d-app.whole .high-mark { display: none; }
+/* the brief's rules: text at least 14 px, anything you tap at least 44 px tall */
+.d-tabs .tab, .frow-acts button, .mm-cap { font-size: 14px; }
+.frow-step small { font-size: 14px; }
+.frow-step span { min-width: 52px; }
+.status-pill { min-height: 44px; }
+.d-head-btns { display: flex; gap: 6px; flex: none; }
+.d-head-btns .btn { padding: 0 10px; }

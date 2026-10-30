@@ -12,17 +12,51 @@ test.skip(!fs.existsSync(CATALOG), 'store data not built')
 const shot = (page, name, fullPage = false) =>
   page.screenshot({ path: path.join(SHOTS, `${test.info().project.name}-${name}.png`), fullPage })
 
-/** Product names on one shelf, from the list under the drawing (e.g. "Shelf 7 (top)"). */
-const shelfNames = (page, label) =>
-  page.getByTestId('item-list').locator('section').filter({ has: page.locator('h2', { hasText: label }) })
-    .locator('.row-name').allInnerTexts()
-const trayNames = (page) => page.getByTestId('tray').locator('.row-name').allInnerTexts()
 const rows = (page) => page.getByTestId('shelf-row') // top shelf first
+/** Product names on one shelf (e.g. "Shelf 7 (top)"), left to right, read from the drawing. */
+async function shelfNames(page, label) {
+  const n = Number(label.match(/Shelf (\d+)/)[1])
+  const total = await rows(page).count()
+  return rows(page).nth(total - n).getByTestId('tile').evaluateAll((els) => els.map((e) => e.dataset.name))
+}
+/** What is off the shelf (opens and closes that list). */
+async function trayNames(page) {
+  await page.getByTestId('status-pill').click()
+  if (!(await page.getByTestId('status-tray').count())) { await page.getByRole('button', { name: 'Done' }).click(); return [] }
+  await page.getByTestId('status-tray').click()
+  const names = await page.getByTestId('tray').locator('.row-name').allInnerTexts()
+  await page.getByRole('button', { name: 'Done' }).click()
+  return names
+}
+/** Back to the whole set (if zoomed in to a shelf). */
+async function wholeSet(page) {
+  if (await page.getByTestId('minimap').count()) await page.getByTestId('minimap').click()
+  await expect(page.getByTestId('minimap')).toHaveCount(0)
+}
+/** Zoom in to shelf n by tapping its board in the whole set. */
+async function openShelf(page, n) {
+  await wholeSet(page)
+  const total = await rows(page).count()
+  await rows(page).nth(total - n).getByTestId('board-label').first().click()
+  await expect(page.getByTestId('focus-name')).toContainText(`Shelf ${n}`)
+}
+/** Tap product k of row r (top row = 0) in the whole set: zooms in with its row open. */
+async function openProduct(page, r, k) {
+  await wholeSet(page)
+  await rows(page).nth(r).getByTestId('tile').nth(k).click()
+  await expect(page.locator('.frow.open')).toBeVisible()
+}
+const openRow = (page) => page.locator('.frow.open')
+/** The section status details (opens the panel; close it with Done). */
+async function openStatus(page) {
+  await page.getByTestId('status-pill').click()
+  return page.getByTestId('summary')
+}
 
 async function loadData(page) {
   await page.goto('./')
   await page.getByTestId('data-file').setInputFiles(CATALOG)
-  await expect(page.getByTestId('summary')).toBeVisible()
+  await expect(page.getByTestId('status-pill')).toBeVisible()
 }
 
 /** A real finger: press, hold, slide, lift (Chrome DevTools touch events). */
@@ -95,67 +129,84 @@ test('drag within a shelf', async ({ page }, info) => {
   expect(after.slice(0, 3)).toEqual(before.slice(1, 4))
 })
 
-test('a quick swipe scrolls instead of dragging', async ({ page }, info) => {
-  test.skip(info.project.name !== 'phone', 'touch only')
+test('whole set and one shelf: tap zooms in, the shelf buttons and a swipe step, the mini picture zooms out', async ({ page }, info) => {
   await loadData(page)
-  await page.getByRole('button', { name: 'Zoom in' }).click()
-  await page.getByRole('button', { name: 'Zoom in' }).click()
-  const before = await shelfNames(page, 'Shelf 7 (top)')
-  const scroller = page.getByTestId('section-scroll')
-  const startLeft = await scroller.evaluate((el) => el.scrollLeft)
-  const t = await center(rows(page).nth(0).getByTestId('tile').nth(1))
-  await fingerDrag(page, { x: 330, y: t.y }, { x: 60, y: t.y }, { hold: 30, steps: 8 })
-  await page.waitForTimeout(400)
-  expect(await shelfNames(page, 'Shelf 7 (top)')).toEqual(before)
-  expect(await scroller.evaluate((el) => el.scrollLeft)).toBeGreaterThan(startLeft)
-  await shot(page, '03-zoomed')
+  await expect(page.getByTestId('switcher')).toContainText('Whole set')
+  await openShelf(page, 7)
+  await expect(page.getByTestId('shelf-rows').getByTestId('frow')).toHaveCount(10)
+  await expect(rows(page).nth(1)).toHaveClass(/dim/) // the other shelves fade back
+  await page.getByTestId('shelf-down').click()
+  await expect(page.getByTestId('focus-name')).toHaveText('Shelf 6')
+  await expect(page.getByTestId('shelf-up')).toContainText('Shelf 7')
+  if (info.project.name === 'phone') {
+    const box = await page.getByTestId('d-window').boundingBox()
+    await fingerDrag(page, { x: box.x + 200, y: box.y + box.height - 10 }, { x: box.x + 200, y: box.y + 10 }, { hold: 30, steps: 6 }) // swipe up
+    await expect(page.getByTestId('focus-name')).toHaveText('Shelf 5')
+  }
+  await shot(page, '03-one-shelf')
+  await page.getByTestId('minimap').click()
+  await expect(page.getByTestId('switcher')).toContainText('Whole set')
+  await expect(page.locator('.shelf-row.dim')).toHaveCount(0)
 })
 
-test('tap a product, tap Move, tap another shelf', async ({ page }) => {
+test('arrows move a product along a shelf and to the shelf below; Details > Move still works', async ({ page }) => {
   await loadData(page)
   const top = await shelfNames(page, 'Shelf 7 (top)')
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
-  await expect(page.getByTestId('selected-panel')).toContainText(top[0])
+  const six = await shelfNames(page, 'Shelf 6')
+  await openProduct(page, 0, 0)
+  await expect(openRow(page)).toContainText(top[0])
+  await openRow(page).getByRole('button', { name: 'Move right' }).click()
+  expect((await shelfNames(page, 'Shelf 7 (top)')).slice(0, 2)).toEqual([top[1], top[0]])
+  await shot(page, '04-arrows')
+  await openRow(page).getByRole('button', { name: 'Move down a shelf' }).click()
+  await expect(page.getByTestId('focus-name')).toHaveText('Shelf 6') // the screen follows the product
+  await expect(page.locator('.toast')).toContainText('Moved to Shelf 6')
+  const sixAfter = await shelfNames(page, 'Shelf 6')
+  expect(sixAfter).toHaveLength(six.length + 1)
+  expect(sixAfter[1]).toBe(top[0]) // same spot it had above
+  // Details > Move, then tap the shelf's heading: it goes to the end of that shelf
+  await openRow(page).getByTestId('details').click()
   await page.getByRole('button', { name: 'Move', exact: true }).click()
   await expect(page.getByText('Tap a shelf where it should go.')).toBeVisible()
-  await shot(page, '04-move-mode')
-  // scroll shelf 4 into view above the selected-product bar, like a person would
-  await rows(page).nth(3).evaluate((el) => el.scrollIntoView({ block: 'center' }))
-  const t = await rows(page).nth(3).getByTestId('tile').nth(0).boundingBox() // shelf 4, before its first product
-  await page.mouse.click(t.x + 2, t.y + t.height / 2)
-  expect((await shelfNames(page, 'Shelf 4'))[0]).toBe(top[0])
+  await rows(page).nth(1).getByTestId('shelf-head').click()
+  expect((await shelfNames(page, 'Shelf 6')).at(-1)).toBe(top[0])
 })
 
 test('take off, the tray, put back, and delete', async ({ page }) => {
   await loadData(page)
   const top = await shelfNames(page, 'Shelf 7 (top)')
-  await rows(page).nth(0).getByTestId('tile').nth(1).click()
-  await page.getByRole('button', { name: 'Take off' }).click()
+  await openProduct(page, 0, 1)
+  await openRow(page).getByRole('button', { name: 'Take off' }).click()
   expect((await trayNames(page))[0]).toBe(top[1])
   expect(await shelfNames(page, 'Shelf 7 (top)')).toHaveLength(top.length - 1)
+  // put it on shelf 5: open that shelf, then the off-the-shelf list
+  await openShelf(page, 5)
+  await page.getByTestId('open-tray').click()
   await shot(page, '05-tray')
-  await page.getByRole('button', { name: 'Put on shelf' }).click()
-  await page.getByTestId('shelf-head').nth(2).click() // tapping a shelf's heading puts it at the end
+  await page.getByTestId('tray').getByTestId('tray-row').filter({ hasText: top[1] }).getByRole('button', { name: 'Put on Shelf 5' }).click()
   expect((await shelfNames(page, 'Shelf 5')).at(-1)).toBe(top[1])
-  // delete for good from the tray
-  await page.getByTestId('tray').locator('.row').first().click()
-  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  // delete for good from the off-the-shelf list
+  await page.getByTestId('open-tray').click()
+  await page.getByTestId('tray').getByRole('button', { name: /^Delete / }).first().click()
+  await page.getByRole('button', { name: 'Done' }).click()
   expect(await trayNames(page)).toHaveLength(1)
 })
 
 test('facings, OVER on one shelf, undo/redo, and it survives a reload', async ({ page }) => {
   await loadData(page)
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
-  const facings = page.getByTestId('facings')
+  await openProduct(page, 0, 0)
+  const facings = openRow(page).getByTestId('row-facings')
   const start = Number(await facings.innerText())
-  for (let i = 0; i < 8; i++) await page.getByRole('button', { name: 'One more facing' }).click()
+  for (let i = 0; i < 8; i++) await openRow(page).getByRole('button', { name: 'One more facing' }).click()
   await expect(facings).toHaveText(String(start + 8))
-  await expect(rows(page).nth(0).getByTestId('shelf-left')).toContainText('OVER')
+  await expect(page.getByTestId('focus-left')).toContainText('in over')
   await expect(page.getByTestId('section-status')).toHaveText('1 shelf over')
+  await expect(page.locator('.mm-board.over')).toHaveCount(1) // the mini picture shows it too
   await shot(page, '06-over')
-  await page.getByRole('button', { name: 'Undo' }).click()
+  await page.getByTestId('undo').click()
   await expect(facings).toHaveText(String(start + 7))
-  await page.getByRole('button', { name: 'Redo' }).click()
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('redo').click()
   await expect(facings).toHaveText(String(start + 8))
   await page.reload()
   await expect(page.getByTestId('section-status')).toHaveText('1 shelf over')
@@ -163,7 +214,7 @@ test('facings, OVER on one shelf, undo/redo, and it survives a reload', async ({
 
 test('search by name and by UPC, add to the shelf you tapped', async ({ page }) => {
   await loadData(page)
-  await page.getByTestId('shelf-head').nth(6).click() // bottom shelf
+  await openShelf(page, 1) // bottom shelf
   await page.getByTestId('open-add').click()
   await expect(page.getByRole('dialog')).toContainText('Add to Shelf 1 (bottom)')
   const input = page.getByTestId('search-input')
@@ -183,8 +234,8 @@ test('plans: copy, rename, switch, start from AFI, delete', async ({ page }) => 
   await page.getByRole('button', { name: 'Copy' }).first().click()
   await expect(page.getByTestId('plan-name')).toContainText('(copy)')
   // change the copy so the two differ
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
-  await page.getByRole('button', { name: 'Take off' }).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByRole('button', { name: 'Take off' }).click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByRole('button', { name: 'Rename' }).first().click()
   await page.getByLabel('Plan name').fill('Ketchup proposed')
@@ -209,21 +260,22 @@ test('plans: copy, rename, switch, start from AFI, delete', async ({ page }) => 
 
 test('shelf size for one shelf or all, add and remove a shelf', async ({ page }) => {
   await loadData(page)
-  await page.getByTestId('shelf-head').nth(0).click()
-  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
+  await openShelf(page, 7)
+  await page.getByTestId('open-shelf').click()
   await page.getByTestId('field-clearanceIn').fill('6')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByTestId('section-status')).toHaveText('Width fits') // the 6.6 in mustard bottles no longer clear 6 in
-  await expect(page.getByTestId('summary')).toContainText('taller than the clearance')
-  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
+  await expect(await openStatus(page)).toContainText('taller than the clearance')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await page.getByTestId('open-shelf').click()
   await page.getByRole('button', { name: '36', exact: true }).click()
   await page.getByLabel('Use these sizes for every shelf').check()
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(rows(page).nth(6).getByTestId('shelf-head')).toContainText('of 36 ·')
-  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
+  await page.getByTestId('open-shelf').click()
   await page.getByRole('button', { name: 'Add a shelf on top' }).click()
   await expect(rows(page)).toHaveCount(8)
-  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
+  await page.getByTestId('open-shelf').click()
   await page.getByRole('button', { name: 'Remove this shelf' }).click()
   await expect(rows(page)).toHaveCount(7)
 })
@@ -231,7 +283,8 @@ test('shelf size for one shelf or all, add and remove a shelf', async ({ page })
 test('export a backup, then load it on a fresh phone', async ({ page, browser }, info) => {
   test.skip(info.project.name !== 'desktop', 'file download checked on desktop')
   await loadData(page)
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByTestId('details').click()
   await page.getByTestId('photo-input').setInputFiles(path.resolve('../data/build/photos/synthetic-bottle.png'))
   await expect(page.locator('.toast')).toContainText('Photo saved')
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
@@ -256,7 +309,7 @@ test('export a backup, then load it on a fresh phone', async ({ page, browser },
   const p2 = await fresh.newPage()
   await p2.goto('./')
   await p2.getByTestId('data-file').setInputFiles(file)
-  await expect(p2.getByTestId('summary')).toBeVisible()
+  await expect(p2.getByTestId('status-pill')).toBeVisible()
   await p2.getByRole('button', { name: 'Plans', exact: true }).click()
   await expect(p2.getByTestId('plan-list').locator('li')).toHaveCount(2)
   await p2.getByRole('button', { name: 'Done' }).click()
@@ -300,11 +353,8 @@ test('photo pack: pictures show on the shelf and in the list', async ({ page }) 
   const tile = page.locator('.tile.has-photo')
   await expect(tile).toHaveCount(1)
   await expect(tile.locator('img')).toHaveCount(2)
-  await expect(page.locator('.row-thumb')).toHaveCount(1)
-  await tile.evaluate((el) => el.scrollIntoView({ block: 'center' }))
-  await page.getByRole('button', { name: 'Zoom in' }).click()
-  await page.getByRole('button', { name: 'Zoom in' }).click()
-  await tile.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }))
+  await openShelf(page, 3)
+  await expect(page.locator('.frow-thumb')).toHaveCount(1) // and in that shelf's list
   await shot(page, '10-photo-on-shelf')
   await page.reload() // photos are saved on the phone
   await expect(page.locator('.tile.has-photo img')).toHaveCount(2)
@@ -312,7 +362,8 @@ test('photo pack: pictures show on the shelf and in the list', async ({ page }) 
 
 test('add a photo from the phone to a product', async ({ page }) => {
   await loadData(page)
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByTestId('details').click()
   await page.getByTestId('photo-input').setInputFiles(SYNTHETIC)
   await expect(page.locator('.toast')).toContainText('Photo saved')
   await expect(page.locator('.photo-slot img')).toHaveCount(1)
@@ -332,7 +383,8 @@ const MEASURE = path.resolve('../data/build/photos/measure-test.png')
 test('edit a product size: saved everywhere, marks change from ~ to measured', async ({ page }) => {
   await loadData(page)
   const tile = rows(page).nth(0).getByTestId('tile').nth(0)
-  await tile.click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByTestId('details').click()
   await page.getByTestId('edit-size').click()
   await page.getByTestId('size-w').fill('4')
   await page.getByTestId('size-h').fill('9')
@@ -353,9 +405,9 @@ test('change the default guesses for a package type', async ({ page }) => {
   await page.getByTestId('search-input').fill('021000026876') // KRAFT MAYO SQUEEZE 12 OZ
   await page.getByTestId('add-result').first().click()
   const tile = page.locator('.tile.selected')
-  const firstRow = page.getByTestId('item-list').locator('.row').filter({ hasText: 'KRAFT MAYO SQUEEZE' }).locator('.row-sub')
+  const firstRow = page.getByTestId('item-list').getByTestId('frow').filter({ hasText: 'KRAFT MAYO SQUEEZE' }).locator('.row-sub')
   await expect(firstRow).toContainText('~2.3 in') // guess: 2.75 in at 20 oz -> 2.25 in at 12 oz (list rounds to 0.1)
-  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
+  await page.getByTestId('open-shelf').click()
   await page.getByTestId('open-guesses').click()
   await page.getByTestId('guess-squeeze-w').fill('4')
   await page.getByTestId('save-guesses').click()
@@ -365,7 +417,8 @@ test('change the default guesses for a package type', async ({ page }) => {
 
 test('measure a product from a photo', async ({ page }) => {
   await loadData(page)
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByTestId('details').click()
   await page.getByTestId('edit-size').click()
   await page.getByTestId('open-measure').click()
   await page.getByTestId('measure-photo').setInputFiles(MEASURE)
@@ -420,36 +473,38 @@ test('the laundry aisle recreated from photos imports as 4 plans with photo size
     await page.screenshot({ path: path.join(SHOTS, `${test.info().project.name}-20-aisle-${file}-full.png`), fullPage: true })
   }
   // photo sizes are in use: Faultless starch width comes from the photo
-  const row = page.getByTestId('item-list').locator('.row').filter({ hasText: 'FAULTLESS STARCH FRESH' }).first()
-  await expect(row).toContainText('5 facings · ≈13 in') // ≈ = width from a photo
+  await page.locator('[data-testid="tile"][data-name^="FAULTLESS STARCH FRESH"]').first().click()
+  await expect(openRow(page).getByTestId('row-facings')).toHaveText('5')
+  await expect(openRow(page)).toContainText('≈13 in wide') // ≈ = width from a photo
 })
 
 test('stack a product 2 high and leave an empty space on a shelf', async ({ page }) => {
   await loadData(page)
   const tile = rows(page).nth(0).getByTestId('tile').nth(0)
+  await openProduct(page, 0, 0)
   const h1 = (await tile.boundingBox()).height
-  await tile.click()
+  await openRow(page).getByTestId('details').click()
   await page.getByRole('button', { name: 'More', exact: true }).click()
   await page.getByRole('button', { name: 'Stack one more high' }).click()
   await expect(page.getByTestId('high')).toHaveText('2 high')
   await expect.poll(async () => (await tile.boundingBox()).height).toBeGreaterThan(h1 * 1.8) // drawn twice as tall
-  await expect(page.getByTestId('item-list').locator('.row.selected')).toContainText(', 2 high')
+  await expect(openRow(page)).toContainText('2 high')
+  await page.getByTestId('selected-panel').getByRole('button', { name: 'Close' }).click()
   // empty space after the selected product
-  const usedBefore = await rows(page).nth(0).getByTestId('shelf-head').innerText()
+  const usedBefore = await page.getByTestId('focus-left').innerText()
   await page.getByTestId('open-add').click()
   await page.getByTestId('add-gap').click()
-  await expect(page.getByTestId('selected-panel')).toContainText('Empty space')
+  await expect(openRow(page)).toContainText('Empty space')
   await expect(rows(page).nth(0).getByTestId('gap')).toHaveCount(1)
-  for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Half an inch wider' }).click()
-  await expect(page.getByTestId('gap-width')).toHaveText('3')
+  for (let i = 0; i < 2; i++) await openRow(page).getByRole('button', { name: 'Half an inch wider' }).click()
+  await expect(openRow(page).getByTestId('gap-width')).toHaveText('3')
   const used = (s) => Number(s.match(/([\d.]+) of 48/)[1])
-  const usedAfter = await rows(page).nth(0).getByTestId('shelf-head').innerText()
+  const usedAfter = await page.getByTestId('focus-left').innerText()
   expect(used(usedAfter) - used(usedBefore)).toBeCloseTo(3, 1) // the empty space takes 3 in
   await shot(page, '21-stack-and-gap')
   // positions skip the empty space: the product after it is still #2
-  await expect(page.getByTestId('item-list').locator('section').filter({ has: page.locator('h2', { hasText: 'Shelf 7 (top)' }) })
-    .locator('.row-pos').nth(2)).toHaveText('2')
-  await page.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(page.getByTestId('shelf-rows').locator('.row-pos').nth(2)).toHaveText('2')
+  await openRow(page).getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(rows(page).nth(0).getByTestId('gap')).toHaveCount(0)
   expect(await trayNames(page)).toHaveLength(2) // the empty space did not go to the tray
 })
@@ -480,10 +535,10 @@ test('compare a proposed copy with the current plan, and print the change list',
   await expect(page.getByTestId('plan-name')).toContainText('(copy)')
   const top = await shelfNames(page, 'Shelf 7 (top)')
   // proposed: take the first product off, add a facing to the next one
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
-  await page.getByRole('button', { name: 'Take off' }).click()
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
-  await page.getByRole('button', { name: 'One more facing' }).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByRole('button', { name: 'Take off' }).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByRole('button', { name: 'One more facing' }).click()
   await page.getByTestId('open-tools').click()
   await page.getByTestId('tool-compare').click()
   await page.getByTestId('compare-with').selectOption({ label: 'Ketchup - Mustard (AFI 2024-01-09)' })
@@ -535,11 +590,14 @@ test('sales help: load a CSV export, money columns are ignored, worth-a-look lis
   }))
   expect(saved).toContain('"units":900')
   expect(saved).not.toMatch(/11\.11|25\.5|:-3|Sales \$|GM|On Hand/i)
-  // tapping a product shows it on the shelf with its pace
+  // tapping a product shows it on its shelf; Details has its pace
   await page.getByTestId('tips-best').locator('.row').first().click()
+  await expect(openRow(page)).toContainText(items[0].description)
+  await openRow(page).getByTestId('details').click()
   await expect(page.getByTestId('sells')).toContainText('sells ~69/wk') // 900 / 13 weeks
   await page.reload()
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByTestId('details').click()
   await expect(page.getByTestId('sells')).toBeVisible() // still loaded after closing the app
 })
 
@@ -561,8 +619,8 @@ test('sales help with the real movement file on the Ketchup-Mustard set', async 
 test('reminders and shortcuts: backup reminder, "in this plan" in search, copy from Compare', async ({ page }, info) => {
   await loadData(page)
   await expect(page.getByTestId('backup-due')).toHaveCount(0) // nothing changed yet
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
-  await page.getByRole('button', { name: 'One more facing' }).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByRole('button', { name: 'One more facing' }).click()
   await expect(page.getByTestId('backup-due')).toContainText('not backed up yet')
   if (info.project.name === 'desktop') {
     const dl = page.waitForEvent('download')
@@ -595,15 +653,18 @@ test('importing an older backup keeps the newer store data on the phone', async 
   await expect(page.getByRole('dialog')).toContainText('Backup loaded')
   await expect(page.getByRole('dialog')).not.toContainText('store data updated')
   await page.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('button', { name: 'Shelf', exact: true }).click()
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-shelf').click()
   await expect(page.getByRole('dialog')).toContainText(`Store data: ${cat.items.length.toLocaleString('en-US')} products`)
 })
 
 test('real sizes from the AFI drawings: used for products, and AFI stacking comes along', async ({ page }) => {
   await loadData(page)
   // Ketchup-Mustard: every product now has AFI's width and height (no ~ guess marks, depth ≈ estimated)
-  await expect(page.getByTestId('summary')).not.toContainText('~ = guessed size')
-  await rows(page).nth(0).getByTestId('tile').nth(0).click()
+  await expect(await openStatus(page)).not.toContainText('~ = guessed size')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByTestId('details').click()
   await page.getByRole('button', { name: 'More', exact: true }).click()
   await expect(page.getByTestId('selected-panel')).toContainText('W from AFI planogram · H from AFI planogram · D estimated from AFI shelf count')
   await expect(page.getByTestId('selected-panel')).toContainText('3.06 W × 6.64 H')
@@ -611,7 +672,8 @@ test('real sizes from the AFI drawings: used for products, and AFI stacking come
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByTestId('tab-afi').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
-  await expect(page.getByTestId('item-list').locator('.row').filter({ hasText: 'VLASIC KOSHER DILL BABY WHOLE' }).first()).toContainText('2 high')
+  await page.locator('[data-testid="tile"][data-name="VLASIC KOSHER DILL BABY WHOLE"]').first().click()
+  await expect(openRow(page)).toContainText('2 high')
   await shot(page, '28-afi-sizes')
 })
 
@@ -623,12 +685,12 @@ test('aisle: the 4 laundry sections side by side, drag a product from A into B, 
   await expect(page.getByRole('dialog')).toContainText('Backup loaded: 4 new plans')
   await page.getByTestId('aisle-list').locator('li').filter({ hasText: 'Laundry aisle' }).getByTestId('open-aisle').click()
   await expect(page.getByTestId('plan-name')).toHaveText('Laundry aisle')
-  await expect(page.getByTestId('summary')).toContainText('4 sections · 24 shelves')
+  await expect(await openStatus(page)).toContainText('4 sections · 24 shelves')
+  await page.getByRole('button', { name: 'Done' }).click()
   await expect(rows(page)).toHaveCount(6) // 6 levels, each with 4 shelves side by side
-  await expect(rows(page).nth(5).getByTestId('shelf-head')).toHaveCount(4)
+  await expect(rows(page).nth(5).getByTestId('board-label')).toHaveCount(4)
   await shot(page, '29-aisle')
-  // zoom in, then drag the last product of A's bottom shelf to the start of B's bottom shelf
-  for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
+  // drag the last product of A's bottom shelf to the start of B's bottom shelf
   const bottom = rows(page).nth(5)
   const aTiles = bottom.locator('.shelf-canvas').nth(0).getByTestId('tile')
   const bTiles = bottom.locator('.shelf-canvas').nth(1).getByTestId('tile')
@@ -639,7 +701,7 @@ test('aisle: the 4 laundry sections side by side, drag a product from A into B, 
   const b0 = await bTiles.first().boundingBox()
   await drag(page, info, from, { x: b0.x + 3, y: b0.y + b0.height / 2 })
   await expect(bTiles.first()).toHaveAttribute('aria-label', new RegExp(`^B · Shelf 1 \\(bottom\\), position 1: ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
-  const moved = await page.getByTestId('selected-panel').locator('.selected-name').innerText() // the dropped product is selected
+  const moved = await bTiles.first().getAttribute('data-name')
   // open Laundry B on its own: the product is there, first after the 9 in empty space; and gone from A
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry B' }).getByRole('button', { name: 'Open', exact: true }).click()
@@ -666,7 +728,7 @@ test('aisle: make one from two plans; print makes pages for each section', async
   await page.getByTestId('aisle-name').fill('Condiments')
   await page.getByTestId('save-aisle').click()
   await expect(page.getByTestId('plan-name')).toHaveText('Condiments')
-  await expect(rows(page).first().getByTestId('shelf-head').first()).toContainText('A7')
+  await expect(rows(page).first().getByTestId('board-label').first()).toContainText('A · Shelf 7')
   await page.getByTestId('open-tools').click()
   await expect(page.getByTestId('tool-compare')).toHaveCount(0) // compare is for single plans
   await page.getByTestId('tool-print').click()
@@ -683,8 +745,9 @@ test('a two-door freezer set opens as an aisle, one 30 in section per door', asy
   await expect(page.locator('[data-testid^="afi-"]')).toContainText('2 freezer doors · 5 ft · 6 shelves')
   await page.locator('[data-testid^="afi-"]').click()
   await expect(page.getByTestId('plan-name')).toHaveText('Banquet Dinners (AFI 2024-02-02)')
-  await expect(page.getByTestId('summary')).toContainText('2 sections · 12 shelves')
-  await expect(rows(page).first().getByTestId('shelf-head')).toHaveCount(2) // door 1 and door 2 side by side
-  await expect(rows(page).first().getByTestId('shelf-head').first()).toContainText('A6')
+  await expect(await openStatus(page)).toContainText('2 sections · 12 shelves')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(rows(page).first().getByTestId('board-label')).toHaveCount(2) // door 1 and door 2 side by side
+  await expect(rows(page).first().getByTestId('board-label').first()).toContainText('A · Shelf 6')
   await shot(page, '30-freezer')
 })

@@ -13,7 +13,7 @@ const rows = (page) => page.getByTestId('shelf-row')
 async function loadData(page) {
   await page.goto('./')
   await page.getByTestId('data-file').setInputFiles(CATALOG)
-  await expect(page.getByTestId('summary')).toBeVisible()
+  await expect(page.getByTestId('status-pill')).toBeVisible()
 }
 
 // ---------- barcode scanner (a fake camera shows a real UPC-A barcode) ----------
@@ -38,7 +38,8 @@ test.describe('scanner with a camera', () => {
     await expect(page.getByTestId('scan-where')).toContainText('Shelf 7 (top), #1')
     await shot(page, '26-scan-found')
     await page.getByTestId('scan-show').click()
-    await expect(page.getByTestId('selected-panel')).toContainText('FRENCHS MUSTARD SQUEEZE HONEY')
+    await expect(page.getByTestId('focus-name')).toHaveText('Shelf 7 (top)') // zoomed in to its shelf
+    await expect(page.locator('.frow.open')).toContainText('FRENCHS MUSTARD SQUEEZE HONEY')
   })
 
   test('measure as you go: scan, type tape sizes with fractions, saved as measured', async ({ page }) => {
@@ -57,6 +58,7 @@ test.describe('scanner with a camera', () => {
     await page.getByRole('button', { name: 'Done' }).click()
     // the product now shows measured sizes (no ~ or ≈ mark) everywhere
     await rows(page).nth(0).getByTestId('tile').nth(0).click()
+    await page.locator('.frow.open').getByTestId('details').click()
     await page.getByRole('button', { name: 'More', exact: true }).click()
     await expect(page.getByTestId('selected-panel')).toContainText('2.75 W × 8.5 H')
     await expect(page.getByTestId('selected-panel')).toContainText('W measured · H measured')
@@ -71,7 +73,7 @@ test('scanner without a camera: read a photo of a barcode, or type the numbers, 
   await expect(page.getByTestId('scan-hit')).toContainText('TIDE', { timeout: 15000 })
   await expect(page.getByTestId('scan-where')).toContainText('Not in this plan')
   await page.getByTestId('scan-add').click()
-  await expect(page.getByTestId('selected-panel')).toContainText('TIDE')
+  await expect(page.locator('.frow.open')).toContainText('TIDE')
   // typed: the 10 digits printed under a barcode, without the first 0 and the check digit
   await page.getByTestId('open-add').click()
   await page.getByTestId('open-scan').click()

@@ -2,6 +2,25 @@
 
 Plain-English notes on what changed at each stage.
 
+## New main screen: the whole set, or one shelf at a time (2026-10-30)
+
+Built for one hand, standing in the aisle (CJ picked mockup D).
+
+- The app opens on the **whole set**, shrunk to fit the screen, with product pictures. Each shelf's name and room left
+  are written on its board.
+- **Tap a shelf or a product** to zoom in to that shelf. The drawing becomes a window onto it (with a peek of the
+  shelves above and below), and its products are listed underneath, left to right.
+- Every row has **facings − / +** right on it. Tap a row for **Left, Right, Up, Down, Take off and Details**. Up and
+  down keep it in the same section and the screen follows it there. Press-and-hold dragging still works.
+- At the bottom: **▲ / ▼** to step between shelves (or swipe the drawing), and a **live mini picture of the whole set**
+  in between. Tap it to zoom back out.
+- Bottom bar: **Plans · Undo · Scan · Add · Tools**. Redo and Shelf sizes moved into Tools; a shelf's Size button is
+  next to its name when you are zoomed in.
+- The big status card became a small tag at the top ("Everything fits", "1 shelf over"); tap it for the details.
+- "Off the shelf" opens as its own list with a "Put on Shelf N" button for the shelf you are on.
+- All tests updated for the new screen; the screen rules (text 14 px+, buttons 44 px+, nothing wider than the screen)
+  pass on phone and desktop.
+
 ## Visual overhaul (2026-10-16)
 
 - New look throughout: calm colors, rounded cards, lighter buttons, icons (lucide, free), a cleaner shelf drawing.
