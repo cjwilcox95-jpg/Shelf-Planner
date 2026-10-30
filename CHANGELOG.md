@@ -2,6 +2,29 @@
 
 Plain-English notes on what changed at each stage.
 
+## Code review fixes (2026-10-30)
+
+A full read-through of the app and the data scripts, in four parts. No path for cost, retail or margin was found.
+Fixed:
+
+- **Copied plans** no longer share hidden product ids with the original (in one aisle, changing one changed both).
+  Plans saved by older versions are repaired when the app opens or a backup is loaded.
+- **Imports**: a damaged backup, store-data file or guess table is cleaned instead of crashing the app; class names
+  are kept as plain text only.
+- **Works with no signal**: the app is now saved for offline use the first time it is opened (before, the page itself
+  was never saved), opens the saved copy after 3.5 s on a weak signal, and old copies are cleared after updates.
+- **Scanner**: the camera turns off if the barcode reader can't load (with the right message), pauses when you switch
+  apps, and is off while you type a measurement. "Save, scan next" can't save twice and reports a failed save.
+- **Main screen**: dragging a product up while zoomed in no longer counts as a swipe; wide aisles scroll sideways to
+  the shelf you are on; while moving a product the "tap a shelf" bar sits at the top so ▲ ▼ still work; your own
+  scrolling is no longer reset by unrelated updates.
+- **Smaller**: size Save waits for the save; the guess table can't silently undo an edit; delete asks inside the app
+  (some phones block the browser's pop-ups); a blank sales cell is not "0 sold"; "2 inch" is understood; Gain Flings
+  are guessed as a pod bag; PDF titles with brackets are always valid.
+- **Store data builder**: Frozen Fruit is now read as a 2-door freezer set (its top shelves get measured heights); the
+  two waffle sets have different names; sets with no width or 0 facings are reported instead of stopping the build;
+  every dropped row is listed in the match report; photo packs named with 11 digits go to the right product.
+
 ## New main screen: the whole set, or one shelf at a time (2026-10-30)
 
 Built for one hand, standing in the aisle (CJ picked mockup D).

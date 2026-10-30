@@ -80,8 +80,38 @@ export function duplicatePlan(plan, name) {
   copy.name = name || `${plan.name} (copy)`
   copy.createdAt = t
   copy.updatedAt = t
-  for (const s of copy.shelves) s.id = newId('s')
+  for (const s of copy.shelves) {
+    s.id = newId('s')
+    for (const i of s.items) i.uid = newId(i.kind === 'gap' ? 'g' : 'i') // its own products: never shared with the original
+  }
+  for (const i of copy.tray || []) i.uid = newId('i')
   return copy
+}
+
+/**
+ * Every product in every plan gets its own id. Older versions copied plans with the same ids, which mixes the two
+ * plans up when both are in one aisle. The first plan to use an id keeps it; later ones get new ids.
+ * Returns { plans, changed } (changed = how many ids were renewed).
+ */
+export function uniqueUids(plans) {
+  const seen = new Set()
+  let changed = 0
+  const out = {}
+  for (const [id, p] of Object.entries(plans)) {
+    let touched = false
+    const fix = (i) => {
+      if (!seen.has(i.uid)) { seen.add(i.uid); return i }
+      touched = true
+      changed++
+      const uid = newId(i.kind === 'gap' ? 'g' : 'i')
+      seen.add(uid)
+      return { ...i, uid }
+    }
+    const shelves = p.shelves.map((s) => ({ ...s, items: s.items.map(fix) }))
+    const tray = (p.tray || []).map(fix)
+    out[id] = touched ? { ...p, shelves, tray } : p
+  }
+  return { plans: out, changed }
 }
 
 /** Where is this item? Returns { where: shelfId or TRAY, index } or null. */

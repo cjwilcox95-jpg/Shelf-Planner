@@ -261,6 +261,26 @@ export function SectionList({ plan, fits, products, photos = {}, selectedUid, on
   )
 }
 
+/** One tab button of the Plans sheet (defined outside it, so focus stays on it after a tap). */
+function PlanTab({ id, label, icon: I, tab, setTab }) {
+  return (
+    <button type="button" role="tab" aria-selected={tab === id} className={`tabs-btn${tab === id ? ' on' : ''}`} onClick={() => setTab(id)} data-testid={`tab-${id}`}>
+      <I size={18} aria-hidden="true" /> {label}
+    </button>
+  )
+}
+
+/** Asks before something that cannot be undone (instead of the phone's pop-up, which some phones let you block). */
+export function ConfirmSheet({ title, text, yes, onYes, onClose }) {
+  return (
+    <Sheet title={title} onClose={onClose}>
+      <p>{text}</p>
+      <button className="btn danger wide" onClick={() => { onClose(); onYes() }} data-testid="confirm-yes">{yes}</button>
+      <button className="btn wide" onClick={onClose}>Cancel</button>
+    </Sheet>
+  )
+}
+
 /** A panel that slides up from the bottom of the screen. */
 export function Sheet({ title, onClose, children, tall }) {
   useEffect(() => {
@@ -408,17 +428,12 @@ export function PlansSheet({
     ['Shelves', matches.filter((r) => !r.fixture)],
     ['Freezer', matches.filter((r) => r.fixture)],
   ].filter(([, list]) => list.length)
-  const Tab = ({ id, label, icon: I }) => (
-    <button type="button" role="tab" aria-selected={tab === id} className={`tabs-btn${tab === id ? ' on' : ''}`} onClick={() => setTab(id)} data-testid={`tab-${id}`}>
-      <I size={18} aria-hidden="true" /> {label}
-    </button>
-  )
   return (
     <Sheet title="Plans" onClose={onClose} tall>
       <div className="tabs" role="tablist" aria-label="Plans, AFI sets and backup">
-        <Tab id="plans" label="Your plans" icon={FolderOpen} />
-        <Tab id="afi" label="AFI sets" icon={Store} />
-        <Tab id="backup" label="Backup" icon={Archive} />
+        <PlanTab id="plans" label="Your plans" icon={FolderOpen} tab={tab} setTab={setTab} />
+        <PlanTab id="afi" label="AFI sets" icon={Store} tab={tab} setTab={setTab} />
+        <PlanTab id="backup" label="Backup" icon={Archive} tab={tab} setTab={setTab} />
       </div>
       {msg && <p className={msg.startsWith('Could not') || msg.startsWith('This is not') ? 'error' : 'ok-msg'} role="status">{msg}</p>}
 

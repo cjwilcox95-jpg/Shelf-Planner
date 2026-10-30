@@ -21,7 +21,7 @@ export function search(index, query, limit = 60) {
   let hits
   if (isNumber) {
     const exact = new Set(candidateKeys(d))
-    hits = index.filter((e) => exact.has(e.item.upc) || e.item.upc.includes(d))
+    hits = index.filter((e) => exact.has(e.item.upc) || String(e.item.upc).includes(d))
     hits.sort((a, b) => Number(exact.has(b.item.upc)) - Number(exact.has(a.item.upc)))
   } else {
     const words = q.split(/\s+/)
@@ -29,7 +29,7 @@ export function search(index, query, limit = 60) {
     hits.sort((a, b) =>
       Number(!!a.item.specialOrder) - Number(!!b.item.specialOrder) ||
       Number(!a.hay.startsWith(words[0])) - Number(!b.hay.startsWith(words[0])) ||
-      a.item.description.localeCompare(b.item.description))
+      (a.item.description || '').localeCompare(b.item.description || ''))
   }
   return hits.slice(0, limit).map((e) => e.item)
 }

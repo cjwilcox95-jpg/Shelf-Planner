@@ -6,7 +6,7 @@ const UNICODE = { '¼': '1/4', '½': '1/2', '¾': '3/4', '⅛': '1/8', '⅜': '3
 export function parseInches(raw) {
   let s = String(raw ?? '').trim().toLowerCase()
   for (const [u, f] of Object.entries(UNICODE)) s = s.replace(u, ` ${f}`)
-  s = s.replace(/(in(ches?)?|"|″)$/, '').trim()
+  s = s.replace(/\s*(inch(es)?|in\.?|"|″)$/i, '').trim()
   if (!s) return NaN
   if (/^\d*\.?\d+$/.test(s)) return Number(s)
   const m = s.match(/^(?:(\d+)[\s-]+)?(\d+)\s*\/\s*(\d+)$/)

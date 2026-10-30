@@ -14,8 +14,17 @@ const RESET_ITEM = ['location', 'upc', 'description', 'casePack', 'size', 'facin
 const RESET = ['id', 'name', 'date', 'source', 'widthFt', 'heightFt', 'doors', 'fixture', 'source2026']
 
 /** The store-data file with only known fields; AFI resets with no shelves are left out. */
+/** A table of code -> name, plain text only (anything nested, such as a price, is dropped). */
+function nameTable(t) {
+  const out = {}
+  if (!t || typeof t !== 'object') return out
+  for (const [k, v] of Object.entries(t)) if (/^[\w-]{1,20}$/.test(k) && (typeof v === 'string' || typeof v === 'number')) out[k] = String(v).slice(0, 80)
+  return out
+}
+
 export function cleanCatalog(doc) {
-  const items = (doc.items || []).filter((i) => i && /^\d{12}$/.test(i.upc)).map((i) => pick(i, CATALOG_ITEM))
+  const items = (doc.items || []).filter((i) => i && typeof i.upc === 'string' && /^\d{12}$/.test(i.upc))
+    .map((i) => ({ ...pick(i, CATALOG_ITEM), description: String(i.description ?? '') }))
   const resets = (doc.resets || [])
     .filter((r) => r && Array.isArray(r.shelves) && r.shelves.length > 0)
     .map((r) => ({
@@ -31,11 +40,11 @@ export function cleanCatalog(doc) {
   }
   return {
     kind: 'shelf-planner-catalog',
-    version: doc.version,
-    built: doc.built,
+    version: String(doc.version ?? ''),
+    built: String(doc.built ?? ''),
     sources: Array.isArray(doc.sources) ? doc.sources.map(String) : [],
-    classNames: doc.classNames || {},
-    subclassNames: doc.subclassNames || {},
+    classNames: nameTable(doc.classNames),
+    subclassNames: nameTable(doc.subclassNames),
     items,
     resets,
     afiSizes,
@@ -46,18 +55,34 @@ const PLAN = ['id', 'name', 'note', 'createdAt', 'updatedAt']
 const SHELF = ['id', 'widthIn', 'depthIn', 'clearanceIn', 'afiDepthIn']
 const ITEM = ['uid', 'upc', 'facings', 'description', 'size', 'high']
 
+const SHELF_DEFAULT = { widthIn: 48, depthIn: 24, clearanceIn: 12 } // same as plan.js SHELF_DEFAULTS
+const inches = (x, fallback, max = 600) => (typeof x === 'number' && Number.isFinite(x) && x > 0 && x <= max ? x : fallback)
+
 function cleanItem(i) {
-  if (i?.kind === 'gap') return { uid: String(i.uid), kind: 'gap', widthIn: Number(i.widthIn) || 2 }
+  if (i?.kind === 'gap') return { uid: String(i.uid), kind: 'gap', widthIn: inches(Number(i.widthIn), 2, 96) }
   const out = pick(i, ITEM)
-  out.facings = Math.max(1, Math.round(Number(out.facings) || 1))
+  out.uid = String(out.uid)
+  out.upc = String(out.upc)
+  for (const k of ['description', 'size']) if (out[k] !== undefined) out[k] = String(out[k])
+  out.facings = Math.max(1, Math.min(99, Math.round(Number(out.facings) || 1)))
+  if (!(Number.isInteger(out.high) && out.high >= 2 && out.high <= 20)) delete out.high
   return out
 }
 
-/** A plan from a backup with only known fields. Empty spaces never sit in the tray. */
+// a product needs an id and a UPC; an empty space needs an id
+const usable = (i) => i && typeof i === 'object' && i.uid != null && (i.kind === 'gap' || (typeof i.upc === 'string' && i.upc))
+
+/** A plan from a backup with only known fields. Empty spaces never sit in the tray. Broken shelves are dropped. */
 export function cleanPlan(p) {
   return {
     ...pick(p, PLAN),
-    shelves: p.shelves.map((s) => ({ ...pick(s, SHELF), items: (s.items || []).filter((i) => i && i.uid).map(cleanItem) })),
-    tray: (p.tray || []).filter((i) => i && i.uid && i.kind !== 'gap').map(cleanItem),
+    shelves: (p.shelves || []).filter((s) => s && typeof s === 'object').map((s) => ({
+      ...pick(s, SHELF),
+      widthIn: inches(s.widthIn, SHELF_DEFAULT.widthIn),
+      depthIn: inches(s.depthIn, SHELF_DEFAULT.depthIn, 120),
+      clearanceIn: inches(s.clearanceIn, SHELF_DEFAULT.clearanceIn, 120),
+      items: (Array.isArray(s.items) ? s.items : []).filter(usable).map(cleanItem),
+    })),
+    tray: (Array.isArray(p.tray) ? p.tray : []).filter((i) => usable(i) && i.kind !== 'gap').map(cleanItem),
   }
 }

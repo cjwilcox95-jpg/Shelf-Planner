@@ -19,7 +19,7 @@ const MOVE_TOLERANCE = 10 // px a finger may wobble before we decide it is scrol
  */
 export default function SectionView({
   plan, fits, products, photos = {}, scale, viewWidth, selectedUid, activeShelfId, placing,
-  onTapItem, onMove, onTapShelf, focusShelfId = null, compact = false,
+  onTapItem, onMove, onTapShelf, focusShelfId = null, compact = false, onDragStart,
 }) {
   // compact (the whole set at a glance): no heading rows; each shelf's name and room left are written on its board
   const BOARD_H = compact ? 22 : BOARD
@@ -44,11 +44,16 @@ export default function SectionView({
     return () => el.removeEventListener('touchmove', block)
   }, [])
 
-  // Bring the selected product into view (sideways and up/down).
+  // Bring the selected product into view. Zoomed in to one shelf, the screen already places that shelf up and down,
+  // so only scroll sideways here.
   useEffect(() => {
     if (!selectedUid || dragView) return
     const el = scrollRef.current?.querySelector(`[data-uid="${selectedUid}"]`)
-    el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+    if (!el) return
+    if (!focusShelfId) { el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); return }
+    const box = scrollRef.current.getBoundingClientRect()
+    const r = el.getBoundingClientRect()
+    if (r.left < box.left || r.right > box.right) scrollRef.current.scrollBy({ left: r.left - box.left - (box.width - r.width) / 2, behavior: 'smooth' })
   }, [selectedUid, scale]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Which shelf is the finger over, and how far along it (inches)? */
@@ -84,6 +89,7 @@ export default function SectionView({
     if (!d) return
     d.active = true
     clearTimeout(d.timer)
+    onDragStart?.()
     navigator.vibrate?.(15)
     setDragView(viewAt(d.uid, d.lastX, d.lastY))
   }
@@ -179,6 +185,7 @@ export default function SectionView({
                 <div
                   className="shelf-canvas"
                   key={shelf.id}
+                  data-canvas={shelf.id}
                   ref={(el) => { canvasRefs.current[shelf.id] = el }}
                   style={{ height: canvasH + BOARD_H, ...segStyle }}
                   onClick={(e) => onCanvasClick(e, shelf)}

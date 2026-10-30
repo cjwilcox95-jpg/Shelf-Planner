@@ -41,24 +41,45 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
   }, [products])
   foundRef.current = found // the camera loop always uses the latest, without restarting the camera
 
+  // The camera runs only while it is needed: not while a result is on screen, and not while the app is in the
+  // background (switching apps). It restarts by itself if the phone cuts it off.
+  const [visible, setVisible] = useState(() => document.visibilityState !== 'hidden')
+  const [restart, setRestart] = useState(0)
+  useEffect(() => {
+    const onVis = () => setVisible(document.visibilityState !== 'hidden')
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
+  const wanted = visible && !hit && camera !== 'off'
+
   // Camera: read a frame every ~0.2 s until something is found.
   useEffect(() => {
+    if (!wanted) return undefined
     let stop = false
     let timer = null
+    let stream = null
+    const stopTracks = () => {
+      stream?.getTracks().forEach((t) => t.stop())
+      stream = null
+      streamRef.current = null
+    }
     ;(async () => {
       try {
-        loadReader() // start loading while the camera starts
+        const reader = loadReader() // start loading while the camera starts
+        reader.catch(() => {})
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera')
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         })
-        if (stop) { stream.getTracks().forEach((t) => t.stop()); return }
+        if (stop) { stopTracks(); return }
         streamRef.current = stream
+        stream.getVideoTracks()[0]?.addEventListener('ended', () => { if (!stop) setRestart((n) => n + 1) })
         const v = videoRef.current
         v.srcObject = stream
         await v.play().catch(() => {})
-        await loadReader()
+        try { await reader } catch { const err = new Error('reader'); err.reader = true; throw err }
+        if (stop) return
         setCamera('on')
         setStatus('Point at the barcode. Hold steady about 6 inches away.')
         const tick = async () => {
@@ -83,19 +104,22 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
           timer = setTimeout(tick, SCAN_EVERY_MS)
         }
         tick()
-      } catch {
+      } catch (e) {
+        stopTracks() // never leave the camera on when scanning cannot work
         if (!stop) {
           setCamera('off')
-          setStatus('The camera is not available. Allow camera access for this site in Settings, or use a photo or type the numbers below.')
+          setStatus(e.reader
+            ? 'The barcode reader has not downloaded to this phone yet (it does the first time the app is opened with a signal). Type the numbers below for now.'
+            : 'The camera is not available. Allow camera access for this site in Settings, or use a photo or type the numbers below.')
         }
       }
     })()
     return () => {
       stop = true
       clearTimeout(timer)
-      streamRef.current?.getTracks().forEach((t) => t.stop())
+      stopTracks()
     }
-  }, [])
+  }, [wanted, restart])
 
   const fromPhoto = async (e) => {
     const f = e.target.files?.[0]
@@ -201,10 +225,20 @@ function MeasureForm({ hit, products, rec, onSave, onSkip }) {
   const parsed = Object.fromEntries(DIMS.map(([k]) => [k, parseInches(vals[k])]))
   const bad = DIMS.some(([k]) => vals[k].trim() && !(parsed[k] > 0 && parsed[k] < 200))
   const any = DIMS.some(([k]) => parsed[k] > 0)
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const save = async () => {
+    if (saving) return // a double tap saves once
     const next = { ...(rec || {}), updatedAt: new Date().toISOString() }
     for (const [k] of DIMS) if (parsed[k] > 0) next[k] = { v: Math.round(parsed[k] * 1000) / 1000, src: 'measured' }
-    onSave(next)
+    setSaving(true)
+    setError('')
+    try {
+      await onSave(next)
+    } catch (e) {
+      setError(`Could not save it on this phone (${e.message || e}). Try again, or export a backup.`)
+      setSaving(false)
+    }
   }
   return (
     <div className="measure-form">
@@ -229,9 +263,10 @@ function MeasureForm({ hit, products, rec, onSave, onSkip }) {
         ))}
       </div>
       <div className="btn-grid two">
-        <button className="btn primary" disabled={!any || bad} onClick={save} data-testid="tape-save">Save, scan next</button>
+        <button className="btn primary" disabled={!any || bad || saving} onClick={save} data-testid="tape-save">{saving ? 'Saving…' : 'Save, scan next'}</button>
         <button className="btn" onClick={onSkip}>Skip</button>
       </div>
+      {error && <p className="error" role="alert">{error}</p>}
     </div>
   )
 }

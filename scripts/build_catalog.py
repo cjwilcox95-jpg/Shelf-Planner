@@ -219,13 +219,18 @@ def read_resets(by_key, afi_item_of, log):
             "widthFt": r["widthFt"], "heightFt": r["heightFt"],
             "doors": max([1] + [s.get("door", 1) for s in r["shelves"]]),
             **({"fixture": f"{m[1]} freezer doors" if m[1] != "1" else "1 freezer door"}
-               if (m := re.search(r"-\s*(\d)\s*DR\b", r["title"] or "", re.I)) else {}),
+               if (m := re.search(r"(?:^|[-\s])(\d)\s*DR\b", r["title"] or "", re.I)) else {}),
             **({"source2026": True} if r.get("layout") == "reco" else {}),
             "shelves": [{"shelf": s["shelf"], **({"door": s["door"]} if s.get("door", 1) > 1 or any(x.get("door", 1) > 1 for x in r["shelves"]) else {}),
                          "depthIn": s["depthIn"], "items": convert(s["items"])}
                         for s in sorted(r["shelves"], key=lambda s: (s.get("door", 1), s["shelf"]))],
             "unallocated": convert(r["unallocated"]),
         })
+    # two sets with the same name (e.g. 1-door and 2-door Frozen Waffles): say which is which
+    names = collections.Counter(r["name"] for r in resets)
+    for r in resets:
+        if names[r["name"]] > 1 and r.get("fixture"):
+            r["name"] = f"{r['name']} ({r['fixture']})"
     return resets
 
 
@@ -382,15 +387,16 @@ def write_report(catalog, grocery, hbc, dup_groups, log, aisle_stats, built, res
     w(f"| Items with an aisle from the order list | {sum('aisle' in i for i in catalog)} |")
     w(f"| Size cut off or unclear in the source | {sum('sizeNote' in i for i in catalog)} |")
     w("")
-    w("Every item starts with **guessed** shelf dimensions. None of these files has real width, height or depth.\n")
+    w("Products start with **guessed** shelf dimensions. Products in the AFI sets get real widths and heights read from AFI's drawings (see below).\n")
 
     w("## Left out\n")
     for k in ("grocery: no usable UPC (placeholder 0-00000-00000)", "hbc: no usable UPC (placeholder 0-00000-00000)"):
         names = log[k]
         if names:
             w(f"- **{k}**: {len(names)} rows, e.g. {', '.join(sorted(set(names))[:8])}")
-    for k in [k for k in log if k.startswith("hbc: skipped")]:
-        w(f"- **{k}**: {len(log[k])}")
+    shown = {"grocery: no usable UPC (placeholder 0-00000-00000)", "hbc: no usable UPC (placeholder 0-00000-00000)"}
+    for k in [k for k in log if k.startswith(("grocery:", "hbc:")) and k not in shown]:
+        w(f"- **{k}**: {len(log[k])} rows")  # every dropped row is counted here, whatever the reason
     w("")
 
     w("## Same UPC on more than one row\n")

@@ -891,3 +891,9 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
 .status-pill { min-height: 44px; }
 .d-head-btns { display: flex; gap: 6px; flex: none; }
 .d-head-btns .btn { padding: 0 10px; }
+/* Moving a product: the "tap a shelf" bar sits at the top, so the shelf buttons and mini picture stay reachable */
+.d-app .selected-bar.compact {
+  top: 0; bottom: auto; border-radius: 0 0 20px 20px;
+  padding-top: calc(10px + env(safe-area-inset-top)); box-shadow: 0 8px 24px rgba(24, 33, 43, 0.16);
+}
+.d-app .selected-bar.compact::before { display: none; }

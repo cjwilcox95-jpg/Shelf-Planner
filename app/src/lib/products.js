@@ -26,7 +26,7 @@ export function makeProducts(catalog, { sizes = {}, guessEdits = {} } = {}) {
       return { upc: '', description: 'Empty space', size: '', gap: true, inCatalog: true, specialOrder: false, color: '#9a9488', subclass: '', className: '' }
     }
     const p = byUpc.get(item.upc)
-    const description = p?.description ?? item.description ?? item.upc
+    const description = String(p?.description ?? item.description ?? item.upc ?? '')
     return {
       upc: item.upc,
       description,

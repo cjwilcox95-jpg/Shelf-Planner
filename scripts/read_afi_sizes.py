@@ -60,6 +60,8 @@ def drawing_page(pdf):
 def sizes_from_drawing(path, reset):
     """Returns ({upc: {w, h, d?, deep, shelfDepth}}, [problems])."""
     out, problems = {}, []
+    if not reset.get("widthFt"):
+        return out, ["no width in the set's title: sizes not read"]
     with pdfplumber.open(path) as pdf:
         page = drawing_page(pdf)
         if page is None:
@@ -154,6 +156,9 @@ def _read_levels(page, columns, shelves, levels, ppi_x, ppi_y):
     for li, level in enumerate(levels):
         boards = [c[li] for c in columns]
         items = [i for s in shelves if s["shelf"] == level for i in sorted(s["items"], key=lambda i: i["location"])]
+        if any(not i["facings"] for i in items):  # 0 facings: nothing drawn for it
+            problems.append(f"shelf {level}: {sum(not i['facings'] for i in items)} product(s) with 0 facings left out")
+            items = [i for i in items if i["facings"]]
         depth_in = next(s.get("depthIn") for s in shelves if s["shelf"] == level)
         boxes = []
         for board in boards:

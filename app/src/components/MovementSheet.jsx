@@ -10,6 +10,7 @@ const niceDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString(
  * tapping a product just shows it on the shelf.
  */
 export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDays, onFile, onCsvDays, pendingCsv, onRemove, onSelect, onClose }) {
+  const [sureRemove, setSureRemove] = useState(false)
   const [msg, setMsg] = useState(null)
   const [days, setDays] = useState('')
   const pick = async (e) => {
@@ -60,7 +61,7 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
             ))}
           </div>
         </label>
-        <button className="btn primary wide" disabled={!(Number(days) > 0)} onClick={async () => setMsg(await onCsvDays(Number(days)))} data-testid="movement-save">Use this file</button>
+        <button className="btn primary wide" disabled={!(Number.isInteger(Number(days)) && Number(days) >= 1 && Number(days) <= 1999)} onClick={async () => setMsg(await onCsvDays(Number(days)))} data-testid="movement-save">Use this file</button>
       </Sheet>
     )
   }
@@ -133,7 +134,9 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
           {rows.length === 0 && <p>No products on these shelves yet.</p>}
           <hr />
           {fileInput}
-          <button className="btn danger wide" onClick={() => { if (window.confirm('Remove the sales file from this phone?')) onRemove() }}>Remove sales data from this phone</button>
+          {sureRemove
+            ? <button className="btn danger wide" onClick={() => { setSureRemove(false); onRemove() }} data-testid="confirm-remove-sales">Yes, remove the sales data</button>
+            : <button className="btn danger wide" onClick={() => setSureRemove(true)}>Remove sales data from this phone</button>}
         </>
       )}
       {msg && <p className={/^(Could not|This is not)/.test(msg) ? 'error' : 'ok-msg'} role="status">{msg}</p>}

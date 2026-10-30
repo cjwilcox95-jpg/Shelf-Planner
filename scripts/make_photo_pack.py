@@ -51,8 +51,13 @@ def to_record(path, source, when, max_edge=MAX_EDGE, quality=85):
 
 
 def key_for(stem):
-    full, ok = upc.key_from_full(stem)
-    return full if ok else upc.key_from_11(stem)
+    """12 or 13 digits: the full UPC with its check digit. 11 or fewer: the UPC without its check digit.
+    (Trying both readings on an 11-digit name put about 1 in 10 photos on the wrong product.)"""
+    n = len(upc.digits(stem))
+    if n >= 12:
+        full, ok = upc.key_from_full(stem)
+        return full if ok else None
+    return upc.key_from_11(stem)
 
 
 def main():

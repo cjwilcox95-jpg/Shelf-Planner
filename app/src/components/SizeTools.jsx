@@ -35,14 +35,23 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
 
   const valid = DIMS.every(({ k }) => form[k].src === 'auto' || (inches(k) > 0 && inches(k) < 200))
 
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const save = async () => {
     const next = { updatedAt: new Date().toISOString() }
     for (const { k } of DIMS) if (form[k].src !== 'auto') next[k] = { v: Math.round(inches(k) * 1000) / 1000, src: form[k].src }
     if (type) next.type = type
     if (note.trim()) next.note = note.trim()
     const empty = !DIMS.some(({ k }) => next[k]) && !next.type && !next.note
-    onSave(empty ? null : next)
-    onClose()
+    setSaving(true)
+    setError('')
+    try {
+      await onSave(empty ? null : next) // close only once it is really saved on the phone
+      onClose()
+    } catch (e) {
+      setError(`Could not save it on this phone (${e.message || e}). Try again, or export a backup.`)
+      setSaving(false)
+    }
   }
 
   if (measuring) {
@@ -115,7 +124,8 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
         <textarea className="notes" rows={3} value={note} onChange={(e) => setNote(e.target.value)}
           placeholder="e.g. new bottle shape since 2025, sits 3 deep" />
       </label>
-      <button className="btn primary wide" onClick={save} disabled={!valid} data-testid="save-size">Save</button>
+      <button className="btn primary wide" onClick={save} disabled={!valid || saving} data-testid="save-size">{saving ? 'Saving…' : 'Save'}</button>
+      {error && <p className="error" role="alert">{error}</p>}
       <p className="muted small">~ = guess · ≈ = from photo · no mark = measured with a tape.</p>
     </Sheet>
   )
@@ -125,12 +135,16 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
 export function GuessTableSheet({ types, onSave, onClose }) {
   const [rows, setRows] = useState(() => Object.fromEntries(types.map((t) => [t.id, { ...t.ref }])))
   const set = (id, k, v) => setRows({ ...rows, [id]: { ...rows[id], [k]: v } })
+  // every box must hold a number (W, H, D above 0; "at oz" 0 or more), so a blank box never quietly undoes an edit
+  const okRow = (r) => ['w', 'h', 'd'].every((k) => String(r[k]).trim() !== '' && Number(r[k]) > 0 && Number(r[k]) < 100) &&
+    String(r.oz).trim() !== '' && Number(r.oz) >= 0
+  const badRows = types.filter((t) => !okRow(rows[t.id])).map((t) => t.label)
   const save = () => {
+    if (badRows.length) return
     const edits = {}
     for (const t of types) {
       const r = rows[t.id]
       const nums = { oz: Number(r.oz), w: Number(r.w), h: Number(r.h), d: Number(r.d) }
-      if (['w', 'h', 'd'].some((k) => !(nums[k] > 0))) continue
       const orig = t.original || t.ref
       if (['oz', 'w', 'h', 'd'].some((k) => nums[k] !== orig[k])) edits[t.id] = nums
     }
@@ -160,7 +174,8 @@ export function GuessTableSheet({ types, onSave, onClose }) {
           </div>
         ))}
       </div>
-      <button className="btn primary wide" onClick={save} data-testid="save-guesses">Save guesses</button>
+      {badRows.length > 0 && <p className="error" role="alert">Fill in every box for: {badRows.join(', ')}.</p>}
+      <button className="btn primary wide" onClick={save} disabled={badRows.length > 0} data-testid="save-guesses">Save guesses</button>
       <button className="btn wide" onClick={() => { onSave({}); onClose() }}>Reset all to the original guesses</button>
     </Sheet>
   )

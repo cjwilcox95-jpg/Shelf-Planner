@@ -70,7 +70,8 @@ export function parseMovementCsv(text, knownUpc = () => true) {
   let skipped = 0
   for (const line of lines.slice(headAt + 1)) {
     const cells = csvCells(line)
-    const units = Number(String(cells[unitCol] || '').replace(/[,\s]/g, ''))
+    const cell = String(cells[unitCol] || '').replace(/[,\s]/g, '')
+    const units = cell === '' ? NaN : Number(cell) // a blank cell means no number, not 0 sold
     const keys = candidateKeys(cells[upcCol] || '')
     const upc = keys.find(knownUpc) || null
     if (!upc || !Number.isFinite(units) || units < 0) { skipped++; continue }

@@ -36,6 +36,7 @@ export function mergePlans(existing, incoming) {
   for (const p of incoming) {
     if (!looksLikePlan(p)) { counts.skipped++; continue }
     const plan = cleanPlan({ tray: [], ...p })
+    if (!plan.shelves.length) { counts.skipped++; continue } // every shelf in it was broken
     const mine = merged[p.id]
     if (!mine) { merged[p.id] = plan; counts.added++ }
     else if ((p.updatedAt || '') > (mine.updatedAt || '')) { merged[p.id] = plan; counts.updated++ }

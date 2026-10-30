@@ -9,7 +9,8 @@ class and subclass. Cost, unit cost, retail and margin are never stored;
 the cost column is looked at only to confirm the line was read in the
 right columns.
 
-Usage: python3 -I scripts/read_price_book_pdf.py data/raw/HBC_BOOK.pdf out.json
+Usage: python3 -I scripts/read_price_book_pdf.py data/raw/HBC_BOOK.pdf data/build/hbc.json
+(store data: write it under data/build/, which is never committed)
 """
 import collections
 import json

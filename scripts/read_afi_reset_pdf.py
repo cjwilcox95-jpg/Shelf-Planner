@@ -27,7 +27,7 @@ ITEM = re.compile(
 ITEM_SWAPPED = re.compile(
     r"^\s*(\d+)\s+(\d{9,13})\s+(\d{3,6})\s+(.+?)\s+(\d+)\s+(\d*\.?\d+)\s+([A-Z]{1,4})"
     r"\s+(\d+)(?:\s+(\d+))?(?:\s+(\d+\.\d+))?\s*$")
-DOORS = re.compile(r"-\s*(\d)\s*DR\b", re.I)  # freezer sets: "-2DR" = two doors
+DOORS = re.compile(r"(?:^|[-\s])(\d)\s*DR\b", re.I)  # freezer sets: "-2DR" or " 2DR" = two doors
 DOOR_WIDTH_IN = 30  # AFI freezer doors are 2 ft 6 in wide
 
 

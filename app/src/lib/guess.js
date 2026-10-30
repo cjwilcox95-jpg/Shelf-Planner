@@ -14,7 +14,7 @@ const CLEANING = /\b(LAUNDRY|BLEACH|STAIN|CLEANERS?|CLEANING|DISINFECT\w*|HOUSEH
  */
 export const PACKAGE_TYPES = [
   // Sizes below marked * were refined from measurements of CJ's laundry-aisle photos (Oct 2026).
-  { id: 'pouch', label: 'Pouch / bag of pods', words: /\b(POUCH|PCH|POU|FLINGS)\b/, ref: { oz: 5, w: 4.5, h: 7, d: 1.25 } },
+  { id: 'pouch', label: 'Pouch / bag of pods', words: /\b(POUCH|PCH|POU)\b/, ref: { oz: 5, w: 4.5, h: 7, d: 1.25 } },
   { id: 'can', label: 'Food can', words: /\b(CAN|CANS|CND|CANNED)\b/, ref: { oz: 15, w: 3, h: 4.5, d: 3 } },
   { id: 'dye', label: 'Fabric dye box or bottle', words: /\b(RIT|DYE)\b/, scope: /\bDYES?\b/, ref: { oz: 0, w: 2.7, h: 4.5, d: 1.5 } }, // *
   { id: 'podbag', label: 'Bag of laundry pods', words: /\b(FLINGS|FLNG|FLING)\b/, scope: LAUNDRY, ref: { oz: 0, w: 7.5, h: 9.5, d: 3 } }, // *
@@ -83,7 +83,23 @@ export function packageTypeFor(text, types = PACKAGE_TYPES, scope = '') {
 }
 
 /** The table with any numbers CJ has edited (saved as { typeId: { oz, w, h, d } }). */
+/** Saved or imported guess edits: known package types only, sizes as sensible positive numbers. */
+export function cleanGuessEdits(edits) {
+  const out = {}
+  if (!edits || typeof edits !== 'object') return out
+  for (const p of PACKAGE_TYPES) {
+    const e = edits[p.id]
+    if (!e || typeof e !== 'object') continue
+    const r = {}
+    for (const k of ['w', 'h', 'd']) if (typeof e[k] === 'number' && e[k] > 0 && e[k] < 100) r[k] = e[k]
+    if (typeof e.oz === 'number' && e.oz >= 0 && e.oz < 10000) r.oz = e.oz
+    if (Object.keys(r).length) out[p.id] = r
+  }
+  return out
+}
+
 export function withEdits(edits = {}) {
+  edits = cleanGuessEdits(edits)
   return PACKAGE_TYPES.map((p) => (edits[p.id] ? { ...p, ref: { ...p.ref, ...edits[p.id] }, original: p.ref, edited: true } : p))
 }
 

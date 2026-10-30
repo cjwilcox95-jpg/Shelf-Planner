@@ -62,8 +62,8 @@ export function pdfText(s) {
   return String(s)
     .normalize('NFKD')
     .replace(/[^\x20-\x7e]/g, '')
+    .slice(0, 200) // cut first, so an escape is never cut in half
     .replace(/[\\()]/g, (c) => `\\${c}`)
-    .slice(0, 200)
 }
 
 /** "data:image/jpeg;base64,...." -> bytes */

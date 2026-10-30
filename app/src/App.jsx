@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { FolderOpen, LayoutGrid, Plus, Ruler, ScanBarcode, Undo2 } from 'lucide-react'
 import SectionView from './components/SectionView.jsx'
-import { AddSheet, PlansSheet, SectionSummary, SelectedBar, Sheet, ShelfSheet } from './components/Panels.jsx'
+import { AddSheet, ConfirmSheet, PlansSheet, SectionSummary, SelectedBar, Sheet, ShelfSheet } from './components/Panels.jsx'
 import { MiniMap, ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf } from './components/Focus.jsx'
 import { fmtIn } from './lib/fit.js'
 import { checkPlan } from './lib/fit.js'
 import { buildIndex } from './lib/search.js'
 import {
   TRAY, applyPlanAction, duplicatePlan, findItem, historyReducer, initHistory, newId, newPlan,
-  planFromAfi, planFromOldShelf, plansFromAfi, shelfLabel,
+  planFromAfi, planFromOldShelf, plansFromAfi, shelfLabel, uniqueUids,
 } from './lib/plan.js'
 import { makeProducts } from './lib/products.js'
 import { askToKeepData, load, loadPrefix, remove, save } from './lib/storage.js'
@@ -22,6 +22,7 @@ import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
 import { MovementSheet } from './components/MovementSheet.jsx'
 import { aisleRows, makeAisleView, mergeAisles, newAisle, sectionOf, splitAisleView } from './lib/aisle.js'
 import { cleanCatalog } from './lib/clean.js'
+import { cleanGuessEdits } from './lib/guess.js'
 import { ScanSheet } from './components/ScanSheet.jsx'
 import { positions } from './lib/plan.js'
 import { loadReader } from './lib/barcode.js'
@@ -58,6 +59,7 @@ export default function App() {
   const [zoomed, setZoomed] = useState(false) // false = the whole set; true = one shelf with its list
   const [wholeScale, setWholeScale] = useState(null) // px per inch that fits the whole set on the screen
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [ask, setAsk] = useState(null) // { title, text, yes, onYes }: an in-app 'are you sure?'
   const [toast, setToast] = useState(null)
   const [lastBackupAt, setLastBackupAt] = useState(null)
   const [photos, setPhotos] = useState({}) // UPC -> { data, w, h, source, addedAt }
@@ -73,6 +75,7 @@ export default function App() {
   const aislesRef = useRef({})
   const boxRef = useRef(null)
   const winRef = useRef(null)
+  const layoutKey = useRef('')
   const toastTimer = useRef(null)
   const plan = hist.present
 
@@ -106,6 +109,7 @@ export default function App() {
       const p = oldShelf ? planFromOldShelf(oldShelf) : starterPlan(cat)
       all = { [p.id]: p }
     }
+    all = uniqueUids(all).plans // older copies shared product ids with their original
     commitPlans(all)
     const aisle = typeof currentId === 'string' && currentId.startsWith('aisle:') ? aislesRef.current[currentId.slice(6)] : null
     const view = aisle ? makeAisleView(aisle, all) : null
@@ -124,7 +128,7 @@ export default function App() {
         setPhotos(Object.fromEntries(Object.entries(savedPhotos).map(([k, v]) => [k.slice(6), v])))
         const savedSizes = await loadPrefix('size:').catch(() => ({}))
         setSizes(Object.fromEntries(Object.entries(savedSizes).map(([k, v]) => [k.slice(5), v])))
-        setGuessEdits((await load('guessEdits').catch(() => null)) || {})
+        setGuessEdits(cleanGuessEdits(await load('guessEdits').catch(() => null)))
         const mv = await load('movement').catch(() => null)
         if (mv) setMovement(cleanMovement(mv))
         setDeliveryDays((await load('deliveryDays').catch(() => null)) || 7)
@@ -281,20 +285,37 @@ export default function App() {
     const inner = win?.querySelector('.section-inner')
     if (!inner) return
     const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    // Scroll only when the view really changed (whole set / another shelf / another plan), so a person's own
+    // scrolling is never undone by an unrelated update such as a message closing.
+    const key = `${zoomed}|${plan.id}|${zoomed ? activeShelf.id : ''}`
+    const changed = layoutKey.current !== key
+    layoutKey.current = key
     if (!zoomed) {
       win.style.height = ''
       const room = win.clientHeight - 8
       const fixedPx = inner.offsetHeight - rowsTallestIn * scale // headings, boards and ruler don't grow
       const want = Math.max(MIN_SCALE, Math.min(fitScale, (room - fixedPx) / rowsTallestIn))
       if (Math.abs(want - scale) > 0.05 && Math.abs(want - (wholeScale ?? 0)) > 0.05) setWholeScale(want)
-      win.scrollTop = 0
+      if (changed) win.scrollTop = 0
       return
     }
     const row = [...win.querySelectorAll('[data-testid="shelf-row"]')].find((r) => (r.dataset.shelves || '').split(' ').includes(activeShelf.id))
     if (!row) return
-    win.style.height = `${Math.min(row.offsetHeight + PEEK * 2, Math.round(window.innerHeight * 0.5))}px`
+    const height = `${Math.min(row.offsetHeight + PEEK * 2, Math.round(window.innerHeight * 0.5))}px`
+    if (!changed && win.style.height === height) return
+    win.style.height = height
     const top = win.scrollTop + row.getBoundingClientRect().top - win.getBoundingClientRect().top - PEEK
     win.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
+    // a wide aisle is wider than the screen: bring the shelf you are on into view sideways too
+    const sideways = win.querySelector('[data-testid="section-scroll"]')
+    const canvas = win.querySelector(`[data-canvas="${activeShelf.id}"]`)
+    if (sideways && canvas) {
+      const s = sideways.getBoundingClientRect()
+      const c = canvas.getBoundingClientRect()
+      if (c.left < s.left || c.right > s.right) {
+        sideways.scrollTo({ left: Math.max(0, sideways.scrollLeft + c.left - s.left - 8), behavior: smooth ? 'smooth' : 'auto' })
+      }
+    }
   })
 
   // ---------- moving around the set ----------
@@ -311,6 +332,7 @@ export default function App() {
     const next = neighbourShelf(plan, activeShelf.id, d)
     if (!next) return
     setActiveShelfId(next.id)
+    if (placing) return // moving a product: keep it, so it can be put on this shelf
     setSelectedUid(null)
     setDetailsOpen(false)
   }
@@ -387,7 +409,10 @@ export default function App() {
   }
   const onDeleteAisle = (id) => {
     const a = aislesRef.current[id]
-    if (!window.confirm(`Delete the aisle “${a.name}”? Its sections stay as plans.`)) return
+    setAsk({ title: 'Delete this aisle?', text: `Delete the aisle “${a.name}”? Its sections stay as plans.`, yes: 'Delete the aisle', onYes: () => deleteAisle(id) })
+  }
+  const deleteAisle = (id) => {
+    const a = aislesRef.current[id]
     const rest = { ...aislesRef.current }
     delete rest[id]
     commitAisles(rest)
@@ -414,7 +439,10 @@ export default function App() {
   }
   const onDeletePlan = (id) => {
     const victim = id === plan.id ? plan : plansRef.current[id]
-    if (!window.confirm(`Delete the plan “${victim.name}”? This cannot be undone.`)) return
+    setAsk({ title: 'Delete this plan?', text: `Delete the plan “${victim.name}”? This cannot be undone.`, yes: 'Delete the plan', onYes: () => deletePlan(id) })
+  }
+  const deletePlan = (id) => {
+    const victim = id === plan.id ? plan : plansRef.current[id]
     const rest = { ...allPlans() }
     delete rest[id]
     // take it out of any aisle; leave the aisle view if it was part of it
@@ -499,8 +527,10 @@ export default function App() {
       await askToKeepData()
       setCatalog(cat)
       if (phase !== 'ready') startWith(cat, await load('plans'), await load('currentPlanId'), await load('shelf'))
+      const msg = `Store data loaded: ${cat.items.length.toLocaleString()} products.`
+      if (phase === 'ready') showToast(msg) // the sheet closes, so say it on the main screen
       setSheet(null)
-      return `Store data loaded: ${cat.items.length.toLocaleString()} products.`
+      return msg
     }
     // backup
     // Store data: the backup's copy is used only when this phone has none, or the backup's is newer.
@@ -511,7 +541,8 @@ export default function App() {
     if (useBackupCat) { await save('catalog', cat); setCatalog(cat) }
     await askToKeepData()
     const base = phase === 'ready' ? allPlans() : (await load('plans')) || {}
-    const { merged, counts } = mergePlans(base, doc.plans)
+    const { merged: mergedRaw, counts } = mergePlans(base, doc.plans)
+    const merged = uniqueUids(mergedRaw).plans
     if (Array.isArray(doc.aisles) && doc.aisles.length) {
       const base = phase === 'ready' ? aislesRef.current : (await load('aisles')) || {}
       commitAisles(mergeAisles(base, doc.aisles))
@@ -529,9 +560,10 @@ export default function App() {
       const newer = !movement || [doc.movement.to || '', doc.movement.loadedAt || ''].join() > [movement.to || '', movement.loadedAt || ''].join()
       if (newer) await storeMovement(doc.movement, { restoring: true })
     }
-    if (doc.guessEdits && !Object.keys(guessEdits).length && Object.keys(doc.guessEdits).length) {
-      await save('guessEdits', doc.guessEdits)
-      setGuessEdits(doc.guessEdits)
+    const incomingGuesses = cleanGuessEdits(doc.guessEdits)
+    if (!Object.keys(guessEdits).length && Object.keys(incomingGuesses).length) {
+      await save('guessEdits', incomingGuesses)
+      setGuessEdits(incomingGuesses)
     }
     if (sheet === 'data') setSheet(null)
     return `Backup loaded: ${counts.added} new plan${counts.added === 1 ? '' : 's'}, ${counts.updated} updated` +
@@ -584,16 +616,15 @@ export default function App() {
       )}
 
       <main className="stage" ref={boxRef}>
-        <div className={`d-window${placing ? ' placing' : ''}`} ref={winRef} data-testid="d-window"
-          onTouchStart={(e) => { winRef.current.swipeY = e.touches.length === 1 ? e.touches[0].clientY : null }}
+        <div className={`d-window${placing && sel ? ' placing' : ''}`} ref={winRef} data-testid="d-window"
+          onTouchStart={(e) => { winRef.current.swipeY = e.touches.length === 1 ? e.touches[0].clientY : null; winRef.current.dragged = false }}
           onTouchEnd={(e) => {
             const y0 = winRef.current.swipeY
             winRef.current.swipeY = null
-            if (!zoomed || placing || y0 == null) return
+            if (!zoomed || placing || y0 == null || winRef.current.dragged) return // a drag is not a swipe
             const dy = e.changedTouches[0].clientY - y0
             if (Math.abs(dy) > 50) onStepShelf(dy > 0 ? 1 : -1) // pull down = the shelf above
           }}>
-          {placing && <p className="placing-note">Tap a shelf where it goes</p>}
           <SectionView
             plan={plan}
             fits={check.byShelf}
@@ -614,6 +645,7 @@ export default function App() {
               setPlacing(false)
             }}
             onMove={onMove}
+            onDragStart={() => { if (winRef.current) winRef.current.dragged = true }}
             onTapShelf={(shelfId) => { setSelectedUid(null); setDetailsOpen(false); focusShelf(shelfId) }}
           />
         </div>
@@ -643,6 +675,8 @@ export default function App() {
                   const gap = findItem(plan, uid)?.item.kind === 'gap'
                   act({ type: 'takeOff', uid }, gap ? 'Empty space removed' : 'Taken off the shelf')
                   setSelectedUid(null)
+                  setDetailsOpen(false)
+                  setPlacing(false)
                 }}
                 onDetails={(uid) => { setSelectedUid(uid); setDetailsOpen(true) }} />
               {plan.note && <p className="muted small note">{plan.note}</p>}
@@ -841,6 +875,8 @@ export default function App() {
           onNewAfi={onNewAfi}
           onExport={onExport} onImportFile={onImportFile} onClose={() => setSheet(null)} />
       )}
+
+      {ask && <ConfirmSheet {...ask} onClose={() => setAsk(null)} />}
 
       {toast && !sheet && (
         <div className="toast" role="status">

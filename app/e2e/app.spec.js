@@ -39,6 +39,17 @@ async function openShelf(page, n) {
   const total = await rows(page).count()
   await rows(page).nth(total - n).getByTestId('board-label').first().click()
   await expect(page.getByTestId('focus-name')).toContainText(`Shelf ${n}`)
+  await settled(page)
+}
+/** Wait until the drawing window has finished gliding to the shelf. */
+async function settled(page) {
+  let last = null
+  await expect.poll(async () => {
+    const now = await page.getByTestId('d-window').evaluate((el) => `${el.scrollTop}|${el.clientHeight}`)
+    const same = now === last
+    last = now
+    return same
+  }, { intervals: [150, 150, 150, 200, 300] }).toBe(true)
 }
 /** Tap product k of row r (top row = 0) in the whole set: zooms in with its row open. */
 async function openProduct(page, r, k) {
@@ -228,7 +239,6 @@ test('search by name and by UPC, add to the shelf you tapped', async ({ page }) 
 })
 
 test('plans: copy, rename, switch, start from AFI, delete', async ({ page }) => {
-  page.on('dialog', (d) => d.accept())
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByRole('button', { name: 'Copy' }).first().click()
@@ -255,6 +265,8 @@ test('plans: copy, rename, switch, start from AFI, delete', async ({ page }) => 
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await expect(page.getByTestId('plan-list').locator('li')).toHaveCount(3)
   await page.getByRole('button', { name: /Delete Pickles/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Delete this plan?' })).toContainText('cannot be undone')
+  await page.getByTestId('confirm-yes').click()
   await expect(page.getByTestId('plan-list').locator('li')).toHaveCount(2)
 })
 
@@ -750,4 +762,38 @@ test('a two-door freezer set opens as an aisle, one 30 in section per door', asy
   await expect(rows(page).first().getByTestId('board-label')).toHaveCount(2) // door 1 and door 2 side by side
   await expect(rows(page).first().getByTestId('board-label').first()).toContainText('A · Shelf 6')
   await shot(page, '30-freezer')
+})
+
+test('opens with no signal after being opened once online', async ({ page, context }) => {
+  await page.goto('./')
+  await page.evaluate(async () => { await navigator.serviceWorker.ready })
+  await expect.poll(() => page.evaluate(async () => (await caches.keys()).length)).toBeGreaterThan(0)
+  await expect.poll(() => page.evaluate(async () => (await (await caches.open((await caches.keys())[0])).keys()).length)).toBeGreaterThan(5)
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.getByText('Load your store data')).toBeVisible() // the app itself opened from the phone
+  await context.setOffline(false)
+})
+
+test('zoomed in: dragging a product onto the shelf above keeps you there; moving keeps ▲ ▼ reachable', async ({ page }, info) => {
+  await loadData(page)
+  await openShelf(page, 6)
+  const six = await shelfNames(page, 'Shelf 6')
+  const from = await center(rows(page).nth(1).getByTestId('tile').nth(0))
+  const above = await rows(page).nth(0).locator('.shelf-canvas').boundingBox() // the peek of shelf 7
+  await drag(page, info, from, { x: above.x + above.width - 20, y: above.y + above.height - 6 })
+  expect((await shelfNames(page, 'Shelf 7 (top)')).length).toBe(11)
+  expect(await shelfNames(page, 'Shelf 6')).toEqual(six.slice(1))
+  await expect(page.getByTestId('focus-name')).toHaveText('Shelf 7 (top)') // follows the product, no extra jump
+  await settled(page)
+  // Details > Move, then ▼ twice and tap that shelf: the product goes there
+  await page.locator('.frow.open').getByTestId('details').click()
+  await page.getByRole('button', { name: 'Move', exact: true }).click()
+  await page.getByTestId('shelf-down').click()
+  await page.getByTestId('shelf-down').click()
+  await expect(page.getByTestId('focus-name')).toHaveText('Shelf 5')
+  await settled(page)
+  const five = await rows(page).nth(2).locator('.shelf-canvas').boundingBox()
+  await page.mouse.click(five.x + five.width - 30, five.y + five.height / 2)
+  expect((await shelfNames(page, 'Shelf 5')).at(-1)).toBe(six[0])
 })

@@ -107,6 +107,8 @@ def read_page(ocr, png):
         first = [t for x, y, t, _ in group if x < upc_head[0] + 120]
         upc_text = re.sub(r"\D", "", first[0]) if first else ""
         if len(upc_text) < 10:
+            if upc_text:  # a line that has a UPC the scan could not read in full: report it, never drop it silently
+                rows.append({"upc11": upc_text, "item": "", "units_text": None, "short_upc": True})
             continue
         item_text = next((re.sub(r"\D", "", t) for x, y, t, _ in group if upc_head[0] + 120 <= x < upc_head[0] + 330), "")
         nums = [t.replace(" ", "") for x, y, t, x1 in group
