@@ -50,14 +50,21 @@ def to_record(path, source, when, max_edge=MAX_EDGE, quality=85):
     return {"data": data, "w": img.width, "h": img.height, "source": source, "addedAt": when}
 
 
-def key_for(stem):
-    """12 or 13 digits: the full UPC with its check digit. 11 or fewer: the UPC without its check digit.
-    (Trying both readings on an 11-digit name put about 1 in 10 photos on the wrong product.)"""
+def key_for(stem, known=None):
+    """12 or 13 digits: the full UPC with its check digit. 11 or fewer digits could be either the UPC without its
+    check digit, or a full UPC that lost its leading zero (spreadsheets do that). When the store data is at hand,
+    use the reading that is a real product; otherwise take "no check digit", the usual form."""
     n = len(upc.digits(stem))
     if n >= 12:
         full, ok = upc.key_from_full(stem)
         return full if ok else None
-    return upc.key_from_11(stem)
+    no_check = upc.key_from_11(stem)
+    full, ok = upc.key_from_full(stem)
+    if known is not None:
+        hits = [k for k in (no_check, full if ok else None) if k and k in known]
+        if len(hits) == 1:
+            return hits[0]
+    return no_check
 
 
 def main():
@@ -67,13 +74,16 @@ def main():
     ap.add_argument("--source", default="imported")
     ap.add_argument("--max-edge", type=int, default=MAX_EDGE, help="longest side in pixels (smaller = smaller file)")
     ap.add_argument("--quality", type=int, default=85, help="JPEG quality 1-95")
+    ap.add_argument("--catalog", default=str(Path(__file__).resolve().parent.parent / "data/build/catalog.json"),
+                    help="store data, used to tell the two readings of an 11-digit file name apart")
     a = ap.parse_args()
     when = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    known = {i["upc"] for i in json.loads(Path(a.catalog).read_text())["items"]} if Path(a.catalog).exists() else None
     photos, skipped = {}, []
     for p in sorted(Path(a.folder).iterdir()):
         if p.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
             continue
-        key = key_for(p.stem)
+        key = key_for(p.stem, known)
         if not key:
             skipped.append(p.name)
             continue

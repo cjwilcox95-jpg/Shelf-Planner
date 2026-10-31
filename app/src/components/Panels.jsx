@@ -7,8 +7,6 @@ import { positions, shelfLabel, TRAY } from '../lib/plan.js'
 import { LETTERS } from '../lib/aisle.js'
 import { sourceMark, SOURCE_LABEL } from '../lib/sizes.js'
 
-/** A list line: the parts that have something, joined by dots (a product with no size has no stray dot). */
-const joinParts = (...parts) => parts.filter(Boolean).join(' · ')
 
 const shortDate = (iso) => {
   if (!iso) return ''
@@ -35,7 +33,7 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
       <div className="summary-main">
         <Icon className="summary-icon" size={30} aria-hidden="true" />
         <div className="summary-text">
-          <div className="big" data-testid="section-status">{status}</div>
+          <div className="big" data-testid="summary-status">{status}</div>
           <div className="sub">
             {plan.sections ? `${plan.sections.length} sections · ` : ''}{plan.shelves.length} shelves · {productCount} products
             {plan.tray.length ? ` · ${plan.tray.length} off the shelf` : ''}
@@ -127,7 +125,7 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
         <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
       <div className="selected-actions">
-          <div className="stepper" aria-label="Facings">
+          <div className="stepper" role="group" aria-label="Facings">
             <button className="btn step" onClick={() => onFacings(item.facings - 1)} disabled={item.facings <= 1} aria-label="One less facing">−</button>
             <div className="step-value"><span data-testid="facings">{item.facings}</span><small>facings</small></div>
             <button className="btn step" onClick={() => onFacings(item.facings + 1)} aria-label="One more facing">+</button>
@@ -175,89 +173,6 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
         </dl>
       )}
     </section>
-  )
-}
-
-function Row({ item, position, info, sub, warn, selected, onSelect, photo }) {
-  return (
-    <li>
-      <button className={`row${selected ? ' selected' : ''}`} onClick={onSelect}>
-        <span className="row-pos" style={{ '--brand': info.color }}>{position}</span>
-        {photo && <img className="row-thumb" src={photo.data} alt="" />}
-        <span className="row-main">
-          <span className="row-name">{info.description}</span>
-          <span className="row-sub">{sub}</span>
-          {warn && <span className="row-warn">{warn}</span>}
-        </span>
-      </button>
-    </li>
-  )
-}
-
-/** Every product, shelf by shelf from the top, then the tray. */
-export function SectionList({ plan, fits, products, photos = {}, selectedUid, onSelect }) {
-  const topFirst = [...plan.shelves].reverse()
-  return (
-    <div data-testid="item-list">
-      {plan.tray.length > 0 && (
-        <section className="tray" data-testid="tray">
-          <h2 className="list-title">Off the shelf ({plan.tray.length})</h2>
-          <p className="muted small">Products you took off, or that AFI left out of the set. Tap one, then “Put on shelf”.</p>
-          <ol className="item-list">
-            {plan.tray.map((item) => {
-              const info = products.info(item)
-              return (
-                <Row key={item.uid} item={item} position="–" info={info} photo={photos[item.upc]}
-                  sub={joinParts(info.size, `${item.facings} facing${item.facings > 1 ? 's' : ''}`)}
-                  warn={!info.inCatalog ? 'not in store files' : ''}
-                  selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, TRAY)} />
-              )
-            })}
-          </ol>
-        </section>
-      )}
-      {topFirst.map((shelf) => {
-        const fit = fits[shelf.id]
-        const posOf = positions(shelf.items)
-        return (
-          <section key={shelf.id}>
-            <h2 className="list-title">
-              {shelfLabel(plan, shelf.id)}
-              <span className={`list-title-nums${fit.isOver ? ' warn' : ''}`}>
-                {fit.isOver ? `${fmtIn(fit.overIn)} in over` : `${fmtIn(fit.remainingIn)} in left`}
-              </span>
-            </h2>
-            {!shelf.items.length && <p className="empty small">Empty shelf.</p>}
-            <ol className="item-list">
-              {shelf.items.map((item, i) => {
-                const info = products.info(item)
-                const p = fit.items[i]
-                if (p.gap) {
-                  return (
-                    <Row key={item.uid} item={item} position="·" info={info}
-                      sub={`${fmtIn(p.widthIn, 2)} in left open`} warn={p.pastEdge ? 'past end of shelf' : ''}
-                      selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, shelf.id)} />
-                  )
-                }
-                const high = item.high || 1
-                const mark = sourceMark(products.dims(item).source.w)
-                const notes = []
-                if (p.tooDeep) notes.push('too deep')
-                if (p.tooTall) notes.push('too tall')
-                if (p.pastEdge) notes.push('past end of shelf')
-                if (!info.inCatalog) notes.push('not in store files')
-                return (
-                  <Row key={item.uid} item={item} position={posOf.get(item.uid)} info={info} photo={photos[item.upc]}
-                    sub={joinParts(info.size, `${item.facings} facing${item.facings > 1 ? 's' : ''}${high > 1 ? `, ${high} high` : ''}`, `${mark}${fmtIn(p.widthIn)} in`, info.specialOrder && 'special order')}
-                    warn={notes.join(' · ')}
-                    selected={item.uid === selectedUid} onSelect={() => onSelect(item.uid, shelf.id)} />
-                )
-              })}
-            </ol>
-          </section>
-        )
-      })}
-    </div>
   )
 }
 

@@ -15,7 +15,7 @@ const MOVE_TOLERANCE = 10 // px a finger may wobble before we decide it is scrol
  * Moving a product (also between shelves):
  *  - finger: press and hold a product about half a second, then slide
  *  - mouse: click and drag
- *  - or tap a product, tap "Move", then tap where it should go
+ *  - or use a product's row: the arrows, or Details > Move, then tap the shelf where it should go
  */
 export default function SectionView({
   plan, fits, products, photos = {}, scale, viewWidth, selectedUid, activeShelfId, placing,
@@ -54,7 +54,8 @@ export default function SectionView({
     const box = scrollRef.current.getBoundingClientRect()
     const r = el.getBoundingClientRect()
     if (r.left < box.left || r.right > box.right) scrollRef.current.scrollBy({ left: r.left - box.left - (box.width - r.width) / 2, behavior: 'smooth' })
-  }, [selectedUid, scale]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedUid, scale, plan.shelves.find((s) => s.items.some((i) => i.uid === selectedUid))?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // (the last one: after ▲ ▼ moves the selected product to another shelf, bring it into view again)
 
   /** Which shelf is the finger over, and how far along it (inches)? */
   const locate = (clientX, clientY) => {
@@ -119,13 +120,17 @@ export default function SectionView({
       }
       return
     }
-    // Scroll along when the finger nears an edge.
+    // Scroll along when the finger nears an edge (sideways: the drawing; up and down: the window it sits in).
     const el = scrollRef.current
     const r = el.getBoundingClientRect()
     if (e.clientX < r.left + 40) el.scrollLeft -= 10
     else if (e.clientX > r.right - 40) el.scrollLeft += 10
-    if (e.clientY < 90) window.scrollBy(0, -12)
-    else if (e.clientY > window.innerHeight - 170) window.scrollBy(0, 12)
+    const win = el.closest('.d-window')
+    if (win) {
+      const w = win.getBoundingClientRect()
+      if (e.clientY < w.top + 30) win.scrollTop -= 12
+      else if (e.clientY > w.bottom - 30) win.scrollTop += 12
+    }
     setDragView(viewAt(d.uid, e.clientX, e.clientY))
   }
 

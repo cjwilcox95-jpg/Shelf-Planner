@@ -83,13 +83,13 @@ export function ShelfRows({ plan, shelf, fit, products, photos = {}, selectedUid
                 </span>
               </button>
               {p.gap ? (
-                <div className="frow-step" aria-label="Width of the empty space">
+                <div className="frow-step" role="group" aria-label="Width of the empty space">
                   <button onClick={() => onGapWidth(item.uid, gapW - 0.5)} disabled={gapW <= 0.5} aria-label="Half an inch narrower"><Minus size={20} aria-hidden="true" /></button>
                   <span><b data-testid="gap-width">{fmtIn(gapW, 2)}</b><small>inches</small></span>
                   <button onClick={() => onGapWidth(item.uid, gapW + 0.5)} aria-label="Half an inch wider"><Plus size={20} aria-hidden="true" /></button>
                 </div>
               ) : (
-                <div className="frow-step" aria-label={`Facings of ${info.description}`}>
+                <div className="frow-step" role="group" aria-label={`Facings of ${info.description}`}>
                   <button onClick={() => onFacings(item.uid, item.facings - 1)} disabled={item.facings <= 1} aria-label="One less facing"><Minus size={20} aria-hidden="true" /></button>
                   <span><b data-testid="row-facings">{item.facings}</b><small>{item.facings > 1 ? 'facings' : 'facing'}</small></span>
                   <button onClick={() => onFacings(item.uid, item.facings + 1)} aria-label="One more facing"><Plus size={20} aria-hidden="true" /></button>
@@ -163,7 +163,7 @@ export function Switcher({ plan, activeShelfId, zoomed, onStep, onZoomIn, childr
     return (
       <div className="switcher whole" data-testid="switcher">
         <span className="switcher-where"><b>Whole set</b>Tap a shelf to work on it</span>
-        <button className="btn primary" onClick={onZoomIn} data-testid="zoom-in-shelf">{shortShelf(plan, activeShelfId)}</button>
+        <button className="btn primary" onClick={onZoomIn} data-testid="zoom-in-shelf">Work on {shortShelf(plan, activeShelfId)}</button>
       </div>
     )
   }
@@ -205,7 +205,7 @@ export function TraySheet({ plan, products, photos = {}, targetLabel, onPut, onD
                 </div>
               </div>
               <div className="tray-acts">
-                <button className="btn primary" onClick={() => onPut(item.uid)}>Put on {targetLabel}</button>
+                <button className="btn primary" onClick={() => onPut(item.uid)} aria-label={`Put on ${targetLabel}: ${info.description}`}>Put on {targetLabel}</button>
                 <button className="btn danger" onClick={() => onDelete(item.uid)} aria-label={`Delete ${info.description}`}><Trash2 size={18} aria-hidden="true" /></button>
               </div>
             </li>

@@ -80,4 +80,11 @@ test('scanner without a camera: read a photo of a barcode, or type the numbers, 
   await page.getByTestId('scan-typed').fill('4150000052')
   await page.getByRole('button', { name: 'Look up' }).click()
   await expect(page.getByTestId('scan-hit')).toContainText('FRENCHS MUSTARD SQUEEZE HONEY')
+  // a product of this plan that is off the shelf: says so, and opens that list (no second copy added)
+  await page.getByTestId('scan-next').click()
+  await page.getByTestId('scan-typed').fill('5440000040') // Grey Poupon Country, left off the set by AFI
+  await page.getByRole('button', { name: 'Look up' }).click()
+  await expect(page.getByTestId('scan-where')).toContainText('off the shelf')
+  await page.getByTestId('scan-tray').click()
+  await expect(page.getByTestId('tray')).toContainText('GREY POUPON MUSTARD COUNTRY')
 })

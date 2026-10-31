@@ -194,7 +194,7 @@ test('take off, the tray, put back, and delete', async ({ page }) => {
   await openShelf(page, 5)
   await page.getByTestId('open-tray').click()
   await shot(page, '05-tray')
-  await page.getByTestId('tray').getByTestId('tray-row').filter({ hasText: top[1] }).getByRole('button', { name: 'Put on Shelf 5' }).click()
+  await page.getByTestId('tray').getByTestId('tray-row').filter({ hasText: top[1] }).getByRole('button', { name: /^Put on Shelf 5/ }).click()
   expect((await shelfNames(page, 'Shelf 5')).at(-1)).toBe(top[1])
   // delete for good from the off-the-shelf list
   await page.getByTestId('open-tray').click()
@@ -796,4 +796,51 @@ test('zoomed in: dragging a product onto the shelf above keeps you there; moving
   const five = await rows(page).nth(2).locator('.shelf-canvas').boundingBox()
   await page.mouse.click(five.x + five.width - 30, five.y + five.height / 2)
   expect((await shelfNames(page, 'Shelf 5')).at(-1)).toBe(six[0])
+})
+
+test('take off, then Undo on the message puts it back', async ({ page }) => {
+  await loadData(page)
+  const top = await shelfNames(page, 'Shelf 7 (top)')
+  await openProduct(page, 0, 0)
+  await openRow(page).getByRole('button', { name: 'Take off' }).click()
+  await page.locator('.toast').getByRole('button', { name: 'Undo' }).click()
+  await expect(page.locator('.toast')).toContainText('Undone')
+  expect(await shelfNames(page, 'Shelf 7 (top)')).toEqual(top)
+})
+
+test('the ends of a shelf and of the set: those arrows are off', async ({ page }) => {
+  await loadData(page)
+  await openProduct(page, 0, 0) // first product on the top shelf
+  await expect(openRow(page).getByRole('button', { name: 'Move left' })).toBeDisabled()
+  await expect(openRow(page).getByRole('button', { name: 'Move up a shelf' })).toBeDisabled()
+  await expect(openRow(page).getByRole('button', { name: 'Move right' })).toBeEnabled()
+  await expect(page.getByTestId('shelf-up')).toBeDisabled()
+  await expect(page.getByTestId('shelf-up')).toContainText('Top')
+})
+
+test('phone: the whole set fits on the screen without scrolling', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'phone screen')
+  await loadData(page)
+  await expect(rows(page)).toHaveCount(7)
+  const fits = await page.getByTestId('d-window').evaluate((el) => el.scrollHeight <= el.clientHeight + 2)
+  expect(fits).toBe(true)
+  for (const r of await rows(page).all()) await expect(r).toBeInViewport()
+})
+
+test('aisle: the shelf buttons stay in the section you are on', async ({ page }) => {
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-afi').click()
+  await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('new-aisle').click()
+  const pick = (t) => page.getByTestId('make-aisle').locator('.row').filter({ hasText: t }).click()
+  await pick('Ketchup'); await pick('Pickles')
+  await page.getByTestId('aisle-name').fill('Condiments')
+  await page.getByTestId('save-aisle').click()
+  await rows(page).nth(0).getByTestId('board-label').first().click() // A, top shelf
+  await expect(page.getByTestId('focus-name')).toHaveText('A · Shelf 7 (top)')
+  for (let i = 0; i < 6; i++) await page.getByTestId('shelf-down').click()
+  await expect(page.getByTestId('focus-name')).toHaveText('A · Shelf 1 (bottom)') // never jumps into section B
+  await expect(page.getByTestId('shelf-down')).toBeDisabled()
 })

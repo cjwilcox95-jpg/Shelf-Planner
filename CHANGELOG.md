@@ -2,6 +2,24 @@
 
 Plain-English notes on what changed at each stage.
 
+## Second review pass (2026-10-31)
+
+- **Offline copy**: always saves the newest files after an update (it could keep yesterday's page and then open blank
+  offline), and updates phones when only an icon changes.
+- **Wide sets** (16–20 ft) no longer jump back to the left end at every shelf change; a product moved with ▲ ▼ stays in
+  view; dragging near the edge of the drawing scrolls it.
+- **Scanner**: the camera stays on between scans (no restart after every product), says "camera busy" vs "camera
+  blocked in Settings" correctly, and has a "Try the camera again" button. Scanning a product that is off the shelf says
+  so and opens that list (instead of offering to add a second copy).
+- **Undo on a message** now confirms with "Undone"; messages also show over the Off the shelf list.
+- Wording made consistent ("Off the shelf"; "Work on Shelf 7"); screen readers hear which product a facings button is
+  for; the open plan keeps its ids when a backup is loaded; backups keep shelf sizes above 120 in.
+- Store-data builder: "2 DR PEPPER" is not read as 2 freezer doors; any two sets with the same name are told apart;
+  photo files named with 11 digits go to the product that really exists.
+- Cleanup: the old list, 49 unused style rules and duplicate code removed. README describes the new main screen.
+- New tests: Undo from a message, the ends of a shelf, the whole set fitting a phone screen, aisles keeping ▲ ▼ in one
+  section, scanning a product that is off the shelf.
+
 ## Code review fixes (2026-10-30)
 
 A full read-through of the app and the data scripts, in four parts. No path for cost, retail or margin was found.

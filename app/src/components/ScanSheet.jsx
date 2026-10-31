@@ -13,7 +13,7 @@ const SCAN_EVERY_MS = 180
  * mode 'find': show where the product is in the plan, or add it.
  * mode 'measure': type its tape-measured size, save, scan the next one.
  */
-export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, targetLabel, onShow, onAdd, onSaveSize, sizes, onClose }) {
+export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, targetLabel, onShow, onShowTray, onAdd, onSaveSize, sizes, onClose }) {
   const [mode, setMode] = useState(startMode)
   const [status, setStatus] = useState('Starting the camera…')
   const [camera, setCamera] = useState('starting') // starting | on | off
@@ -41,16 +41,17 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
   }, [products])
   foundRef.current = found // the camera loop always uses the latest, without restarting the camera
 
-  // The camera runs only while it is needed: not while a result is on screen, and not while the app is in the
-  // background (switching apps). It restarts by itself if the phone cuts it off.
+  // The camera is off while the app is in the background (switching apps) and restarts by itself if the phone cuts
+  // it off. While a result is on screen it keeps running but stops reading, so the next scan starts at once.
   const [visible, setVisible] = useState(() => document.visibilityState !== 'hidden')
   const [restart, setRestart] = useState(0)
+  const [retry, setRetry] = useState(false) // offer 'Try the camera again'
   useEffect(() => {
     const onVis = () => setVisible(document.visibilityState !== 'hidden')
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
-  const wanted = visible && !hit && camera !== 'off'
+  const wanted = visible && camera !== 'off'
 
   // Camera: read a frame every ~0.2 s until something is found.
   useEffect(() => {
@@ -110,7 +111,10 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
           setCamera('off')
           setStatus(e.reader
             ? 'The barcode reader has not downloaded to this phone yet (it does the first time the app is opened with a signal). Type the numbers below for now.'
-            : 'The camera is not available. Allow camera access for this site in Settings, or use a photo or type the numbers below.')
+            : e.name === 'NotAllowedError'
+              ? 'Camera access is turned off for this site. Allow it in Settings, or use a photo or type the numbers below.'
+              : 'The camera could not start (another app may be using it). Try again, or use a photo or type the numbers below.')
+          setRetry(!e.reader)
         }
       }
     })()
@@ -163,13 +167,16 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
         <canvas ref={canvasRef} hidden />
       </div>
       {!hit && <p className="scan-status" role="status" data-testid="scan-status">{status}</p>}
+      {!hit && camera === 'off' && retry && (
+        <button className="btn wide" onClick={() => { setRetry(false); setStatus('Starting the camera…'); setCamera('starting'); setRestart((n) => n + 1) }}>Try the camera again</button>
+      )}
 
       {hit && (
         <div className="scan-hit" data-testid="scan-hit">
           <div className="scan-hit-name">{hit.inCatalog ? hit.info.description : 'Not in your store data'}</div>
           <div className="muted small">{hit.inCatalog && hit.info.size ? `${hit.info.size} · ` : ''}UPC {prettyUpc(hit.upc)}</div>
           {mode === 'find' ? (
-            <FindResult hit={hit} where={where} targetLabel={targetLabel} onShow={onShow} onAdd={onAdd}
+            <FindResult hit={hit} where={where} targetLabel={targetLabel} onShow={onShow} onShowTray={onShowTray} onAdd={onAdd}
               onMeasure={() => setMode('measure')} onNext={next} />
           ) : (
             <MeasureForm key={hit.upc} hit={hit} products={products} rec={sizes[hit.upc]}
@@ -195,7 +202,19 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
   )
 }
 
-function FindResult({ hit, where, targetLabel, onShow, onAdd, onMeasure, onNext }) {
+function FindResult({ hit, where, targetLabel, onShow, onShowTray, onAdd, onMeasure, onNext }) {
+  if (where?.offShelf) {
+    return (
+      <>
+        <p className="scan-where" data-testid="scan-where">In this plan, but <strong>off the shelf</strong>.</p>
+        <div className="btn-grid two">
+          <button className="btn primary" onClick={onShowTray} data-testid="scan-tray">Open “Off the shelf”</button>
+          <button className="btn" onClick={onMeasure}>Measure it</button>
+        </div>
+        <button className="btn wide" onClick={onNext} data-testid="scan-next">Scan another</button>
+      </>
+    )
+  }
   return (
     <>
       <p className="scan-where" data-testid="scan-where">

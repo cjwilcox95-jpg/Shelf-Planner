@@ -219,18 +219,25 @@ def read_resets(by_key, afi_item_of, log):
             "widthFt": r["widthFt"], "heightFt": r["heightFt"],
             "doors": max([1] + [s.get("door", 1) for s in r["shelves"]]),
             **({"fixture": f"{m[1]} freezer doors" if m[1] != "1" else "1 freezer door"}
-               if (m := re.search(r"(?:^|[-\s])(\d)\s*DR\b", r["title"] or "", re.I)) else {}),
+               if (m := re.search(r"(?:^|[-\s])(\d)\s*DR\b(?!\s*PEPPER)", r["title"] or "", re.I)) else {}),
             **({"source2026": True} if r.get("layout") == "reco" else {}),
             "shelves": [{"shelf": s["shelf"], **({"door": s["door"]} if s.get("door", 1) > 1 or any(x.get("door", 1) > 1 for x in r["shelves"]) else {}),
                          "depthIn": s["depthIn"], "items": convert(s["items"])}
                         for s in sorted(r["shelves"], key=lambda s: (s.get("door", 1), s["shelf"]))],
             "unallocated": convert(r["unallocated"]),
         })
-    # two sets with the same name (e.g. 1-door and 2-door Frozen Waffles): say which is which
+    # two sets with the same name (e.g. 1-door and 2-door Frozen Waffles): say which is which, by doors or else by
+    # width, and by date if that is still not enough
     names = collections.Counter(r["name"] for r in resets)
     for r in resets:
-        if names[r["name"]] > 1 and r.get("fixture"):
-            r["name"] = f"{r['name']} ({r['fixture']})"
+        if names[r["name"]] > 1:
+            which = r.get("fixture") or (f"{r['widthFt']:g} ft" if r.get("widthFt") else None)
+            if which:
+                r["name"] = f"{r['name']} ({which})"
+    names = collections.Counter(r["name"] for r in resets)
+    for r in resets:
+        if names[r["name"]] > 1 and r.get("date"):
+            r["name"] = f"{r['name']} {r['date']}"
     return resets
 
 

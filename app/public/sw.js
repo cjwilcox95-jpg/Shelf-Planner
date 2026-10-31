@@ -9,7 +9,9 @@ const ASSETS = [] /* ASSETS */
 const CACHE = `shelf-planner-${VERSION}`
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', ...ASSETS])).then(() => self.skipWaiting()))
+  // cache: 'reload' skips the browser's own short-term copy, so an update never saves yesterday's page
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', ...ASSETS].map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()))
 })
 
 self.addEventListener('activate', (e) => {
@@ -27,7 +29,8 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return
   if (req.mode === 'navigate') {
     e.respondWith((async () => {
-      const net = fetch(req)
+      // always ask the server whether the page changed (a page request can't take options, so make a new one)
+      const net = fetch(new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }))
       try {
         const res = await Promise.race([net, slow(3500)])
         if (res.ok) {

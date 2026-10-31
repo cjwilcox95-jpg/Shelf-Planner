@@ -3,12 +3,11 @@ import { FolderOpen, LayoutGrid, Plus, Ruler, ScanBarcode, Undo2 } from 'lucide-
 import SectionView from './components/SectionView.jsx'
 import { AddSheet, ConfirmSheet, PlansSheet, SectionSummary, SelectedBar, Sheet, ShelfSheet } from './components/Panels.jsx'
 import { MiniMap, ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf } from './components/Focus.jsx'
-import { fmtIn } from './lib/fit.js'
-import { checkPlan } from './lib/fit.js'
+import { checkPlan, fmtIn } from './lib/fit.js'
 import { buildIndex } from './lib/search.js'
 import {
   TRAY, applyPlanAction, duplicatePlan, findItem, historyReducer, initHistory, newId, newPlan,
-  planFromAfi, planFromOldShelf, plansFromAfi, shelfLabel, uniqueUids,
+  planFromAfi, planFromOldShelf, plansFromAfi, positions, shelfLabel, uniqueUids,
 } from './lib/plan.js'
 import { makeProducts } from './lib/products.js'
 import { askToKeepData, load, loadPrefix, remove, save } from './lib/storage.js'
@@ -24,7 +23,6 @@ import { aisleRows, makeAisleView, mergeAisles, newAisle, sectionOf, splitAisleV
 import { cleanCatalog } from './lib/clean.js'
 import { cleanGuessEdits } from './lib/guess.js'
 import { ScanSheet } from './components/ScanSheet.jsx'
-import { positions } from './lib/plan.js'
 import { loadReader } from './lib/barcode.js'
 import { prettyUpc } from './lib/upc.js'
 import { cleanMovement, paceText, parseMovementCsv, salesRows, suggestions } from './lib/movement.js'
@@ -306,13 +304,13 @@ export default function App() {
     win.style.height = height
     const top = win.scrollTop + row.getBoundingClientRect().top - win.getBoundingClientRect().top - PEEK
     win.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
-    // a wide aisle is wider than the screen: bring the shelf you are on into view sideways too
+    // an aisle can be wider than the screen: bring the section you are on into view sideways too
     const sideways = win.querySelector('[data-testid="section-scroll"]')
     const canvas = win.querySelector(`[data-canvas="${activeShelf.id}"]`)
     if (sideways && canvas) {
       const s = sideways.getBoundingClientRect()
       const c = canvas.getBoundingClientRect()
-      if (c.left < s.left || c.right > s.right) {
+      if (c.right < s.left + 40 || c.left > s.right - 40) { // only when that shelf is (almost) out of sight
         sideways.scrollTo({ left: Math.max(0, sideways.scrollLeft + c.left - s.left - 8), behavior: smooth ? 'smooth' : 'auto' })
       }
     }
@@ -542,7 +540,7 @@ export default function App() {
     await askToKeepData()
     const base = phase === 'ready' ? allPlans() : (await load('plans')) || {}
     const { merged: mergedRaw, counts } = mergePlans(base, doc.plans)
-    const merged = uniqueUids(mergedRaw).plans
+    const merged = uniqueUids(mergedRaw, phase === 'ready' ? (plan.sections ? plan.sections.map((s) => s.planId) : [plan.id]) : []).plans
     if (Array.isArray(doc.aisles) && doc.aisles.length) {
       const base = phase === 'ready' ? aislesRef.current : (await load('aisles')) || {}
       commitAisles(mergeAisles(base, doc.aisles))
@@ -596,7 +594,7 @@ export default function App() {
         <div className="appbar-title">
           <span className="title" data-testid="plan-name">{plan.name}</span>
           <span className="appbar-sub">
-            {subLine}{plan.tray.length > 0 ? ` · ${plan.tray.length} off shelf` : ''}
+            {subLine}{plan.tray.length > 0 ? ` · ${plan.tray.length} off the shelf` : ''}
           </span>
         </div>
         <StatusPill check={check} onClick={() => setSheet('status')} />
@@ -661,7 +659,7 @@ export default function App() {
                 </small>
               </div>
               <div className="d-head-btns">
-                {plan.tray.length > 0 && <button className="btn ghost" onClick={() => setSheet('tray')} data-testid="open-tray">Off shelf ({plan.tray.length})</button>}
+                {plan.tray.length > 0 && <button className="btn ghost" onClick={() => setSheet('tray')} data-testid="open-tray">Off the shelf ({plan.tray.length})</button>}
                 <button className="btn ghost" onClick={() => setSheet('shelf')} data-testid="open-shelf"><Ruler size={18} aria-hidden="true" />Size</button>
               </div>
             </div>
@@ -800,7 +798,7 @@ export default function App() {
       )}
       {sheet === 'tools' && (
         <ToolsSheet onPick={setSheet} inAisle={!!plan.sections} onClose={() => setSheet(null)}
-          canRedo={hist.future.length > 0} onRedo={() => { redo(); setSheet(null) }} onShelf={() => setSheet('shelf')} />
+          canRedo={hist.future.length > 0} onRedo={() => { redo(); setSheet(null) }} />
       )}
       {sheet === 'print' && (() => {
         const others = plan.sections ? [] : Object.values(plans).filter((p) => p.id !== plan.id)
@@ -828,8 +826,10 @@ export default function App() {
               return s.items.filter((i) => i.upc === upc && i.kind !== 'gap')
                 .map((i) => ({ uid: i.uid, label: shelfLabel(plan, s.id), pos: posOf.get(i.uid), facings: i.facings }))
             }).reverse() // top shelf first
-            return spots.length ? { ...spots[0], more: spots.length - 1 } : null
+            if (spots.length) return { ...spots[0], more: spots.length - 1 }
+            return plan.tray.some((i) => i.upc === upc) ? { offShelf: true } : null
           }}
+          onShowTray={() => setSheet('tray')}
           onShow={(uid) => { focusItem(uid); setSheet(null) }}
           onAdd={(hit) => onAdd(hit.inCatalog ? products.byUpc.get(hit.upc) : { upc: hit.upc, description: `UPC ${prettyUpc(hit.upc)}`, size: '' })}
           onSaveSize={onSaveSize}
@@ -878,10 +878,10 @@ export default function App() {
 
       {ask && <ConfirmSheet {...ask} onClose={() => setAsk(null)} />}
 
-      {toast && !sheet && (
+      {toast && (!sheet || sheet === 'tray') && (
         <div className="toast" role="status">
           <span>{toast.text}</span>
-          {toast.undoable && <button className="btn" onClick={() => { undo(); setToast(null) }}>Undo</button>}
+          {toast.undoable && <button className="btn" onClick={undo}>Undo</button>}
         </div>
       )}
     </div>

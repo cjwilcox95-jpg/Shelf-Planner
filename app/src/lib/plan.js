@@ -93,11 +93,14 @@ export function duplicatePlan(plan, name) {
  * plans up when both are in one aisle. The first plan to use an id keeps it; later ones get new ids.
  * Returns { plans, changed } (changed = how many ids were renewed).
  */
-export function uniqueUids(plans) {
+export function uniqueUids(plans, keepFirst = []) {
   const seen = new Set()
   let changed = 0
   const out = {}
-  for (const [id, p] of Object.entries(plans)) {
+  // the plan(s) open on screen keep their ids, so the screen and its undo history stay as they are
+  const order = [...keepFirst.filter((id) => plans[id]), ...Object.keys(plans).filter((id) => !keepFirst.includes(id))]
+  for (const id of order) {
+    const p = plans[id]
     let touched = false
     const fix = (i) => {
       if (!seen.has(i.uid)) { seen.add(i.uid); return i }
@@ -111,7 +114,7 @@ export function uniqueUids(plans) {
     const tray = (p.tray || []).map(fix)
     out[id] = touched ? { ...p, shelves, tray } : p
   }
-  return { plans: out, changed }
+  return { plans: Object.fromEntries(Object.keys(plans).map((id) => [id, out[id]])), changed }
 }
 
 /** Where is this item? Returns { where: shelfId or TRAY, index } or null. */

@@ -6,11 +6,12 @@ import crypto from 'node:crypto'
 
 /** Writes the list of built files (and a version) into dist/sw.js, so the app is saved for offline use on first open. */
 function offlineList() {
+  let dist = path.resolve('dist')
   return {
     name: 'offline-list',
     apply: 'build',
+    configResolved(config) { dist = path.resolve(config.root, config.build.outDir) },
     closeBundle() {
-      const dist = path.resolve('dist')
       const files = []
       const walk = (dir) => {
         for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -21,7 +22,10 @@ function offlineList() {
       }
       walk(dist)
       files.sort()
-      const version = crypto.createHash('sha1').update(files.join('|')).digest('hex').slice(0, 10)
+      // the version comes from what is in the files, so changing an icon or the manifest also updates phones
+      const hash = crypto.createHash('sha1')
+      for (const f of files) hash.update(f).update(fs.readFileSync(path.join(dist, f)))
+      const version = hash.digest('hex').slice(0, 10)
       const swPath = path.join(dist, 'sw.js')
       const sw = fs.readFileSync(swPath, 'utf8')
         .replace("'dev' /* VERSION */", JSON.stringify(version))

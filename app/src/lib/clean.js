@@ -79,8 +79,8 @@ export function cleanPlan(p) {
     shelves: (p.shelves || []).filter((s) => s && typeof s === 'object').map((s) => ({
       ...pick(s, SHELF),
       widthIn: inches(s.widthIn, SHELF_DEFAULT.widthIn),
-      depthIn: inches(s.depthIn, SHELF_DEFAULT.depthIn, 120),
-      clearanceIn: inches(s.clearanceIn, SHELF_DEFAULT.clearanceIn, 120),
+      depthIn: inches(s.depthIn, SHELF_DEFAULT.depthIn),
+      clearanceIn: inches(s.clearanceIn, SHELF_DEFAULT.clearanceIn),
       items: (Array.isArray(s.items) ? s.items : []).filter(usable).map(cleanItem),
     })),
     tray: (Array.isArray(p.tray) ? p.tray : []).filter((i) => usable(i) && i.kind !== 'gap').map(cleanItem),

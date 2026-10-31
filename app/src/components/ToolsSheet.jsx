@@ -7,7 +7,7 @@ const TOOLS = [
   { id: 'print', icon: Printer, title: 'Print or save as PDF', text: 'A drawing to scale and a check-off list.' },
   { id: 'sales', icon: TrendingUp, title: 'Sales help (worth a look)', text: 'What may run out, what to cut first.' },
   { id: 'compare', icon: GitCompare, title: 'Compare with another plan', text: 'What to add, take out, move or change.' },
-  { id: 'shelf', icon: Columns3, title: 'Shelf sizes', text: 'Width, height and depth; add or remove a shelf.' },
+  { id: 'shelf', icon: Columns3, title: 'Shelf sizes', text: 'Width, depth and room above; add or remove a shelf.' },
   { id: 'guesses', icon: SlidersHorizontal, title: 'Default size guesses', text: 'The typical sizes guesses start from.' },
 ]
 
