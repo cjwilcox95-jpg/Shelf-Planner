@@ -2,6 +2,19 @@
 
 Plain-English notes on what changed at each stage.
 
+## Thousands of photos (2026-10-31)
+
+- Photos are now saved as picture files with a small copy (about 128 px) for the drawing and lists. The app reads
+  only the photos it is showing, so it opens fast and stays light with thousands of photos (measured with about
+  16,000: opening went from about 3.5 s to under 1 s, memory from about 250 MB to about 15 MB).
+- Photo files load in batches with progress ("Loading photos… 400 of 960"), and say clearly if the phone runs out of
+  space. A photo you took yourself is never replaced by a picture from a photo file.
+- Backups carry the photos you took, not the store pictures (those come from the photo files), so backups stay small.
+- The Backup tab shows how many photos are on the phone and how much space the app uses.
+- Photos saved by the older version move over by themselves the first time the new version opens.
+- Search shows results faster; search results have small pictures.
+- The photo-file maker splits big sets into files of 2,000 photos.
+
 ## Second review pass (2026-10-31)
 
 - **Offline copy**: always saves the newest files after an update (it could keep yesterday's page and then open blank

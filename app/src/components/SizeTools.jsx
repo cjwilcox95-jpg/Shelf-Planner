@@ -4,6 +4,7 @@ import { fmtIn } from '../lib/fit.js'
 import { prettyUpc } from '../lib/upc.js'
 import { measureFromPhoto, SOURCE_LABEL } from '../lib/sizes.js'
 import { FRACTIONS, parseInches, withFraction } from '../lib/tape.js'
+import { useFullPhoto } from '../lib/usePhotos.js'
 
 const CHIP_AUTO = { afi: 'AFI', afiEstimate: 'AFI estimate', guess: 'guess' }
 
@@ -16,7 +17,8 @@ const DIMS = [
 /**
  * Edit one product's real size. Saved for the product (by UPC), so it changes everywhere it is used.
  */
-export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave, onClose }) {
+export function SizeSheet({ info, photo, thumb, dims, rec, types, shelfWidthIn, onSave, onClose }) {
+  const photoUrl = useFullPhoto(info.upc, photo) || thumb // the small copy until the photo is read
   // 'auto' = no size of your own: AFI's size when AFI has one, otherwise the guess
   const autoSrc = (k) => (dims.afi?.[k] > 0 ? (k === 'd' ? 'afiEstimate' : 'afi') : 'guess')
   const autoValue = (k) => (dims.afi?.[k] > 0 ? dims.afi[k] : dims.guess[k])
@@ -74,7 +76,7 @@ export function SizeSheet({ info, photo, dims, rec, types, shelfWidthIn, onSave,
   return (
     <Sheet title="Size & notes" onClose={onClose} tall>
       <div className="size-head">
-        {photo ? <img src={photo.data} alt="" className="size-thumb" /> : <div className="size-thumb empty">no photo</div>}
+        {photoUrl ? <img src={photoUrl} alt="" className="size-thumb" /> : <div className="size-thumb empty">no photo</div>}
         <div>
           <strong>{info.description}</strong>
           <div className="muted small">{info.size}{info.pack ? ` · pack ${info.pack}` : ''} · UPC {prettyUpc(info.upc)}</div>

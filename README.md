@@ -13,7 +13,7 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 - **Free.** No paid services, no API keys, no logins.
 - **Your data stays on your device.** Plans are saved in the browser on your phone. Use Plans > Backup > Export backup / Import to move them or keep a copy.
 - **No cost data, ever.** Case cost, unit cost, retail and margin are stripped during data prep. The app never ships, stores or shows them.
-- **Photos stay private.** Photos you take, or pictures from firelakefoods.com saved with the store's permission (for this store's planning only). They live on the phone and in backups, never in this public GitHub project.
+- **Photos stay private.** Photos you take, or pictures from firelakefoods.com saved with the store's permission (for this store's planning only). They live on the phone, never in this public GitHub project. Backups carry the photos you took; store pictures are loaded from the photo files again on a new phone.
 - **Honest dimensions.** Every size is labeled *measured*, *estimated from photo* or *guessed*. Guessed sizes are drawn with a dashed outline and a `~` (marks show when you zoom in to a shelf).
 
 ## Status
@@ -43,7 +43,7 @@ scripts/       Data-prep tools (Python):
                  build_catalog.py       makes data/build/catalog.json and match_report.md
                  read_price_book_pdf.py reads an AFI price book PDF, keeping only safe fields
                  upc.py                 turns every UPC format into one 12-digit key
-                 make_photo_pack.py     folder of pictures named by UPC -> one photo pack file for the app
+                 make_photo_pack.py     folder of pictures named by UPC -> photo pack file(s) for the app (2,000 photos each)
                  read_movement_scan.py  scanned BRData movement report -> movement.json (UPC + units sold only)
                  read_afi_sizes.py      real product sizes from the to-scale drawing in each AFI reset PDF
 tests/         Automatic checks for data prep. Run: python3 -m unittest discover -s tests

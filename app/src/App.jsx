@@ -10,8 +10,10 @@ import {
   planFromAfi, planFromOldShelf, plansFromAfi, positions, shelfLabel, uniqueUids,
 } from './lib/plan.js'
 import { makeProducts } from './lib/products.js'
-import { askToKeepData, load, loadPrefix, remove, save } from './lib/storage.js'
-import { cleanPhotos, mergePhotos, processPhoto } from './lib/photos.js'
+import { askToKeepData, load, loadPhotoIndex, loadPhotos, loadPrefix, remove, removePhoto, save, savePhotos } from './lib/storage.js'
+import { cleanPhotos, OWN_PHOTO, processPhoto, toBackupPhoto } from './lib/photos.js'
+import { importPhotos, moveOldPhotos } from './lib/photoStore.js'
+import { thumbs as thumbCache, useThumbs } from './lib/usePhotos.js'
 import { cleanSizes, mergeSizes } from './lib/sizes.js'
 import { GuessTableSheet, SizeSheet } from './components/SizeTools.jsx'
 import { PrintSheet } from './components/PrintSheet.jsx'
@@ -26,7 +28,7 @@ import { ScanSheet } from './components/ScanSheet.jsx'
 import { loadReader } from './lib/barcode.js'
 import { prettyUpc } from './lib/upc.js'
 import { cleanMovement, paceText, parseMovementCsv, salesRows, suggestions } from './lib/movement.js'
-import { backupFileName, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
+import { backupFileName, backupPhotoUpcs, identifyFile, makeBackup, mergePlans, shareOrDownload } from './lib/backup.js'
 
 const MIN_SCALE = 3 // px per inch
 const PEEK = 26 // px of the shelves above and below shown around the shelf you are on
@@ -60,7 +62,9 @@ export default function App() {
   const [ask, setAsk] = useState(null) // { title, text, yes, onYes }: an in-app 'are you sure?'
   const [toast, setToast] = useState(null)
   const [lastBackupAt, setLastBackupAt] = useState(null)
-  const [photos, setPhotos] = useState({}) // UPC -> { data, w, h, source, addedAt }
+  // which products have a photo: UPC -> { w, h, source, addedAt }. The pictures stay in storage until shown.
+  const [photoIndex, setPhotoIndex] = useState({})
+  const photoIndexRef = useRef({})
   const [sizes, setSizes] = useState({}) // UPC -> real sizes { w, h, d, type, note }
   const [guessEdits, setGuessEdits] = useState({}) // package type -> edited typical size
   const [boxWidth, setBoxWidth] = useState(360)
@@ -122,8 +126,9 @@ export default function App() {
         const [cat, saved, currentId, oldShelf, lastBk] = await Promise.all(
           ['catalog', 'plans', 'currentPlanId', 'shelf', 'lastBackupAt'].map((k) => load(k)))
         setLastBackupAt(lastBk || null)
-        const savedPhotos = await loadPrefix('photo:').catch(() => ({}))
-        setPhotos(Object.fromEntries(Object.entries(savedPhotos).map(([k, v]) => [k.slice(6), v])))
+        const index = await loadPhotoIndex().catch((e) => { console.error('could not read the photo list', e); return {} })
+        photoIndexRef.current = index
+        setPhotoIndex(index)
         const savedSizes = await loadPrefix('size:').catch(() => ({}))
         setSizes(Object.fromEntries(Object.entries(savedSizes).map(([k, v]) => [k.slice(5), v])))
         setGuessEdits(cleanGuessEdits(await load('guessEdits').catch(() => null)))
@@ -173,6 +178,9 @@ export default function App() {
   }, [phase])
 
   const products = useMemo(() => makeProducts(catalog, { sizes, guessEdits }), [catalog, sizes, guessEdits])
+  // small photos of every product in the open plan or aisle (shelves and off the shelf), read in one go
+  const planUpcs = useMemo(() => [...plan.shelves.flatMap((s) => s.items), ...plan.tray].filter((i) => i.kind !== 'gap').map((i) => i.upc), [plan])
+  const thumbs = useThumbs(planUpcs, photoIndex)
   const index = useMemo(() => (catalog ? buildIndex(catalog) : []), [catalog])
   const check = useMemo(() => checkPlan(plan, (item) => products.dims(item)), [plan, products])
   const sales = useMemo(() => (movement ? salesRows(plan, check, products, movement) : []), [plan, check, products, movement])
@@ -194,25 +202,48 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 4000)
   }, [])
 
-  /** Save several photos on the phone at once. */
-  const storePhotos = async (incoming) => {
-    const { merged, added, replaced } = mergePhotos(photos, incoming)
-    for (const upc of Object.keys(merged)) {
-      if (merged[upc] !== photos[upc]) await save(`photo:${upc}`, merged[upc])
-    }
-    setPhotos(merged)
-    return { added, replaced }
+  /** Photos were saved (written: UPC -> { w, h, source, addedAt }): show them. */
+  const photosSaved = useCallback((written) => {
+    const upcs = Object.keys(written)
+    if (!upcs.length) return
+    for (const upc of upcs) thumbCache.forget(upc) // a replaced photo: drop the old picture
+    photoIndexRef.current = { ...photoIndexRef.current, ...written }
+    setPhotoIndex(photoIndexRef.current)
+  }, [])
+
+  // Photos saved by the first version of the app (as text in "photo:<upc>") move to the photos store,
+  // a batch at a time, once the main screen is up. Safe to stop half way: the next start carries on.
+  const moving = useRef(false)
+  useEffect(() => {
+    if (phase !== 'ready' || moving.current) return
+    moving.current = true
+    moveOldPhotos({ onSaved: photosSaved }).catch((e) => console.error('could not move the old photos', e))
+  }, [phase, photosSaved])
+
+  // let go of the pictures in memory if the app closes
+  useEffect(() => () => thumbCache.clear(), [])
+
+  /**
+   * Save the photos of a pack or backup on the phone, a few hundred at a time; never deletes a photo.
+   * onProgress(text) is told how far it got. Returns { added, replaced, saved, total, outOfSpace }.
+   */
+  const storePhotos = async (incoming, onProgress) => {
+    if (Object.keys(incoming || {}).length > 200) onProgress?.('Loading photos…')
+    return importPhotos(photoIndexRef.current, incoming, {
+      onSaved: photosSaved,
+      onProgress: (done, n) => onProgress?.(`Loading photos… ${done.toLocaleString()} of ${n.toLocaleString()}`),
+    })
   }
+  const outOfSpaceText = (r) => `Could not save every photo: the phone ran out of space. ${r.saved.toLocaleString()} of ${r.total.toLocaleString()} were saved and are kept; free up space on the phone, then load the file again for the rest.`
 
   const onPickPhoto = async (item, file) => {
     try {
       const p = await processPhoto(file)
-      const rec = { ...p, source: 'your photo', addedAt: new Date().toISOString() }
-      await save(`photo:${item.upc}`, rec)
-      setPhotos((all) => ({ ...all, [item.upc]: rec }))
+      const rec = { ...p, source: OWN_PHOTO, addedAt: new Date().toISOString() }
+      photosSaved(await savePhotos([[item.upc, rec]]))
       showToast('Photo saved for this product')
     } catch (e) {
-      showToast(e.message || 'Could not use that picture')
+      showToast(e?.name === 'QuotaExceededError' ? 'Could not save the photo: the phone is out of space.' : e.message || 'Could not use that picture')
     }
   }
 
@@ -261,8 +292,12 @@ export default function App() {
   }
 
   const onRemovePhoto = async (item) => {
-    await remove(`photo:${item.upc}`)
-    setPhotos((all) => { const next = { ...all }; delete next[item.upc]; return next })
+    await removePhoto(item.upc)
+    thumbCache.forget(item.upc)
+    const next = { ...photoIndexRef.current }
+    delete next[item.upc]
+    photoIndexRef.current = next
+    setPhotoIndex(next)
     showToast('Photo removed')
   }
 
@@ -275,6 +310,11 @@ export default function App() {
 
   const activeShelf = plan.shelves.find((s) => s.id === activeShelfId) || plan.shelves[plan.shelves.length - 1]
   const sel = selectedUid ? findItem(plan, selectedUid) : null
+  const barOpen = !!sel && (detailsOpen || placing)
+
+  // Remind about backups: never backed up after making changes, or the last one is over a week old.
+  const changedSince = (t) => Object.values(plans).some((p) => (p.updatedAt || '') > (t || p.createdAt || ''))
+  const backupDue = lastBackupAt ? Date.now() - Date.parse(lastBackupAt) > 7 * 864e5 && changedSince(lastBackupAt) : changedSince(null)
 
   // Whole set: shrink the drawing until every shelf fits on the screen.
   // One shelf: the drawing becomes a window onto that shelf, with a peek of the shelves above and below.
@@ -314,7 +354,10 @@ export default function App() {
         sideways.scrollTo({ left: Math.max(0, sideways.scrollLeft + c.left - s.left - 8), behavior: smooth ? 'smooth' : 'auto' })
       }
     }
-  })
+    // Runs again when anything changes the size of the drawing or of the room around it: the view, the scale,
+    // the width of the screen, the shelves' heights, and the bars that share the screen with the drawing.
+  }, [phase, sheet === 'data', zoomed, plan.id, activeShelf.id, plan.shelves.length, plan.tray.length, scale, fitScale, // eslint-disable-line react-hooks/exhaustive-deps
+    wholeScale, boxWidth, rowsTallestIn, backupDue, saveError, barOpen])
 
   // ---------- moving around the set ----------
   /** Work on one shelf (zoomed in). */
@@ -481,6 +524,10 @@ export default function App() {
 
   const onExport = async () => {
     try {
+      // only photos taken with this phone; store pictures come back from the photo pack files
+      const records = await loadPhotos(backupPhotoUpcs(photoIndexRef.current), 'record')
+      const photos = {}
+      for (const [upc, rec] of records) photos[upc] = await toBackupPhoto(rec)
       const text = JSON.stringify(makeBackup({ plans: allPlans(), catalog, photos, sizes, guessEdits, movement, aisles: Object.values(aislesRef.current) }))
       const how = await shareOrDownload(text, backupFileName())
       if (how === 'cancelled') return 'Backup cancelled.'
@@ -493,19 +540,24 @@ export default function App() {
     }
   }
 
-  /** catalog.json or a backup file, picked on the first screen or under Plans. Never fails silently. */
-  const onImportFile = (file) => importFile(file).catch((e) => `Could not finish loading that file: ${e.message || e}. Nothing on this phone was deleted; try again.`)
-  const importFile = async (file) => {
+  /**
+   * catalog.json or a backup file, picked on the first screen or under Plans. Never fails silently.
+   * onProgress(text): how far a long load has got (photos).
+   */
+  const onImportFile = (file, onProgress) => importFile(file, onProgress).catch((e) => `Could not finish loading that file: ${e.message || e}. Nothing on this phone was deleted; try again.`)
+  const importFile = async (file, onProgress) => {
     let doc
     try { doc = JSON.parse((await file.text()).replace(/^\uFEFF/, '')) } catch { return 'Could not read that file.' }
     const kind = identifyFile(doc)
     if (!kind.type) return kind.problem
     if (kind.type === 'photos') {
       if (phase !== 'ready') return 'Load catalog.json first, then the photo pack.'
+      await askToKeepData() // many photos: ask the phone not to clear them when space runs low
       const clean = cleanPhotos(doc.photos)
-      const { added, replaced } = await storePhotos(clean)
-      const known = Object.keys(clean).filter((u) => catalog.items.some((i) => i.upc === u)).length
-      return `Photo pack loaded: ${added} new photo${added === 1 ? '' : 's'}${replaced ? `, ${replaced} replaced` : ''}` +
+      const known = Object.keys(clean).filter((u) => products.byUpc.has(u)).length
+      const r = await storePhotos(clean, onProgress)
+      if (r.outOfSpace) return outOfSpaceText(r)
+      return `Photo pack loaded: ${r.added} new photo${r.added === 1 ? '' : 's'}${r.replaced ? `, ${r.replaced} replaced` : ''}` +
         ` (${known} of ${Object.keys(clean).length} match products in your store data).`
     }
     if (kind.type === 'sizes') {
@@ -552,7 +604,7 @@ export default function App() {
       if (plan.sections) openPlan(makeAisleView(aislesRef.current[plan.aisleId], merged))
       else if (merged[plan.id] !== plan) openPlan(merged[plan.id])
     }
-    const pics = doc.photos ? await storePhotos(doc.photos) : { added: 0 }
+    const pics = doc.photos ? await storePhotos(doc.photos, onProgress) : { added: 0 }
     if (doc.sizes) await storeSizes(doc.sizes)
     if (doc.movement?.items) {
       const newer = !movement || [doc.movement.to || '', doc.movement.loadedAt || ''].join() > [movement.to || '', movement.loadedAt || ''].join()
@@ -567,7 +619,8 @@ export default function App() {
     return `Backup loaded: ${counts.added} new plan${counts.added === 1 ? '' : 's'}, ${counts.updated} updated` +
       (counts.keptPhone ? `, ${counts.keptPhone} kept because this phone’s copy was newer` : '') +
       (pics.added ? `, ${pics.added} photos added` : '') +
-      (useBackupCat && catalog ? ', store data updated to the backup’s newer copy' : '') + '. Nothing was deleted.'
+      (useBackupCat && catalog ? ', store data updated to the backup’s newer copy' : '') + '. Nothing was deleted.' +
+      (pics.outOfSpace ? ` ${outOfSpaceText(pics)}` : '')
   }
 
   if (phase === 'loading') return <div className="center-msg">Loading…</div>
@@ -575,9 +628,6 @@ export default function App() {
     return <ImportScreen onFile={onImportFile} onCancel={phase === 'ready' ? () => setSheet(null) : null} />
   }
 
-  // Remind about backups: never backed up after making changes, or the last one is over a week old.
-  const changedSince = (t) => Object.values(plans).some((p) => (p.updatedAt || '') > (t || p.createdAt || ''))
-  const backupDue = lastBackupAt ? Date.now() - Date.parse(lastBackupAt) > 7 * 864e5 && changedSince(lastBackupAt) : changedSince(null)
   const missing = plan.shelves.reduce((n, s) => n + s.items.filter((i) => !products.info(i).inCatalog).length, 0)
   const productCount = plan.shelves.reduce((n, s) => n + s.items.filter((i) => i.kind !== 'gap').length, 0)
   const anyGuess = plan.shelves.some((s) => s.items.some((i) => products.isGuess(products.dims(i))))
@@ -627,7 +677,8 @@ export default function App() {
             plan={plan}
             fits={check.byShelf}
             products={products}
-            photos={photos}
+            photoIndex={photoIndex}
+            thumbs={thumbs}
             scale={scale}
             viewWidth={boxWidth - 4}
             selectedUid={selectedUid}
@@ -664,7 +715,7 @@ export default function App() {
               </div>
             </div>
             <div className="d-list" data-testid="item-list">
-              <ShelfRows plan={plan} shelf={activeShelf} fit={focusFit} products={products} photos={photos} selectedUid={selectedUid}
+              <ShelfRows plan={plan} shelf={activeShelf} fit={focusFit} products={products} thumbs={thumbs} selectedUid={selectedUid}
                 onSelect={(uid) => { setSelectedUid(uid); setDetailsOpen(false); setPlacing(false) }}
                 onFacings={(uid, n) => act({ type: 'facings', uid, facings: n })}
                 onGapWidth={(uid, w) => act({ type: 'gapWidth', uid, widthIn: w })}
@@ -683,7 +734,7 @@ export default function App() {
         )}
       </main>
 
-      {sel && (detailsOpen || placing) && (
+      {barOpen && (
         <SelectedBar
           plan={plan}
           where={sel.where}
@@ -693,7 +744,8 @@ export default function App() {
           dims={products.dims(sel.item)}
           placed={placed}
           placing={placing}
-          photo={photos[sel.item.upc]}
+          photo={photoIndex[sel.item.upc]}
+          thumb={thumbs[sel.item.upc]}
           movement={movement && sel.where !== TRAY ? paceText(sales.find((r) => r.upc === sel.item.upc)) : null}
           onEditSize={() => setSheet('size')}
           onPickPhoto={(f) => onPickPhoto(sel.item, f)}
@@ -745,7 +797,7 @@ export default function App() {
         </Sheet>
       )}
       {sheet === 'tray' && (
-        <TraySheet plan={plan} products={products} photos={photos} targetLabel={shelfLabel(plan, activeShelf.id)}
+        <TraySheet plan={plan} products={products} thumbs={thumbs} targetLabel={shelfLabel(plan, activeShelf.id)}
           onPut={(uid) => {
             act({ type: 'move', uid, to: activeShelf.id, insertBefore: activeShelf.items.length }, `Put on ${shelfLabel(plan, activeShelf.id)}`)
             setSelectedUid(uid)
@@ -758,7 +810,7 @@ export default function App() {
       )}
 
       {sheet === 'add' && (
-        <AddSheet index={index} catalog={catalog}
+        <AddSheet index={index} catalog={catalog} photoIndex={photoIndex}
           inPlan={(() => {
             const m = new Map()
             for (const s of [...plan.shelves].reverse()) {
@@ -788,7 +840,8 @@ export default function App() {
         <SizeSheet
           key={sel.item.upc}
           info={products.info(sel.item)}
-          photo={photos[sel.item.upc]}
+          photo={photoIndex[sel.item.upc]}
+          thumb={thumbs[sel.item.upc]}
           dims={products.dims(sel.item)}
           rec={sizes[sel.item.upc]}
           types={products.types}
@@ -811,7 +864,7 @@ export default function App() {
           ? [{ title: `Changes from “${base.name}”`, columns: CHANGE_COLUMNS, rows: changeRows(comparePlans(base, plan), products) }]
           : []
         return (
-          <PrintSheet plan={plan} check={check} products={products} photos={photos} extraTables={extraTables}
+          <PrintSheet plan={plan} check={check} products={products} photoIndex={photoIndex} extraTables={extraTables}
             compareOptions={others} compareId={base ? compareId : null} onCompareId={setCompareId} sections={sections} onClose={() => setSheet(null)} />
         )
       })()}
@@ -868,6 +921,7 @@ export default function App() {
       {sheet === 'plans' && (
         <PlansSheet
           plans={plans} currentId={plan.id} resets={catalog.resets || []} lastBackupAt={lastBackupAt}
+          photoCount={Object.keys(photoIndex).length}
           aisles={aisles} currentAisleId={plan.aisleId || null}
           onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle}
           onOpen={onOpenPlan} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDeletePlan}
@@ -891,14 +945,17 @@ export default function App() {
 function ImportScreen({ onFile, onCancel }) {
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState(null) // "Loading photos… 400 of 960" while a backup's photos load
   const pick = async (e) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
     setBusy(true)
     setMsg(null)
-    const result = await onFile(file).catch((err) => `Could not load it: ${err.message}`)
+    setProgress(null)
+    const result = await onFile(file, setProgress).catch((err) => `Could not load it: ${err.message}`)
     setBusy(false)
+    setProgress(null)
     setMsg(result)
   }
   return (
@@ -913,7 +970,7 @@ function ImportScreen({ onFile, onCancel }) {
         </p>
         <p className="muted">The file stays on this phone. Nothing is uploaded anywhere.</p>
         <label className={`btn primary wide file-btn${busy ? ' busy' : ''}`}>
-          {busy ? 'Loading…' : 'Choose file'}
+          {busy ? progress || 'Loading…' : 'Choose file'}
           <input type="file" accept=".json,application/json" onChange={pick} disabled={busy} data-testid="data-file" />
         </label>
         {msg && <p className="error" role="alert">{msg}</p>}

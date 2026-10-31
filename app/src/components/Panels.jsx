@@ -6,6 +6,8 @@ import { prettyUpc } from '../lib/upc.js'
 import { positions, shelfLabel, TRAY } from '../lib/plan.js'
 import { LETTERS } from '../lib/aisle.js'
 import { sourceMark, SOURCE_LABEL } from '../lib/sizes.js'
+import { useFullPhoto, useThumbs } from '../lib/usePhotos.js'
+import { spaceUsed } from '../lib/storage.js'
 
 
 const shortDate = (iso) => {
@@ -56,9 +58,11 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
 }
 
 /** The selected product, pinned above the bottom buttons so it is always in reach. */
-export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, movement, onEditSize, onPickPhoto, onRemovePhoto, onFacings, onHigh, onGapWidth, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
+export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, thumb, movement, onEditSize, onPickPhoto, onRemovePhoto, onFacings, onHigh, onGapWidth, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
   const [more, setMore] = useState(false)
   const [busy, setBusy] = useState(false)
+  const full = useFullPhoto(item.upc, photo) // the photo itself, read when this product is selected
+  const photoUrl = photo ? full || thumb : null // the small copy until then
   const pick = async (e) => {
     const f = e.target.files?.[0]
     e.target.value = ''
@@ -114,7 +118,7 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
     <section className="selected-bar" data-testid="selected-panel" aria-label="Selected product">
       <div className="selected-head">
         <label className={`photo-slot${photo ? ' has-photo' : ''}`} aria-label={photo ? 'Change photo' : 'Add photo'}>
-          {photo ? <img src={photo.data} alt="" /> : <span>{busy ? '…' : '＋\nPhoto'}</span>}
+          {photoUrl ? <img src={photoUrl} alt="" data-full={full ? '1' : undefined} /> : <span>{busy ? '…' : photo ? '…' : '＋\nPhoto'}</span>}
           <input type="file" accept="image/*" onChange={pick} data-testid="photo-input" />
         </label>
         <div className="selected-text">
@@ -217,10 +221,11 @@ export function Sheet({ title, onClose, children, tall }) {
 }
 
 /** Search the catalog by name or UPC and add to a shelf. */
-export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), onAdd, onAddGap, onScan, onClose }) {
+export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), photoIndex = {}, onAdd, onAddGap, onScan, onClose }) {
   const [q, setQ] = useState('')
   const inputRef = useRef(null)
   const results = useMemo(() => search(index, q), [index, q])
+  const thumbs = useThumbs(useMemo(() => results.map((p) => p.upc), [results]), photoIndex)
   const sub = catalog.subclassNames || {}
   useEffect(() => { inputRef.current?.focus() }, [])
   return (
@@ -242,6 +247,7 @@ export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), onAd
       <ul className="results">
         {results.map((p) => (
           <li key={p.upc}>
+            {thumbs[p.upc] && <img className="frow-thumb" src={thumbs[p.upc]} alt="" />}
             <div className="result-main">
               <div className="row-name">{p.description}</div>
               <div className="row-sub">
@@ -322,7 +328,7 @@ export function ShelfSheet({ plan, shelf, catalog, inAisle, onSave, onAddShelf, 
 
 /** All saved plans: open, copy, rename, delete, start new, back up. */
 export function PlansSheet({
-  plans, currentId, resets, lastBackupAt, onOpen, onDuplicate, onRename, onDelete,
+  plans, currentId, resets, lastBackupAt, photoCount = 0, onOpen, onDuplicate, onRename, onDelete,
   onNewBlank, onNewAfi, onExport, onImportFile, onClose,
   aisles = {}, currentAisleId, onOpenAisle, onNewAisle, onRenameAisle, onDeleteAisle,
 }) {
@@ -335,9 +341,16 @@ export function PlansSheet({
   const pick = async (e) => {
     const f = e.target.files?.[0]
     e.target.value = ''
-    if (f) setMsg(await onImportFile(f))
+    if (f) setMsg(await onImportFile(f, setMsg)) // a long load says how far it got in the same place
   }
   const [tab, setTab] = useState('plans')
+  const [used, setUsed] = useState(null) // bytes this app uses on the phone, where the browser says
+  useEffect(() => {
+    if (tab !== 'backup') return undefined
+    let live = true
+    spaceUsed().then((n) => { if (live) setUsed(n) })
+    return () => { live = false }
+  }, [tab, photoCount])
   const matches = resets.filter((r) => resetQ.trim().split(/\s+/).every((w) => `${r.name} ${r.fixture || ''} ${r.date}`.toLowerCase().includes(w.toLowerCase())))
   const groups = [
     ['Shelves', matches.filter((r) => !r.fixture)],
@@ -451,10 +464,17 @@ export function PlansSheet({
       <div role="tabpanel" hidden={tab !== 'backup'}>
         <div className="backup-card">
           <p>
-            One file with all your plans, aisles, photos, sizes and the store data. Save it to Files (or email it to yourself),
+            One file with all your plans, aisles, your own photos, sizes and the store data. Save it to Files (or email it to yourself),
             and use it to move to a new phone.
           </p>
+          <p className="muted small" data-testid="backup-photo-note">
+            Store pictures from photo packs are not in backups: on a new phone, load the photo pack files again.
+          </p>
           <p className="muted small">Last backup: <strong>{lastBackupAt ? shortDate(lastBackupAt) : 'never'}</strong></p>
+          <p className="muted small" data-testid="storage-info">
+            Photos on this phone: <strong data-testid="photo-count">{photoCount.toLocaleString()}</strong>
+            {used != null && <> · Space used: <strong>{(used / 1e6).toFixed(used < 1e7 ? 1 : 0)} MB</strong></>}
+          </p>
           <button className="btn primary wide" onClick={async () => setMsg(await onExport())} data-testid="export-backup"><Download size={18} aria-hidden="true" /> Export backup</button>
           <label className="btn wide file-btn">
             <Upload size={18} aria-hidden="true" /> Import backup, photo/size pack or catalog file

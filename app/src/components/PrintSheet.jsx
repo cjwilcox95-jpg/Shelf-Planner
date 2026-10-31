@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { Sheet } from './Panels.jsx'
 import { pagesToPdf, pageToPng, printFileName, renderPages } from '../lib/printPlan.js'
 import { shareOrDownload } from '../lib/backup.js'
+import { loadFullPhotoUrls } from '../lib/usePhotos.js'
 
 /**
  * Print or save the open plan: a drawing to scale and a product list with check boxes.
  * Step 1 makes the pages; step 2 saves or shares them (a separate tap, which phones require for sharing).
  */
-export function PrintSheet({ plan, check, products, photos, extraTables = [], compareOptions = [], compareId, onCompareId, sections = null, onClose }) {
-  const anyPhotos = plan.shelves.some((s) => s.items.some((i) => photos[i.upc]))
+export function PrintSheet({ plan, check, products, photoIndex = {}, extraTables = [], compareOptions = [], compareId, onCompareId, sections = null, onClose }) {
+  const anyPhotos = plan.shelves.some((s) => s.items.some((i) => photoIndex[i.upc]))
   const [opts, setOpts] = useState({ drawing: true, list: true, usePhotos: true })
   const [made, setMade] = useState(null) // { pdf, png, preview, pages }
   const [busy, setBusy] = useState(false)
@@ -21,12 +22,18 @@ export function PrintSheet({ plan, check, products, photos, extraTables = [], co
   const make = async () => {
     setBusy(true)
     setMsg(null)
+    let photos = null
     try {
       // an aisle prints each section in turn, left to right
       const parts = sections || [{ plan, check }]
+      // the photos themselves (sharper than the small copies on screen), read only for the products printed
+      if (opts.usePhotos && anyPhotos) {
+        photos = await loadFullPhotoUrls(parts.flatMap((part) => part.plan.shelves.flatMap((s) => s.items.map((i) => i.upc)))
+          .filter((u) => photoIndex[u]))
+      }
       const pages = []
       for (const [i, part] of parts.entries()) {
-        pages.push(...await renderPages(part.plan, part.check, products, photos, { ...opts, extraTables: i === 0 ? extraTables : [] }))
+        pages.push(...await renderPages(part.plan, part.check, products, photos?.urls || {}, { ...opts, extraTables: i === 0 ? extraTables : [] }))
       }
       const pdf = pagesToPdf(pages, plan.name)
       const png = await pageToPng(pages[0].canvas)
@@ -34,6 +41,7 @@ export function PrintSheet({ plan, check, products, photos, extraTables = [], co
     } catch (e) {
       setMsg(`Could not make it: ${e.message}`)
     }
+    photos?.release()
     setBusy(false)
   }
 

@@ -9,6 +9,10 @@ The pack is store data: write it under data/build/ (never committed).
 
 Usage: python3 -I scripts/make_photo_pack.py data/build/photos/raw data/build/photos-ketchup.json --source "store website"
        (add --max-edge 300 --quality 78 for a smaller file when packing hundreds of pictures)
+
+More than --max-photos pictures (default 2000) are split into numbered files, e.g. photos-all-1.json,
+photos-all-2.json..., each loaded on its own in the app: a phone cannot read one file of 15,000 pictures
+(over 350 MB) at once.
 """
 import argparse
 import base64
@@ -24,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import upc  # noqa: E402
 
 MAX_EDGE = 400
+MAX_PHOTOS = 2000
 
 
 def trim_white(img, threshold=242):
@@ -67,6 +72,28 @@ def key_for(stem, known=None):
     return no_check
 
 
+def numbered(out, n, count):
+    """photos.json -> photos-1.json, photos-2.json... (just photos.json when one file is enough)."""
+    out = Path(out)
+    return out if count == 1 else out.with_name(f"{out.stem}-{n}{out.suffix}")
+
+
+def write_packs(photos, out, when, max_photos=MAX_PHOTOS):
+    """Write the pack, split into files of at most max_photos pictures. Returns the files written."""
+    keys = sorted(photos)
+    size = max(1, max_photos)
+    parts = [keys[i:i + size] for i in range(0, len(keys), size)] or [[]]
+    files = []
+    for n, part in enumerate(parts, 1):
+        path = numbered(out, n, len(parts))
+        doc = {"kind": "shelf-planner-photos", "version": 1, "made": when, "photos": {k: photos[k] for k in part}}
+        if len(parts) > 1:
+            doc["part"] = f"{n} of {len(parts)}"
+        path.write_text(json.dumps(doc))
+        files.append(path)
+    return files
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("folder")
@@ -74,6 +101,8 @@ def main():
     ap.add_argument("--source", default="imported")
     ap.add_argument("--max-edge", type=int, default=MAX_EDGE, help="longest side in pixels (smaller = smaller file)")
     ap.add_argument("--quality", type=int, default=85, help="JPEG quality 1-95")
+    ap.add_argument("--max-photos", type=int, default=MAX_PHOTOS,
+                    help="at most this many pictures per file; more are split into name-1.json, name-2.json...")
     ap.add_argument("--catalog", default=str(Path(__file__).resolve().parent.parent / "data/build/catalog.json"),
                     help="store data, used to tell the two readings of an 11-digit file name apart")
     a = ap.parse_args()
@@ -88,9 +117,10 @@ def main():
             skipped.append(p.name)
             continue
         photos[key] = to_record(p, a.source, when, a.max_edge, a.quality)
-    Path(a.out).write_text(json.dumps({"kind": "shelf-planner-photos", "version": 1, "made": when, "photos": photos}))
-    kb = Path(a.out).stat().st_size // 1024
-    print(f"{len(photos)} photos -> {a.out} ({kb} KB); skipped (name is not a UPC): {skipped or 'none'}")
+    files = write_packs(photos, a.out, when, a.max_photos)
+    for f in files:
+        print(f"  {f} ({f.stat().st_size // 1024} KB)")
+    print(f"{len(photos)} photos in {len(files)} file{'s' if len(files) > 1 else ''}; skipped (name is not a UPC): {skipped or 'none'}")
 
 
 if __name__ == "__main__":

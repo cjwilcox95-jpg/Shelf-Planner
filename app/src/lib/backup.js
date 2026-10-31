@@ -1,12 +1,19 @@
 // Backup file: every plan plus the store data, in one file you keep (Files app, email to yourself, etc.).
 // Importing MERGES into what is on the phone: nothing on the phone is deleted.
+// Photos: only the ones taken with the phone. Store pictures (photo packs) would make the file too big
+// to save (15,000 of them are over 350 MB of text), and they come back by loading the photo pack again.
 
 import { cleanPlan } from './clean.js'
+import { isOwnPhoto } from './photos.js'
 
 export const BACKUP_KIND = 'shelf-planner-backup'
 
+/** Which photos go into a backup: the ones taken with this phone. */
+export const backupPhotoUpcs = (index) => Object.keys(index).filter((upc) => isOwnPhoto(index[upc]))
+
 export function makeBackup({ plans, catalog, photos = {}, sizes = {}, guessEdits = {}, movement = null, aisles = [], now = new Date().toISOString() }) {
-  return { kind: BACKUP_KIND, version: 1, exportedAt: now, plans: Object.values(plans), catalog: catalog || null, photos, sizes, guessEdits, movement, aisles }
+  const own = Object.fromEntries(Object.entries(photos).filter(([, p]) => isOwnPhoto(p)))
+  return { kind: BACKUP_KIND, version: 1, exportedAt: now, plans: Object.values(plans), catalog: catalog || null, photos: own, sizes, guessEdits, movement, aisles }
 }
 
 export function backupFileName(now = new Date()) {

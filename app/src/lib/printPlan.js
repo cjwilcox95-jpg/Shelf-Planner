@@ -200,6 +200,7 @@ const loadImage = (src) => new Promise((resolve) => {
   img.src = src
 })
 
+/** photos: { upc: picture URL } (or null for no photos). */
 async function drawSection(ctx, page, s, plan, check, products, photos) {
   const S = s * DPI // pixels per real inch
   const left = px(MARGIN + LABEL_COL)
@@ -207,8 +208,8 @@ async function drawSection(ctx, page, s, plan, check, products, photos) {
   const imgs = new Map()
   for (const shelf of plan.shelves) {
     for (const item of shelf.items) {
-      const ph = photos?.[item.upc]
-      if (ph && !imgs.has(item.upc)) imgs.set(item.upc, await loadImage(ph.data))
+      const src = photos?.[item.upc]
+      if (src && !imgs.has(item.upc)) imgs.set(item.upc, await loadImage(src))
     }
   }
   let y = px(MARGIN + HEADER)
@@ -452,7 +453,7 @@ function drawTable(ctx, page, rows, columns, startY) {
 const ROWS_PER_PAGE = Math.floor((PORTRAIT.h - MARGIN - 0.35 - (MARGIN + HEADER - 0.1) - 0.215) / 0.215)
 
 /**
- * Draw every page. Returns [{ canvas, page }].
+ * Draw every page. Returns [{ canvas, page }]. photos: { upc: picture URL }.
  * opts: { drawing, list, usePhotos, extraTables: [{ title, columns, rows }], date }
  */
 export async function renderPages(plan, check, products, photos, opts = {}) {

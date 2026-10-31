@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { fmtIn, insertIndexAt } from '../lib/fit.js'
 import { positions, shelfLabel } from '../lib/plan.js'
 import { aisleRows, sectionOf } from '../lib/aisle.js'
+import { tilePhotoStyle } from '../lib/photos.js'
 
 const PAD = 14 // px left and right of the shelves
 const BOARD = 12 // px thickness of each drawn shelf board
 const TOP = 4 // px of air above the tallest product on each shelf (the 44 px heading above gives the rest)
 const LONG_PRESS_MS = 380
 const MOVE_TOLERANCE = 10 // px a finger may wobble before we decide it is scrolling
+const PHOTO_BORDER_Y = 3.5 // px of border above and below a tile with a photo (.tile.has-photo in styles.css)
 
 /**
  * The whole section, drawn to one scale. Top shelf first, like standing in front of it.
@@ -18,7 +20,7 @@ const MOVE_TOLERANCE = 10 // px a finger may wobble before we decide it is scrol
  *  - or use a product's row: the arrows, or Details > Move, then tap the shelf where it should go
  */
 export default function SectionView({
-  plan, fits, products, photos = {}, scale, viewWidth, selectedUid, activeShelfId, placing,
+  plan, fits, products, photoIndex = {}, thumbs = {}, scale, viewWidth, selectedUid, activeShelfId, placing,
   onTapItem, onMove, onTapShelf, focusShelfId = null, compact = false, onDragStart,
 }) {
   // compact (the whole set at a glance): no heading rows; each shelf's name and room left are written on its board
@@ -235,7 +237,8 @@ export default function SectionView({
                     const showMark = w >= 14 && h >= 26
                     const nameAcross = w >= 66 && lines >= 1
                     const nameUp = w >= 18 && h >= 84
-                    const photo = photos[item.upc]
+                    const photoUrl = thumbs[item.upc]
+                    const photo = photoUrl ? photoIndex[item.upc] : null
                     const classes = ['tile']
                     if (photo) classes.push('has-photo')
                     if (guess) classes.push('guess')
@@ -261,15 +264,21 @@ export default function SectionView({
                         onContextMenu={(e) => e.preventDefault()}
                         onClick={(e) => { if (!placing) e.stopPropagation() }}
                       >
-                        <div className="units">
-                          {Array.from({ length: item.facings }, (_, k) => (
-                            <span key={k} style={{ width: p.unitWidthIn * scale }}>
-                              {Array.from({ length: p.high }, (_, j) => (
-                                <i key={j}>{photo && <img src={photo.data} alt="" draggable="false" />}</i>
-                              ))}
-                            </span>
-                          ))}
-                        </div>
+                        {photo ? (
+                          // the photo on every unit, drawn as backgrounds of one element (not one picture per unit)
+                          <div className="units photo" data-units={item.facings * p.high} style={tilePhotoStyle({
+                            url: photoUrl, photoW: photo.w, photoH: photo.h, unitW: p.unitWidthIn * scale,
+                            unitH: Math.max(1, (h - PHOTO_BORDER_Y) / p.high), facings: item.facings, high: p.high,
+                          })} />
+                        ) : (
+                          <div className="units">
+                            {Array.from({ length: item.facings }, (_, k) => (
+                              <span key={k} style={{ width: p.unitWidthIn * scale }}>
+                                {Array.from({ length: p.high }, (_, j) => <i key={j} />)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {showBadge && <span className="pos-badge">{pos}</span>}
                         {p.high > 1 && showBadge && <span className="high-mark">×{p.high}</span>}
                         {guess && showMark && <span className="guess-mark" aria-label="guessed size">~</span>}

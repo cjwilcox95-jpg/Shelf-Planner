@@ -43,7 +43,7 @@ const facingsText = (n) => `${n} facing${n > 1 ? 's' : ''}`
 const joinParts = (...parts) => parts.filter(Boolean).join(' · ')
 
 /** The products of one shelf, left to right, each with its facings; a tapped row shows its moves. */
-export function ShelfRows({ plan, shelf, fit, products, photos = {}, selectedUid, onSelect, onFacings, onGapWidth, onMove, onTakeOff, onDetails }) {
+export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid, onSelect, onFacings, onGapWidth, onMove, onTakeOff, onDetails }) {
   const listRef = useRef(null)
   // an opened row scrolls into view, so its buttons are not hidden under the shelf switcher
   useEffect(() => {
@@ -64,7 +64,7 @@ export function ShelfRows({ plan, shelf, fit, products, photos = {}, selectedUid
         if (p.tooTall) notes.push('too tall')
         if (p.pastEdge) notes.push('past end of shelf')
         if (!p.gap && !info.inCatalog) notes.push('not in store files')
-        const photo = !p.gap && photos[item.upc]
+        const thumb = !p.gap && thumbs[item.upc]
         const high = item.high || 1
         const sub = p.gap
           ? `${fmtIn(p.widthIn, 2)} in left open`
@@ -75,7 +75,7 @@ export function ShelfRows({ plan, shelf, fit, products, photos = {}, selectedUid
             <div className="frow-top">
               <button className="frow-main" onClick={() => onSelect(open ? null : item.uid)} aria-expanded={open} data-testid="frow-main">
                 <span className="row-pos" style={{ '--brand': info.color }}>{p.gap ? '·' : posOf.get(item.uid)}</span>
-                {photo && <img className="frow-thumb" src={photo.data} alt="" />}
+                {thumb && <img className="frow-thumb" src={thumb} alt="" />}
                 <span className="row-main">
                   <span className="row-name">{info.description}</span>
                   <span className="row-sub">{sub}</span>
@@ -183,7 +183,7 @@ export function Switcher({ plan, activeShelfId, zoomed, onStep, onZoomIn, childr
 }
 
 /** Products taken off, or that AFI left out of the set: put one on the shelf you are on, or delete it. */
-export function TraySheet({ plan, products, photos = {}, targetLabel, onPut, onDelete, onClose }) {
+export function TraySheet({ plan, products, thumbs = {}, targetLabel, onPut, onDelete, onClose }) {
   return (
     <Sheet title={`Off the shelf (${plan.tray.length})`} onClose={onClose}>
       <p className="muted small">Products you took off, or that AFI left out of the set.</p>
@@ -191,12 +191,12 @@ export function TraySheet({ plan, products, photos = {}, targetLabel, onPut, onD
       <ol className="frows" data-testid="tray">
         {plan.tray.map((item) => {
           const info = products.info(item)
-          const photo = photos[item.upc]
+          const thumb = thumbs[item.upc]
           return (
             <li key={item.uid} className="frow" data-testid="tray-row">
               <div className="frow-top">
                 <div className="frow-main static">
-                  {photo && <img className="frow-thumb" src={photo.data} alt="" />}
+                  {thumb && <img className="frow-thumb" src={thumb} alt="" />}
                   <span className="row-main">
                     <span className="row-name">{info.description}</span>
                     <span className="row-sub">{joinParts(info.size, facingsText(item.facings))}</span>

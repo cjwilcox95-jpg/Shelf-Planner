@@ -333,7 +333,7 @@ test('a shelf saved by the old one-shelf version becomes a plan', async ({ page 
   await loadData(page)
   // Pretend this phone only has a Stage 2 save
   await page.evaluate(() => new Promise((resolve, reject) => {
-    const req = indexedDB.open('shelf-planner', 1)
+    const req = indexedDB.open('shelf-planner') // whatever version the app is at
     req.onsuccess = () => {
       const tx = req.result.transaction('kv', 'readwrite')
       const kv = tx.objectStore('kv')
@@ -352,6 +352,8 @@ test('a shelf saved by the old one-shelf version becomes a plan', async ({ page 
 })
 
 const PHOTO_PACK = path.resolve('../data/build/photos-test.json') // made by scripts/make_photo_pack.py
+/** How many units of a tile show its photo (each is one background layer with the photo's blob: URL). */
+const photoLayers = (tile) => tile.locator('.units.photo').evaluate((el) => (getComputedStyle(el).backgroundImage.match(/url\("blob:/g) || []).length)
 const SYNTHETIC = path.resolve('../data/build/photos/synthetic-bottle.png')
 
 test('photo pack: pictures show on the shelf and in the list', async ({ page }) => {
@@ -362,14 +364,16 @@ test('photo pack: pictures show on the shelf and in the list', async ({ page }) 
   await expect(page.getByRole('dialog')).toContainText('Photo pack loaded: 1 new photo')
   await page.getByRole('button', { name: 'Done' }).click()
   // FDC KETCHUP SQZ UPSIDE DWN 20 oz is on shelf 3 with 2 facings: both show the picture
+  // (one background layer per facing on the tile, rather than one <img> each)
   const tile = page.locator('.tile.has-photo')
   await expect(tile).toHaveCount(1)
-  await expect(tile.locator('img')).toHaveCount(2)
+  expect(await photoLayers(tile)).toBe(2)
   await openShelf(page, 3)
   await expect(page.locator('.frow-thumb')).toHaveCount(1) // and in that shelf's list
   await shot(page, '10-photo-on-shelf')
   await page.reload() // photos are saved on the phone
-  await expect(page.locator('.tile.has-photo img')).toHaveCount(2)
+  await expect(page.locator('.tile.has-photo')).toHaveCount(1)
+  expect(await photoLayers(page.locator('.tile.has-photo'))).toBe(2)
 })
 
 test('add a photo from the phone to a product', async ({ page }) => {
@@ -379,7 +383,8 @@ test('add a photo from the phone to a product', async ({ page }) => {
   await page.getByTestId('photo-input').setInputFiles(SYNTHETIC)
   await expect(page.locator('.toast')).toContainText('Photo saved')
   await expect(page.locator('.photo-slot img')).toHaveCount(1)
-  // trimmed to the bottle: taller than wide, at most 400 px
+  // trimmed to the bottle: taller than wide, at most 400 px (the photo itself is read after its small copy)
+  await expect.poll(() => page.locator('.photo-slot img').evaluate((img) => img.dataset.full && img.complete ? img.naturalHeight : 0)).toBe(400)
   const size = await page.locator('.photo-slot img').evaluate((img) => [img.naturalWidth, img.naturalHeight])
   expect(size[1]).toBe(400)
   expect(size[0]).toBeLessThan(200)
@@ -388,6 +393,109 @@ test('add a photo from the phone to a product', async ({ page }) => {
   await page.getByRole('button', { name: 'More', exact: true }).click()
   await page.getByRole('button', { name: 'Remove photo' }).click()
   await expect(page.locator('.tile.has-photo')).toHaveCount(0)
+})
+
+const BIG_PACK = path.resolve('../data/build/photos-afi-sets.json') // 960 store pictures of the AFI sets (private)
+
+/** Read the phone's storage in the page: { kvPhotoKeys, photos: { upc: { thumb, full, source } } } (sizes in bytes). */
+const storageNow = (page) => page.evaluate(() => new Promise((resolve, reject) => {
+  const req = indexedDB.open('shelf-planner')
+  req.onsuccess = () => {
+    const d = req.result
+    const tx = d.transaction(['kv', 'photos'])
+    const out = { kvPhotoKeys: [], photos: {} }
+    const keys = tx.objectStore('kv').getAllKeys(IDBKeyRange.bound('photo:', 'photo:\uffff'))
+    keys.onsuccess = () => { out.kvPhotoKeys = keys.result }
+    const cur = tx.objectStore('photos').openCursor()
+    cur.onsuccess = () => {
+      const c = cur.result
+      if (!c) return
+      out.photos[c.key] = { thumb: c.value.thumb?.size, full: c.value.full?.size, source: c.value.source, isBlob: c.value.full instanceof Blob }
+      c.continue()
+    }
+    tx.oncomplete = () => { d.close(); resolve(out) }
+    tx.onerror = () => reject(tx.error)
+  }
+  req.onerror = () => reject(req.error)
+}))
+
+test('a 960-photo pack loads in batches, and the photos are still on the Ketchup set after a reload', async ({ page }) => {
+  test.skip(!fs.existsSync(BIG_PACK), 'no 960-photo pack')
+  test.setTimeout(240_000)
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-backup').click()
+  await page.getByTestId('import-file').setInputFiles(BIG_PACK)
+  await expect(page.getByRole('dialog')).toContainText(/Loading photos… \d+ of 960/, { timeout: 60_000 }) // how far it got
+  await expect(page.getByRole('dialog')).toContainText(/Photo pack loaded: 960 new photos \(\d+ of 960 match products in your store data\)/, { timeout: 180_000 })
+  await expect(page.getByTestId('photo-count')).toHaveText('960')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.locator('.tile.has-photo').first()).toBeVisible()
+  const shown = await page.locator('.tile.has-photo').count()
+  expect(shown).toBeGreaterThan(5)
+  await page.reload()
+  await expect(page.getByTestId('plan-name')).toContainText('Ketchup - Mustard')
+  await expect(page.locator('.tile.has-photo')).toHaveCount(shown)
+  // the drawing uses the small copies, as blob: URLs (no photo is kept as text)
+  expect(await page.locator('.tile.has-photo .units.photo').first().evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(/url\("blob:/)
+  const saved = await storageNow(page)
+  const recs = Object.values(saved.photos)
+  expect(recs).toHaveLength(960)
+  expect(recs.every((r) => r.isBlob && r.thumb > 0 && r.thumb <= r.full)).toBe(true)
+  await shot(page, '12-big-photo-pack')
+})
+
+test('backups hold the photos taken with the phone, not the store pictures', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'file download checked on desktop')
+  test.skip(!fs.existsSync(PHOTO_PACK), 'no test photo pack')
+  await loadData(page)
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('import-file').setInputFiles(PHOTO_PACK)
+  await expect(page.getByRole('dialog')).toContainText('Photo pack loaded: 1 new photo')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await openProduct(page, 0, 0)
+  await openRow(page).getByTestId('details').click()
+  await page.getByTestId('photo-input').setInputFiles(SYNTHETIC)
+  await expect(page.locator('.toast')).toContainText('Photo saved')
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-backup').click()
+  await expect(page.getByTestId('backup-photo-note')).toContainText('Store pictures from photo packs are not in backups')
+  await expect(page.getByTestId('photo-count')).toHaveText('2')
+  await expect(page.getByTestId('storage-info')).toContainText(/Space used: [\d.]+ MB/)
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-backup').click()])
+  const backup = JSON.parse(fs.readFileSync(await download.path(), 'utf8'))
+  const storeUpc = Object.keys(JSON.parse(fs.readFileSync(PHOTO_PACK, 'utf8')).photos)[0]
+  const inBackup = Object.entries(backup.photos)
+  expect(inBackup).toHaveLength(1)
+  expect(inBackup[0][1].source).toBe('your photo')
+  expect(inBackup[0][1].data).toMatch(/^data:image\/jpeg;base64,/)
+  expect(backup.photos[storeUpc]).toBeUndefined()
+})
+
+test('a photo saved by the first version of the app moves to the photo store at startup', async ({ page }) => {
+  test.skip(!fs.existsSync(PHOTO_PACK), 'no test photo pack')
+  const [[upc, rec]] = Object.entries(JSON.parse(fs.readFileSync(PHOTO_PACK, 'utf8')).photos)
+  await loadData(page)
+  await expect(page.locator('.tile.has-photo')).toHaveCount(0)
+  // the old way: the photo as text, in kv under "photo:<upc>"
+  await page.evaluate(([key, value]) => new Promise((resolve, reject) => {
+    const req = indexedDB.open('shelf-planner')
+    req.onsuccess = () => {
+      const tx = req.result.transaction('kv', 'readwrite')
+      tx.objectStore('kv').put(value, key)
+      tx.oncomplete = () => { req.result.close(); resolve() }
+      tx.onerror = () => reject(tx.error)
+    }
+  }), [`photo:${upc}`, { ...rec, source: 'your photo' }])
+  await page.reload()
+  await expect(page.locator('.tile.has-photo')).toHaveCount(1) // shown on its tile, as before
+  await expect.poll(async () => (await storageNow(page)).kvPhotoKeys.length).toBe(0) // the old copy is gone
+  const saved = await storageNow(page)
+  expect(Object.keys(saved.photos)).toEqual([upc])
+  expect(saved.photos[upc]).toMatchObject({ isBlob: true, source: 'your photo' })
+  expect(saved.photos[upc].thumb).toBeLessThan(saved.photos[upc].full)
+  await page.reload() // and it stays
+  await expect(page.locator('.tile.has-photo')).toHaveCount(1)
 })
 
 const MEASURE = path.resolve('../data/build/photos/measure-test.png')
@@ -594,7 +702,7 @@ test('sales help: load a CSV export, money columns are ignored, worth-a-look lis
   await page.screenshot({ path: path.join(SHOTS, `${test.info().project.name}-24-sales-help-full.png`), fullPage: true })
   // nothing about money was saved on the phone
   const saved = await page.evaluate(() => new Promise((resolve) => {
-    const req = indexedDB.open('shelf-planner', 1)
+    const req = indexedDB.open('shelf-planner') // whatever version the app is at
     req.onsuccess = () => {
       const get = req.result.transaction('kv').objectStore('kv').get('movement')
       get.onsuccess = () => resolve(JSON.stringify(get.result))

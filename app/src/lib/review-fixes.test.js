@@ -86,3 +86,16 @@ describe('small fixes', () => {
     expect(parseInches('2 3/4 inches')).toBe(2.75)
   })
 })
+
+describe('photos: your own photo is never replaced by a photo file', () => {
+  it('keeps a photo you took, even when the pack photo is newer', async () => {
+    const { replaces, photosToWrite } = await import('./photos.js')
+    const mine = { source: 'your photo', addedAt: '2026-10-01' }
+    expect(replaces({ source: 'store website', addedAt: '2026-11-01' }, mine)).toBe(false)
+    expect(replaces({ source: 'your photo', addedAt: '2026-11-01' }, mine)).toBe(true)
+    expect(replaces({ source: 'store website', addedAt: '2026-11-01' }, { source: 'store website', addedAt: '2026-10-01' })).toBe(true)
+    const pic = 'data:image/jpeg;base64,/9j/4AAQ'
+    const r = photosToWrite({ '041500000527': mine }, { '041500000527': { data: pic, w: 10, h: 20, source: 'store website', addedAt: '2026-11-01' } })
+    expect(r.changes).toHaveLength(0)
+  })
+})
