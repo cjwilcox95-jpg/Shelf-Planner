@@ -40,6 +40,10 @@ export function StatusPill({ check, onClick }) {
 }
 
 const facingsText = (n) => `${n} facing${n > 1 ? 's' : ''}`
+/** Names in normal case, easier to read than the store files' capitals; short codes like FDC or HNZ stay as they are. */
+export const niceName = (s) => String(s || '').split(' ')
+  .map((w) => (w.length <= 3 && !/[AEIOU]/i.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())).join(' ')
+const niceSize = (s) => String(s || '').replace(/\b(OZ|LB|CT|PK|GL|QT|LT|EA)\b/g, (u) => u.toLowerCase())
 const joinParts = (...parts) => parts.filter(Boolean).join(' · ')
 
 /** The products of one shelf, left to right, each with its facings; a tapped row shows its moves. */
@@ -68,7 +72,7 @@ export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid
         const high = item.high || 1
         const sub = p.gap
           ? `${fmtIn(p.widthIn, 2)} in left open`
-          : joinParts(info.size, `${sourceMark(products.dims(item).source.w)}${fmtIn(p.widthIn)} in wide`, high > 1 && `${high} high`, info.specialOrder && 'special order')
+          : joinParts(niceSize(info.size), facingsText(item.facings), `${sourceMark(products.dims(item).source.w)}${fmtIn(p.widthIn)} in`, high > 1 && `${high} high`, info.specialOrder && 'special order')
         const gapW = Number(item.widthIn) || 0
         return (
           <li key={item.uid} className={`frow${open ? ' open' : ''}${p.gap ? ' is-gap' : ''}`} data-testid="frow" data-uid={item.uid}>
@@ -77,7 +81,7 @@ export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid
                 <span className="row-pos" style={{ '--brand': info.color }}>{p.gap ? '·' : posOf.get(item.uid)}</span>
                 {thumb && <img className="frow-thumb" src={thumb} alt="" />}
                 <span className="row-main">
-                  <span className="row-name">{info.description}</span>
+                  <span className="row-name">{p.gap ? info.description : niceName(info.description)}</span>
                   <span className="row-sub">{sub}</span>
                   {notes.length > 0 && <span className="row-warn">{notes.join(' · ')}</span>}
                 </span>
@@ -91,7 +95,7 @@ export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid
               ) : (
                 <div className="frow-step" role="group" aria-label={`Facings of ${info.description}`}>
                   <button onClick={() => onFacings(item.uid, item.facings - 1)} disabled={item.facings <= 1} aria-label="One less facing"><Minus size={20} aria-hidden="true" /></button>
-                  <span><b data-testid="row-facings">{item.facings}</b><small>{item.facings > 1 ? 'facings' : 'facing'}</small></span>
+                  <span className="facing-count"><b data-testid="row-facings">{item.facings}</b></span>
                   <button onClick={() => onFacings(item.uid, item.facings + 1)} aria-label="One more facing"><Plus size={20} aria-hidden="true" /></button>
                 </div>
               )}
@@ -116,17 +120,19 @@ export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid
 }
 
 /** A small live picture of the whole set (or aisle); the shelf you are on is outlined. Tap it to see it all. */
-export function MiniMap({ plan, fits, products, activeShelfId, onClick, width = 46 }) {
+export function MiniMap({ plan, fits, products, activeShelfId, onClick, width = 56, height = 40 }) {
   const rows = plan.sections
     ? aisleRows(plan).map((cells) => cells.filter(Boolean).map((c) => ({ shelf: c.shelf, offsetIn: c.section.offsetIn })))
     : [...plan.shelves].reverse().map((s) => [{ shelf: s, offsetIn: 0 }])
   const spanIn = Math.max(...rows.flat().map((c) => c.offsetIn + Math.max(c.shelf.widthIn, fits[c.shelf.id].usedIn)))
-  const m = width / spanIn
+  // as big as fits in a small box (the shelf buttons beside it stay one finger tall)
+  const tallIn = rows.reduce((n, cells) => n + Math.max(...cells.map((c) => c.shelf.clearanceIn)), 0)
+  const m = Math.min(width / spanIn, (height - rows.length * 3) / tallIn)
   return (
     <button className="minimap" onClick={onClick} data-testid="minimap" aria-label="See the whole set">
-      <span className="minimap-pic" style={{ width }}>
+      <span className="minimap-pic" style={{ width: spanIn * m }}>
         {rows.map((cells, r) => {
-          const h = Math.max(4, Math.max(...cells.map((c) => c.shelf.clearanceIn)) * m)
+          const h = Math.max(2, Math.max(...cells.map((c) => c.shelf.clearanceIn)) * m)
           return (
             <span key={r} className="mm-level">
               <span className="mm-bay" style={{ height: h }}>
@@ -198,8 +204,8 @@ export function TraySheet({ plan, products, thumbs = {}, targetLabel, onPut, onD
                 <div className="frow-main static">
                   {thumb && <img className="frow-thumb" src={thumb} alt="" />}
                   <span className="row-main">
-                    <span className="row-name">{info.description}</span>
-                    <span className="row-sub">{joinParts(info.size, facingsText(item.facings))}</span>
+                    <span className="row-name">{niceName(info.description)}</span>
+                    <span className="row-sub">{joinParts(niceSize(info.size), facingsText(item.facings))}</span>
                     {!info.inCatalog && <span className="row-warn">not in store files</span>}
                   </span>
                 </div>

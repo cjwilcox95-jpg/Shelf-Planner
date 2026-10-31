@@ -2,6 +2,19 @@
 
 Plain-English notes on what changed at each stage.
 
+## Simpler shelf screen (2026-10-31)
+
+After CJ's screenshots: the shelf screen was too crowded.
+- The shelf is named once ("Shelf 6 · 2.1 in left of 48", with a pencil for its size), not twice.
+- The backup reminder is a dot on Plans (and a "Back up now" card inside Plans), not a banner on every screen.
+- The ▲ ▼ shelf buttons and mini picture are slim, so the product list gets most of the screen.
+- Product names in normal case ("Frenchs Mustard Squeeze"); the facings box shows just − 2 +, and the line under the
+  name says "2 facings".
+- "Off the shelf" is a link at the end of the shelf's list.
+- Moving a product: the shelf heading says "Tap a shelf where it should go" with Cancel; nothing covers the shelves.
+- Messages ("Moved", "Undone") show at the very top, never over the shelves.
+- The whole set is centered on the screen.
+
 ## Thousands of photos (2026-10-31)
 
 - Photos are now saved as picture files with a small copy (about 128 px) for the drawing and lists. The app reads

@@ -24,7 +24,7 @@ async function trayNames(page) {
   await page.getByTestId('status-pill').click()
   if (!(await page.getByTestId('status-tray').count())) { await page.getByRole('button', { name: 'Done' }).click(); return [] }
   await page.getByTestId('status-tray').click()
-  const names = await page.getByTestId('tray').locator('.row-name').allInnerTexts()
+  const names = (await page.getByTestId('tray').locator('.row-name').allInnerTexts()).map((n) => n.toUpperCase()) // shown in normal case
   await page.getByRole('button', { name: 'Done' }).click()
   return names
 }
@@ -150,6 +150,7 @@ test('whole set and one shelf: tap zooms in, the shelf buttons and a swipe step,
   await expect(page.getByTestId('focus-name')).toHaveText('Shelf 6')
   await expect(page.getByTestId('shelf-up')).toContainText('Shelf 7')
   if (info.project.name === 'phone') {
+    await settled(page)
     const box = await page.getByTestId('d-window').boundingBox()
     await fingerDrag(page, { x: box.x + 200, y: box.y + box.height - 10 }, { x: box.x + 200, y: box.y + 10 }, { hold: 30, steps: 6 }) // swipe up
     await expect(page.getByTestId('focus-name')).toHaveText('Shelf 5')
@@ -165,7 +166,7 @@ test('arrows move a product along a shelf and to the shelf below; Details > Move
   const top = await shelfNames(page, 'Shelf 7 (top)')
   const six = await shelfNames(page, 'Shelf 6')
   await openProduct(page, 0, 0)
-  await expect(openRow(page)).toContainText(top[0])
+  await expect(openRow(page)).toContainText(top[0], { ignoreCase: true })
   await openRow(page).getByRole('button', { name: 'Move right' }).click()
   expect((await shelfNames(page, 'Shelf 7 (top)')).slice(0, 2)).toEqual([top[1], top[0]])
   await shot(page, '04-arrows')
@@ -175,11 +176,13 @@ test('arrows move a product along a shelf and to the shelf below; Details > Move
   const sixAfter = await shelfNames(page, 'Shelf 6')
   expect(sixAfter).toHaveLength(six.length + 1)
   expect(sixAfter[1]).toBe(top[0]) // same spot it had above
-  // Details > Move, then tap the shelf's heading: it goes to the end of that shelf
+  // Details > Move, then tap the shelf near its right end: it goes to the end of that shelf
   await openRow(page).getByTestId('details').click()
   await page.getByRole('button', { name: 'Move', exact: true }).click()
   await expect(page.getByText('Tap a shelf where it should go.')).toBeVisible()
-  await rows(page).nth(1).getByTestId('shelf-head').click()
+  await settled(page)
+  const sixBox = await rows(page).nth(1).locator('.shelf-canvas').boundingBox()
+  await page.mouse.click(sixBox.x + sixBox.width - 12, sixBox.y + sixBox.height / 2)
   expect((await shelfNames(page, 'Shelf 6')).at(-1)).toBe(top[0])
 })
 
@@ -283,7 +286,8 @@ test('shelf size for one shelf or all, add and remove a shelf', async ({ page })
   await page.getByRole('button', { name: '36', exact: true }).click()
   await page.getByLabel('Use these sizes for every shelf').check()
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(rows(page).nth(6).getByTestId('shelf-head')).toContainText('of 36 ·')
+  await expect(page.getByTestId('focus-left')).toContainText('of 36') // every shelf is 36 in now
+  await expect(page.locator('.board-label').last()).toBeVisible()
   await page.getByTestId('open-shelf').click()
   await page.getByRole('button', { name: 'Add a shelf on top' }).click()
   await expect(rows(page)).toHaveCount(8)
@@ -595,7 +599,7 @@ test('the laundry aisle recreated from photos imports as 4 plans with photo size
   // photo sizes are in use: Faultless starch width comes from the photo
   await page.locator('[data-testid="tile"][data-name^="FAULTLESS STARCH FRESH"]').first().click()
   await expect(openRow(page).getByTestId('row-facings')).toHaveText('5')
-  await expect(openRow(page)).toContainText('≈13 in wide') // ≈ = width from a photo
+  await expect(openRow(page)).toContainText('≈13 in') // ≈ = width from a photo
 })
 
 test('stack a product 2 high and leave an empty space on a shelf', async ({ page }) => {
@@ -618,9 +622,9 @@ test('stack a product 2 high and leave an empty space on a shelf', async ({ page
   await expect(rows(page).nth(0).getByTestId('gap')).toHaveCount(1)
   for (let i = 0; i < 2; i++) await openRow(page).getByRole('button', { name: 'Half an inch wider' }).click()
   await expect(openRow(page).getByTestId('gap-width')).toHaveText('3')
-  const used = (s) => Number(s.match(/([\d.]+) of 48/)[1])
+  const left = (s) => { const m = s.match(/([\d.]+) in (left|over)/); return m[2] === 'left' ? Number(m[1]) : -Number(m[1]) }
   const usedAfter = await page.getByTestId('focus-left').innerText()
-  expect(used(usedAfter) - used(usedBefore)).toBeCloseTo(3, 1) // the empty space takes 3 in
+  expect(left(usedBefore) - left(usedAfter)).toBeCloseTo(3, 1) // the empty space takes 3 in
   await shot(page, '21-stack-and-gap')
   // positions skip the empty space: the product after it is still #2
   await expect(page.getByTestId('shelf-rows').locator('.row-pos').nth(2)).toHaveText('2')
@@ -712,7 +716,7 @@ test('sales help: load a CSV export, money columns are ignored, worth-a-look lis
   expect(saved).not.toMatch(/11\.11|25\.5|:-3|Sales \$|GM|On Hand/i)
   // tapping a product shows it on its shelf; Details has its pace
   await page.getByTestId('tips-best').locator('.row').first().click()
-  await expect(openRow(page)).toContainText(items[0].description)
+  await expect(openRow(page)).toContainText(items[0].description, { ignoreCase: true })
   await openRow(page).getByTestId('details').click()
   await expect(page.getByTestId('sells')).toContainText('sells ~69/wk') // 900 / 13 weeks
   await page.reload()
@@ -738,16 +742,20 @@ test('sales help with the real movement file on the Ketchup-Mustard set', async 
 
 test('reminders and shortcuts: backup reminder, "in this plan" in search, copy from Compare', async ({ page }, info) => {
   await loadData(page)
-  await expect(page.getByTestId('backup-due')).toHaveCount(0) // nothing changed yet
+  await expect(page.getByTestId('backup-dot')).toHaveCount(0) // nothing changed yet
   await openProduct(page, 0, 0)
   await openRow(page).getByRole('button', { name: 'One more facing' }).click()
+  await expect(page.getByTestId('backup-dot')).toBeVisible() // a dot on Plans, not a banner
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await expect(page.getByTestId('backup-due')).toContainText('not backed up yet')
   if (info.project.name === 'desktop') {
     const dl = page.waitForEvent('download')
     await page.getByTestId('backup-now').click()
     await dl
     await expect(page.getByTestId('backup-due')).toHaveCount(0)
+    await expect(page.getByTestId('backup-dot')).toHaveCount(0)
   }
+  await page.getByRole('button', { name: 'Done' }).click()
   // search marks products already in the plan
   await page.getByTestId('open-add').click()
   await page.getByTestId('search-input').fill('frenchs mustard squeeze honey')

@@ -75,20 +75,6 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
   const g = (k) => sourceMark(dims.source[k])
   const shelfItems = inTray ? [] : plan.shelves.find((x) => x.id === where).items
   const place = inTray ? 'Off the shelf' : `${shelfLabel(plan, where)}, #${positions(shelfItems).get(item.uid) ?? index + 1}`
-  if (placing) {
-    // Keep the bar small so the shelves stay visible while you pick a spot.
-    return (
-      <section className="selected-bar compact" data-testid="selected-panel" aria-label="Moving a product">
-        <div className="placing-hint">
-          <div className="placing-text">
-            <strong>Tap a shelf where it should go.</strong>
-            <span className="muted small">Moving {info.description}</span>
-          </div>
-          <button className="btn" onClick={onCancelPlace}>Cancel</button>
-        </div>
-      </section>
-    )
-  }
   if (info.gap) {
     const w = Number(item.widthIn) || 0
     return (
@@ -328,7 +314,7 @@ export function ShelfSheet({ plan, shelf, catalog, inAisle, onSave, onAddShelf, 
 
 /** All saved plans: open, copy, rename, delete, start new, back up. */
 export function PlansSheet({
-  plans, currentId, resets, lastBackupAt, photoCount = 0, onOpen, onDuplicate, onRename, onDelete,
+  plans, currentId, resets, lastBackupAt, backupDue = false, photoCount = 0, onOpen, onDuplicate, onRename, onDelete,
   onNewBlank, onNewAfi, onExport, onImportFile, onClose,
   aisles = {}, currentAisleId, onOpenAisle, onNewAisle, onRenameAisle, onDeleteAisle,
 }) {
@@ -358,6 +344,12 @@ export function PlansSheet({
   ].filter(([, list]) => list.length)
   return (
     <Sheet title="Plans" onClose={onClose} tall>
+      {backupDue && (
+        <div className="backup-due" role="status" data-testid="backup-due">
+          <span>{lastBackupAt ? 'Your last backup is over a week old.' : 'Your plans are not backed up yet.'} They live only on this phone.</span>
+          <button className="btn" onClick={async () => setMsg(await onExport())} data-testid="backup-now">Back up now</button>
+        </div>
+      )}
       <div className="tabs" role="tablist" aria-label="Plans, AFI sets and backup">
         <PlanTab id="plans" label="Your plans" icon={FolderOpen} tab={tab} setTab={setTab} />
         <PlanTab id="afi" label="AFI sets" icon={Store} tab={tab} setTab={setTab} />

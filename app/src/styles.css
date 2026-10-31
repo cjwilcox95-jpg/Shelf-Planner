@@ -828,13 +828,47 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
 .status-pill { min-height: 44px; }
 .d-head-btns { display: flex; gap: 6px; flex: none; }
 .d-head-btns .btn { padding: 0 10px; }
-/* Moving a product: the "tap a shelf" bar sits at the top, so the shelf buttons and mini picture stay reachable */
-.d-app .selected-bar.compact {
-  top: 0; bottom: auto; border-radius: 0 0 20px 20px;
-  padding-top: calc(10px + env(safe-area-inset-top)); box-shadow: 0 8px 24px rgba(24, 33, 43, 0.16);
-}
-.d-app .selected-bar.compact::before { display: none; }
+
 /* the list keeps to the screen width: a long word in a product name wraps instead of pushing the rows wider */
 .frows { grid-template-columns: minmax(0, 1fr); }
 .frows > li { min-width: 0; }
 .frow-main .row-name { overflow-wrap: anywhere; }
+
+/* =====================================================================
+   Simpler shelf screen (2026-10-31): one line per shelf heading, slim shelf buttons, more room for the list.
+   ===================================================================== */
+.d-head { display: flex; align-items: center; gap: 8px; padding: 8px 6px 6px 14px; }
+.d-head b { font-size: 18px; font-weight: 800; white-space: nowrap; }
+.d-head-left { flex: 1; min-width: 0; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d-head-left.warn { color: var(--danger); font-weight: 750; }
+.d-head-edit { width: 44px; height: 44px; display: grid; place-items: center; color: var(--primary); }
+/* zoomed in: the shelf you are on is named in the heading above its list, so its board stays plain */
+.d-app.zoomed .shelf-row:not(.dim) .board-label { visibility: hidden; }
+.tray-link {
+  width: 100%; min-height: 48px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; border: 1.5px dashed var(--line-strong); border-radius: 14px; background: #faf9f6;
+  color: var(--primary); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.switcher { padding: 6px 12px 24px; align-items: center; }
+.switcher > .btn { min-height: 48px; align-self: center; }
+.minimap { padding: 4px 8px; gap: 2px; }
+/* whole set: centered */
+.d-app.whole .section-inner { margin-left: auto; margin-right: auto; }
+/* backup reminder: a dot on Plans instead of a banner on every screen */
+.tab { position: relative; }
+.tab-dot { position: absolute; top: 8px; right: calc(50% - 20px); width: 10px; height: 10px; border-radius: 50%; background: #d98a00; box-shadow: 0 0 0 2px #fff; }
+.sheet .backup-due { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; margin: 0 0 12px; border-radius: 14px; background: var(--primary-soft); color: var(--primary-dark); font-weight: 600; }
+/* rows: room for the product name (the second line says how many facings) */
+.frow-main { gap: 8px; padding-left: 8px; }
+.frow-main .row-pos { width: 30px; height: 30px; min-width: 30px; font-size: 15px; }
+.frow-main .row-name { font-size: 16px; font-weight: 700; }
+.frow-step .facing-count { min-width: 34px; }
+.frow-step .facing-count b { font-size: 22px; }
+
+/* moving a product: the shelf heading says what to do (nothing covers the shelves or the ▲ ▼ buttons) */
+.placing-head { background: var(--primary-soft); border-bottom: 2px solid var(--primary); }
+.placing-head .placing-text { flex: 1; min-width: 0; display: flex; flex-direction: column; color: var(--primary-dark); }
+.placing-head .placing-text span { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d-head[hidden] { display: none; }
+/* messages show over the plan name at the very top, never over the shelves you are tapping */
+.d-app ~ .toast, .toast { top: calc(6px + env(safe-area-inset-top)); }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { FolderOpen, LayoutGrid, Plus, Ruler, ScanBarcode, Undo2 } from 'lucide-react'
+import { ChevronRight, FolderOpen, LayoutGrid, Pencil, Plus, ScanBarcode, Undo2 } from 'lucide-react'
 import SectionView from './components/SectionView.jsx'
 import { AddSheet, ConfirmSheet, PlansSheet, SectionSummary, SelectedBar, Sheet, ShelfSheet } from './components/Panels.jsx'
-import { MiniMap, ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf } from './components/Focus.jsx'
+import { MiniMap, ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf, niceName } from './components/Focus.jsx'
 import { checkPlan, fmtIn } from './lib/fit.js'
 import { buildIndex } from './lib/search.js'
 import {
@@ -36,11 +36,6 @@ const PEEK = 26 // px of the shelves above and below shown around the shelf you 
 function starterPlan(catalog) {
   const r = catalog.resets?.find((x) => /KETCHUP/i.test(x.name))
   return r ? planFromAfi(r) : newPlan({ name: 'My section' })
-}
-
-function daysAgo(iso) {
-  const d = Math.floor((Date.now() - Date.parse(iso)) / 864e5)
-  return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`
 }
 
 const mostRecent = (plans) =>
@@ -310,7 +305,7 @@ export default function App() {
 
   const activeShelf = plan.shelves.find((s) => s.id === activeShelfId) || plan.shelves[plan.shelves.length - 1]
   const sel = selectedUid ? findItem(plan, selectedUid) : null
-  const barOpen = !!sel && (detailsOpen || placing)
+  const barOpen = !!sel && detailsOpen && !placing // while moving, the shelf heading says what to do instead
 
   // Remind about backups: never backed up after making changes, or the last one is over a week old.
   const changedSince = (t) => Object.values(plans).some((p) => (p.updatedAt || '') > (t || p.createdAt || ''))
@@ -656,12 +651,6 @@ export default function App() {
           <button className="btn" onClick={async () => showToast(await onExport())}>Export backup</button>
         </div>
       )}
-      {backupDue && (
-        <div className="backup-due" role="status" data-testid="backup-due">
-          <span>{lastBackupAt ? `Last backup ${daysAgo(lastBackupAt)}.` : 'Your plans are not backed up yet.'} Plans live only on this phone.</span>
-          <button className="btn" onClick={async () => showToast(await onExport())} data-testid="backup-now">Back up</button>
-        </div>
-      )}
 
       <main className="stage" ref={boxRef}>
         <div className={`d-window${placing && sel ? ' placing' : ''}`} ref={winRef} data-testid="d-window"
@@ -684,7 +673,7 @@ export default function App() {
             selectedUid={selectedUid}
             activeShelfId={activeShelf.id}
             focusShelfId={zoomed ? activeShelf.id : null}
-            compact={!zoomed}
+            compact
             placing={placing}
             onTapItem={(uid, shelfId) => {
               if (!zoomed) { focusItem(uid); return }
@@ -701,18 +690,23 @@ export default function App() {
 
         {zoomed && (
           <>
-            <div className="d-head">
-              <div className="d-head-text">
-                <b data-testid="focus-name">{shelfLabel(plan, activeShelf.id)}</b>
-                <small data-testid="focus-left">
-                  {fmtIn(focusFit.usedIn)} of {fmtIn(activeShelf.widthIn)} in used ·{' '}
-                  <span className={focusFit.isOver ? 'warn' : ''}>{focusFit.isOver ? `${fmtIn(focusFit.overIn)} in over` : `${fmtIn(focusFit.remainingIn)} in left`}</span>
-                </small>
+            {placing && sel && (
+              <div className="d-head placing-head" role="status" data-testid="placing-head">
+                <span className="placing-text">
+                  <strong>Tap a shelf where it should go.</strong>
+                  <span>Moving {niceName(products.info(sel.item).description)} · or use ▲ ▼</span>
+                </span>
+                <button className="btn" onClick={() => setPlacing(false)}>Cancel</button>
               </div>
-              <div className="d-head-btns">
-                {plan.tray.length > 0 && <button className="btn ghost" onClick={() => setSheet('tray')} data-testid="open-tray">Off the shelf ({plan.tray.length})</button>}
-                <button className="btn ghost" onClick={() => setSheet('shelf')} data-testid="open-shelf"><Ruler size={18} aria-hidden="true" />Size</button>
-              </div>
+            )}
+            <div className="d-head" hidden={placing && !!sel}>
+              <b data-testid="focus-name">{shelfLabel(plan, activeShelf.id)}</b>
+              <span className={`d-head-left${focusFit.isOver ? ' warn' : ''}`} data-testid="focus-left">
+                {focusFit.isOver ? `${fmtIn(focusFit.overIn)} in over` : `${fmtIn(focusFit.remainingIn)} in left`} of {fmtIn(activeShelf.widthIn)}
+              </span>
+              <button className="icon-btn ghost d-head-edit" onClick={() => setSheet('shelf')} data-testid="open-shelf" aria-label="Shelf size">
+                <Pencil size={20} aria-hidden="true" />
+              </button>
             </div>
             <div className="d-list" data-testid="item-list">
               <ShelfRows plan={plan} shelf={activeShelf} fit={focusFit} products={products} thumbs={thumbs} selectedUid={selectedUid}
@@ -728,6 +722,11 @@ export default function App() {
                   setPlacing(false)
                 }}
                 onDetails={(uid) => { setSelectedUid(uid); setDetailsOpen(true) }} />
+              {plan.tray.length > 0 && (
+                <button className="tray-link" onClick={() => setSheet('tray')} data-testid="open-tray">
+                  <span>{plan.tray.length} off the shelf</span><ChevronRight size={20} aria-hidden="true" />
+                </button>
+              )}
               {plan.note && <p className="muted small note">{plan.note}</p>}
             </div>
           </>
@@ -774,6 +773,7 @@ export default function App() {
       <nav className="tabbar d-tabs" aria-label="Main">
         <button className="tab" onClick={() => setSheet('plans')} aria-label="Plans" data-testid="open-plans">
           <FolderOpen size={24} aria-hidden="true" /><span>Plans</span>
+          {backupDue && <i className="tab-dot" data-testid="backup-dot" aria-label="Not backed up" />}
         </button>
         <button className="tab" onClick={undo} disabled={!hist.past.length} aria-label="Undo" data-testid="undo">
           <Undo2 size={24} aria-hidden="true" /><span>Undo</span>
@@ -920,7 +920,7 @@ export default function App() {
       )}
       {sheet === 'plans' && (
         <PlansSheet
-          plans={plans} currentId={plan.id} resets={catalog.resets || []} lastBackupAt={lastBackupAt}
+          plans={plans} currentId={plan.id} resets={catalog.resets || []} lastBackupAt={lastBackupAt} backupDue={backupDue}
           photoCount={Object.keys(photoIndex).length}
           aisles={aisles} currentAisleId={plan.aisleId || null}
           onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle}

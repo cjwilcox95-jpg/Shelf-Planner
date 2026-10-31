@@ -39,7 +39,7 @@ test.describe('scanner with a camera', () => {
     await shot(page, '26-scan-found')
     await page.getByTestId('scan-show').click()
     await expect(page.getByTestId('focus-name')).toHaveText('Shelf 7 (top)') // zoomed in to its shelf
-    await expect(page.locator('.frow.open')).toContainText('FRENCHS MUSTARD SQUEEZE HONEY')
+    await expect(page.locator('.frow.open')).toContainText('FRENCHS MUSTARD SQUEEZE HONEY', { ignoreCase: true })
   })
 
   test('measure as you go: scan, type tape sizes with fractions, saved as measured', async ({ page }) => {
@@ -73,7 +73,7 @@ test('scanner without a camera: read a photo of a barcode, or type the numbers, 
   await expect(page.getByTestId('scan-hit')).toContainText('TIDE', { timeout: 15000 })
   await expect(page.getByTestId('scan-where')).toContainText('Not in this plan')
   await page.getByTestId('scan-add').click()
-  await expect(page.locator('.frow.open')).toContainText('TIDE')
+  await expect(page.locator('.frow.open')).toContainText('TIDE', { ignoreCase: true })
   // typed: the 10 digits printed under a barcode, without the first 0 and the check digit
   await page.getByTestId('open-add').click()
   await page.getByTestId('open-scan').click()
@@ -86,5 +86,5 @@ test('scanner without a camera: read a photo of a barcode, or type the numbers, 
   await page.getByRole('button', { name: 'Look up' }).click()
   await expect(page.getByTestId('scan-where')).toContainText('off the shelf')
   await page.getByTestId('scan-tray').click()
-  await expect(page.getByTestId('tray')).toContainText('GREY POUPON MUSTARD COUNTRY')
+  await expect(page.getByTestId('tray')).toContainText('GREY POUPON MUSTARD COUNTRY', { ignoreCase: true })
 })
