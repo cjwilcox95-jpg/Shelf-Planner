@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Archive, CheckCircle2, ChevronRight, Copy, Download, FolderOpen, Pencil, Plus, Search, Snowflake, Store, Trash2, Upload, XCircle } from 'lucide-react'
+import { AlertTriangle, Archive, CheckCircle2, ChevronRight, Copy, Download, FolderOpen, Pencil, Plus, ScanBarcode, Search, Snowflake, Store, Trash2, Upload, XCircle } from 'lucide-react'
 import { fmtIn } from '../lib/fit.js'
 import { search } from '../lib/search.js'
 import { prettyUpc } from '../lib/upc.js'
@@ -216,7 +216,7 @@ export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), phot
   useEffect(() => { inputRef.current?.focus() }, [])
   return (
     <Sheet title={`Add to ${targetLabel}`} onClose={onClose} tall>
-      <button className="btn wide scan-btn" onClick={onScan} data-testid="open-scan">▥ Scan a barcode</button>
+      <button className="btn wide scan-btn" onClick={onScan} data-testid="open-scan"><ScanBarcode size={22} aria-hidden="true" />Scan a barcode</button>
       <input
         ref={inputRef} className="search" type="search" inputMode="search"
         placeholder="Name or UPC, e.g. heinz ketchup 20"

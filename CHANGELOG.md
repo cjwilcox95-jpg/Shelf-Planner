@@ -2,6 +2,22 @@
 
 Plain-English notes on what changed at each stage.
 
+## New look (2026-11-04)
+
+Same screens and buttons in the same places, with a new look built from the store aisle:
+- Navy top bar, like the aisle signs. Shelf-tag yellow marks the few things that matter most: each shelf's name
+  on its board, the shelf you are on, the selected product, and the Scan button.
+- The heading over a shelf's list has a thin bar showing how full the shelf is (green; red when over).
+- Product tiles are lightly tinted with their brand colour, so the whole set reads at a glance before photos load.
+- One easy-to-read font (Barlow) comes with the app, so it looks the same on every phone and still works with no
+  signal.
+- One consistent style everywhere: white cards on a light grey background, navy main buttons, grey step buttons,
+  and round "Done" buttons on every panel.
+- A new home-screen icon (three shelves with a yellow tag), with an Android version that is never clipped.
+- Fixes found along the way: the bottom bar spans the full width on a computer; the details panel leaves room for
+  the Scan button; "Scan a barcode" in Add has a proper barcode icon.
+- The stylesheet was rewritten as one clean file (it had grown three layers of overrides).
+
 ## Simpler shelf screen (2026-10-31)
 
 After CJ's screenshots: the shelf screen was too crowded.

@@ -699,7 +699,8 @@ export default function App() {
                 <button className="btn" onClick={() => setPlacing(false)}>Cancel</button>
               </div>
             )}
-            <div className="d-head" hidden={placing && !!sel}>
+            <div className={`d-head${focusFit.isOver ? ' over' : ''}`} hidden={placing && !!sel}
+              style={{ '--used': `${Math.min(100, focusFit.percentUsed).toFixed(1)}%` }}>
               <b data-testid="focus-name">{shelfLabel(plan, activeShelf.id)}</b>
               <span className={`d-head-left${focusFit.isOver ? ' warn' : ''}`} data-testid="focus-left">
                 {focusFit.isOver ? `${fmtIn(focusFit.overIn)} in over` : `${fmtIn(focusFit.remainingIn)} in left`} of {fmtIn(activeShelf.widthIn)}
@@ -960,6 +961,7 @@ function ImportScreen({ onFile, onCancel }) {
   }
   return (
     <div className="import">
+      <img className="logo" src="logo.svg" alt="" />
       <h1>Shelf Planner</h1>
       <p>Plan shelf sets in real inches and see what fits before you move anything.</p>
       <div className="import-card">
