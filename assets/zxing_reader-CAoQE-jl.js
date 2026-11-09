@@ -1,0 +1,1 @@
+var e=new URL(`zxing_reader-Bb9Mx2Pu.wasm`,import.meta.url).href;export{e as default};
