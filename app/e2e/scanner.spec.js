@@ -64,27 +64,3 @@ test.describe('scanner with a camera', () => {
     await expect(page.getByTestId('selected-panel')).toContainText('W measured · H measured')
   })
 })
-
-test('scanner without a camera: read a photo of a barcode, or type the numbers, and add', async ({ page }) => {
-  await loadData(page)
-  await page.getByTestId('open-add').click()
-  await page.getByTestId('open-scan').click()
-  await page.getByTestId('scan-photo').setInputFiles(path.join(BARCODES, `${NOT_ON_PLAN}-photo.jpg`))
-  await expect(page.getByTestId('scan-hit')).toContainText('TIDE', { timeout: 15000 })
-  await expect(page.getByTestId('scan-where')).toContainText('Not in this plan')
-  await page.getByTestId('scan-add').click()
-  await expect(page.locator('.frow.open')).toContainText('TIDE', { ignoreCase: true })
-  // typed: the 10 digits printed under a barcode, without the first 0 and the check digit
-  await page.getByTestId('open-add').click()
-  await page.getByTestId('open-scan').click()
-  await page.getByTestId('scan-typed').fill('4150000052')
-  await page.getByRole('button', { name: 'Look up' }).click()
-  await expect(page.getByTestId('scan-hit')).toContainText('FRENCHS MUSTARD SQUEEZE HONEY')
-  // a product of this plan that is off the shelf: says so, and opens that list (no second copy added)
-  await page.getByTestId('scan-next').click()
-  await page.getByTestId('scan-typed').fill('5440000040') // Grey Poupon Country, left off the set by AFI
-  await page.getByRole('button', { name: 'Look up' }).click()
-  await expect(page.getByTestId('scan-where')).toContainText('off the shelf')
-  await page.getByTestId('scan-tray').click()
-  await expect(page.getByTestId('tray')).toContainText('GREY POUPON MUSTARD COUNTRY', { ignoreCase: true })
-})

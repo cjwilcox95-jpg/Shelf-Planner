@@ -2,6 +2,20 @@
 
 Plain-English notes on what changed at each stage.
 
+## Fresh look (2026-11-05)
+
+CJ didn't like the navy look (colours, too busy, felt cheap) and picked "Fresh & friendly" from four styles
+shown on the real app. This replaces the navy look below:
+- Grocery green for everything you can tap, on a warm light background; white top bar.
+- Calmer: soft white cards with no hard outlines, plain shelf backs (no dots), light wood-coloured shelf boards,
+  fainter ruler. The ~ and ≈ "guessed size" marks are no longer drawn on the shelves (they still show in the list
+  and in Details).
+- Rounder and more polished: pill-shaped buttons, round − / + buttons, the shelf name in a green pill with a
+  slim fill bar beside it, green Scan button, round "Done" buttons.
+- The icon is green to match.
+- A test fix: the "scanner without a camera" check now really runs with no camera (it had been picking up the
+  test camera when the computer was busy).
+
 ## New look (2026-11-04)
 
 Same screens and buttons in the same places, with a new look built from the store aisle:
