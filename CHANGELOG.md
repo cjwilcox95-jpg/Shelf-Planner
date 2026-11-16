@@ -2,6 +2,41 @@
 
 Plain-English notes on what changed at each stage.
 
+## Fine-tooth-comb review (2026-11-16)
+
+CJ asked for the whole project to be taken apart and checked: it has to work, anyone has to be able to pick it up,
+and the screens should be more refined. The full list of what was found is in `docs/AUDIT.md`; a guide for a new
+person is in `docs/HOW_TO_USE.md`.
+
+**Anyone can pick it up**
+- The first screen has **Try it with demo products**: made-up products that come with the app, so there is nothing
+  to load. Or choose the file for your store.
+- A five-step **Welcome** the first time, and **How it works** under Tools, with what the words mean.
+- **Your own products without the data-prep scripts:** a spreadsheet saved as CSV with UPC and Description columns
+  can be loaded. Only UPC, name, size, case pack and category are read; cost and price columns are never read. It
+  asks before replacing a real product list.
+- The tag at the top no longer says "Width fits" when products are too tall or too deep; it says "2 to check".
+- An empty shelf has Add and Scan buttons. A scanned product that is not in the store's list can be given a name.
+- Search ignores punctuation ("french's" finds FRENCHS).
+
+**It keeps working**
+- If a screen breaks, a plain page says the plans are safe, opens the app again, and can save a backup file.
+- Plans saved on the phone are checked at start; a damaged one is repaired instead of breaking the app.
+- A notice when a newer version is ready. A plain message when the browser will not save (private window).
+- With a keyboard, a shelf can be opened from the whole-set picture again (lost in the last change).
+
+**More refined**
+- The whole plan name shows (two lines). The shelf-size button is labelled "Size". Product rows no longer repeat the
+  facings. The buttons on an opened row no longer wrap. Messages wrap instead of being cut off.
+- The whole-set picture is a rounded card with no half-written names; names on the shelves are in normal case.
+- Fits the smallest phones (320 px wide), checked by the screen tour. A phone held sideways is asked to turn upright.
+
+**Tests**
+- 227 unit tests. 27 browser tests of the everyday actions and a tour of every screen at three sizes, all on the
+  demo products, so they run on any computer. The whole browser set was run three times in a row with no failures.
+- Not run: the older browser tests and the data-prep run, which need the store's own files (lost from the build
+  machine on 2026-11-14). Not checked: a real phone.
+
 ## Streamlined (2026-11-16)
 
 CJ asked to revisit the app and streamline it. Same features, fewer things on screen, and nothing offered twice:

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { ChevronRight, FolderOpen, LayoutGrid, Pencil, Plus, ScanBarcode, Undo2 } from 'lucide-react'
+import { ChevronRight, FolderOpen, LayoutGrid, Pencil, Plus, ScanBarcode, Smartphone, Undo2 } from 'lucide-react'
 import SectionView from './components/SectionView.jsx'
 import { AddSheet, ConfirmSheet, DetailsSheet, PlansSheet, SectionSummary, Sheet, ShelfSheet } from './components/Panels.jsx'
 import { ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf } from './components/Focus.jsx'
@@ -173,12 +173,14 @@ export default function App() {
 
   // The first time the app is used on this phone, say how it works (once).
   useEffect(() => {
-    if (phase === 'ready' && helpSeen === false) setSheet((open) => open || 'welcome')
+    if (phase !== 'ready' || helpSeen !== false) return
+    setSheet((open) => open || 'welcome')
+    // noted as soon as it is on screen, so closing the app straight after reading it never shows it twice
+    save('seenHelp', true).catch(() => {})
   }, [phase, helpSeen])
   const closeWelcome = () => {
     setSheet(null)
     setHelpSeen(true)
-    save('seenHelp', true).catch(() => {})
   }
 
   // Fetch the barcode reader in the background once, so scanning also works later without a signal.
@@ -389,7 +391,7 @@ export default function App() {
     }
     // Runs again when anything changes the size of the drawing or of the room around it: the view, the scale,
     // the width of the screen, the shelves' heights, and the bars that share the screen with the drawing.
-  }, [phase, zoomed, plan.id, activeShelf.id, plan.shelves.length, plan.tray.length, scale, fitScale, // eslint-disable-line react-hooks/exhaustive-deps
+  }, [phase, zoomed, plan.id, plan.name, activeShelf.id, plan.shelves.length, plan.tray.length, scale, fitScale, // eslint-disable-line react-hooks/exhaustive-deps
     wholeScale, boxWidth, rowsTallestIn, backupDue, saveError, updateReady])
 
   // ---------- moving around the set ----------
@@ -540,12 +542,12 @@ export default function App() {
   /** Start from an AFI set: one plan, or for a freezer set with several doors, one plan per door shown as an aisle. */
   const onNewAfi = (r) => {
     const { plans: made, aisleName } = plansFromAfi(r)
-    if (!aisleName) { onNewPlan(made[0], `New plan from AFI ${niceName(r.name)}`); return }
+    if (!aisleName) { onNewPlan(made[0], `New plan: ${niceName(r.name)}`); return }
     commitPlans({ ...allPlans(), ...Object.fromEntries(made.map((p) => [p.id, p])) })
     const a = newAisle(aisleName, made.map((p) => p.id))
     commitAisles({ ...aislesRef.current, [a.id]: a })
     onOpenAisle(a.id)
-    showToast(`New plan from AFI ${niceName(r.name)}: ${made.length} doors side by side`)
+    showToast(`New plan: ${niceName(r.name)}, ${made.length} doors side by side`)
   }
 
   const onNewPlan = (p, message) => {
@@ -692,7 +694,7 @@ export default function App() {
       (pics.outOfSpace ? ` ${outOfSpaceText(pics)}` : '')
   }
 
-  if (phase === 'loading') return <div className="center-msg">Loading…</div>
+  if (phase === 'loading') return <div className="center-msg">Opening Shelf Planner…</div>
   if (phase === 'needData') return <WelcomeScreen onFile={onImportFile} onDemo={onDemo} storageBroken={storageBroken} />
 
   const missing = plan.shelves.reduce((n, s) => n + s.items.filter((i) => !products.info(i).inCatalog).length, 0)
@@ -785,8 +787,8 @@ export default function App() {
               <span className={`d-head-left${focusFit.isOver ? ' warn' : ''}`} data-testid="focus-left">
                 {focusFit.isOver ? `${fmtIn(focusFit.overIn)} in over` : `${fmtIn(focusFit.remainingIn)} in left`} of {fmtIn(activeShelf.widthIn)}
               </span>
-              <button className="icon-btn ghost d-head-edit" onClick={() => setSheet('shelf')} data-testid="open-shelf" aria-label="Shelf size">
-                <Pencil size={20} aria-hidden="true" />
+              <button className="btn ghost d-head-edit" onClick={() => setSheet('shelf')} data-testid="open-shelf" aria-label="Shelf size">
+                <Pencil size={16} aria-hidden="true" />Size
               </button>
             </div>
             <div className="d-list" data-testid="item-list">
@@ -1007,6 +1009,13 @@ export default function App() {
       )}
 
       {ask && <ConfirmSheet {...ask} onClose={() => setAsk(null)} />}
+
+      {/* A phone held sideways is too short for the shelf and its list together; shown by the stylesheet only then. */}
+      <div className="rotate-note" data-testid="rotate-note" aria-hidden="true">
+        <Smartphone size={40} aria-hidden="true" />
+        <strong>Turn your phone upright</strong>
+        <span>Shelf Planner is laid out for a phone held upright.</span>
+      </div>
 
       {toast && (!sheet || sheet === 'tray') && (
         <div className="toast" role="status">

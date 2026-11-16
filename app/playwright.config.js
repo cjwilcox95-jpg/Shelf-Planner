@@ -15,5 +15,7 @@ export default defineConfig({
   projects: [
     { name: 'phone', use: { browserName: 'chromium', viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } },
     { name: 'desktop', use: { browserName: 'chromium', viewport: { width: 1280, height: 860 } } },
+    // the smallest phone still in use (iPhone SE size): only the screen tour, to catch anything that does not fit
+    { name: 'small', testMatch: /tour\.spec\.js/, use: { browserName: 'chromium', viewport: { width: 320, height: 568 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } },
   ],
 })

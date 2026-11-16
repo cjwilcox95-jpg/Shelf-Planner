@@ -715,3 +715,13 @@ test('a product list replaces the demo straight away, but asks before replacing 
   await expect(page.locator('.toast')).toContainText('Store data loaded: 2 products.')
   await expect(page.getByTestId('plan-name')).toHaveText('Ketchup Mustard (AFI 2026-03)') // the plan is still there
 })
+
+test('a phone held sideways is asked to turn upright; upright, and on a computer, the note never shows', async ({ page }, info) => {
+  await loadData(page)
+  await expect(page.getByTestId('rotate-note')).toBeHidden()
+  await page.setViewportSize({ width: 844, height: 390 })
+  if (info.project.name === 'phone') await expect(page.getByTestId('rotate-note')).toBeVisible()
+  else await expect(page.getByTestId('rotate-note')).toBeHidden() // a short window on a computer is left alone
+  await page.setViewportSize(info.project.use.viewport)
+  await expect(page.getByTestId('rotate-note')).toBeHidden()
+})

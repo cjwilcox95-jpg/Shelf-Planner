@@ -79,7 +79,8 @@ export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid
         const high = item.high || 1
         const sub = p.gap
           ? `${fmtIn(p.widthIn, 2)} in left open`
-          : joinParts(niceSize(info.size), facingsText(item.facings), `${sourceMark(products.dims(item).source.w)}${fmtIn(p.widthIn)} in`, high > 1 && `${high} high`, info.specialOrder && 'special order')
+          // the facings are on the − + buttons beside it, so they are not repeated here
+          : joinParts(niceSize(info.size), `${sourceMark(products.dims(item).source.w)}${fmtIn(p.widthIn)} in wide`, high > 1 && `${high} high`, info.specialOrder && 'special order')
         const gapW = Number(item.widthIn) || 0
         return (
           <li key={item.uid} className={`frow${open ? ' open' : ''}${p.gap ? ' is-gap' : ''}`} data-testid="frow" data-uid={item.uid}>

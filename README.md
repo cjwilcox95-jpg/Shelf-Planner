@@ -20,7 +20,10 @@ Pick a shelf (standard: 48 in wide x 24 in deep), put products on it, and see **
 
 **Stages 1-4 and 6 done; Stage 5 done except cutting the background out of photos.**
 
-Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/** (the first time, load your `catalog.json` file). See [CHANGELOG.md](CHANGELOG.md).
+Open it: **https://cjwilcox95-jpg.github.io/Shelf-Planner/**. The first time, tap **Try it with demo products** to look
+around, or choose the file for your store (a backup someone shared, `catalog.json`, or a product list saved as CSV).
+A plain-words guide for a new person is in [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md). See [CHANGELOG.md](CHANGELOG.md), and
+[docs/AUDIT.md](docs/AUDIT.md) for the November 2026 review of the whole project.
 
 | Stage | What it adds | Status |
 |---|---|---|
@@ -51,7 +54,8 @@ app/           The web app (React + Vite).
                  src/lib/        fit math, dimension guesses, search, undo, on-device storage (with unit tests)
                  src/components/ the shelf drawing and panels
                  e2e/            browser tests at phone and desktop size, with finger dragging
-                 e2e/fixtures/   made-up demo products (invented brands and UPCs) so the tests run without store data
+                 public/demo-catalog.json  made-up demo products (invented brands, in-house style UPCs): the "Try it" demo,
+                                 and what the browser tests run on. Remake: node scripts/make-demo-catalog.mjs
 data/build/    The finished catalog and report. NEVER committed (store data); copied to your phone instead.
 ```
 
@@ -66,6 +70,8 @@ To rebuild the catalog after getting new files: put them in `data/raw/`, then ru
 
 ## Using the main screen
 
+- The first time, a short **Welcome** says how it works; read it again any time under **Tools > How it works**, which
+  also explains the words (facing, section, aisle, AFI set, room above, off the shelf).
 - The app opens on the **whole set**, fitted to the screen, with each shelf's name and room left on its board.
 - **Tap a shelf or a product** to zoom in to that shelf. Its products are listed underneath, left to right, with
   **facings − / +** on every row. Tap a row for **Left, Right, Up, Down, Take off** and **Details** (one panel with
@@ -75,7 +81,8 @@ To rebuild the catalog after getting new files: put them in `data/raw/`, then ru
 - **Plans**: tap a plan to open it; the **⋯** button on its row has Copy, Rename and Delete. **New** starts a plan
   from an AFI set, an empty section, or an aisle. **Backup** exports, and imports any file the app knows
   (a backup, a photo or size pack, a newer store-data file).
-- The tag at the top says whether everything fits; tap it for details and the **Off the shelf** list.
+- The tag at the top says whether everything fits (green), how many products are too tall or too deep (amber,
+  "2 to check") or how many shelves are over (red); tap it for details and the **Off the shelf** list.
 
 ## Tools in the app
 
@@ -130,8 +137,9 @@ cd app
 npm install
 npm test            # fit math and other unit tests
 npm run build
-npx playwright test demo tour   # browser tests on made-up demo products: run anywhere
-npx playwright test             # all browser tests (app.spec and scanner.spec need data/build/catalog.json)
+npx playwright test             # browser tests. demo.spec and tour.spec use the made-up demo products and run
+                                # anywhere; app.spec and scanner.spec are skipped unless data/build/catalog.json is there
+# If Playwright cannot find its own browser: PW_CHROME=/path/to/chrome npx playwright test
 ```
 
 Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, which GitHub Pages serves.

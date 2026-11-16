@@ -3,6 +3,7 @@ import { fmtIn, insertIndexAt } from '../lib/fit.js'
 import { positions, shelfLabel } from '../lib/plan.js'
 import { aisleRows, sectionOf } from '../lib/aisle.js'
 import { tilePhotoStyle } from '../lib/photos.js'
+import { niceName } from '../lib/text.js'
 
 const PAD = 14 // px left and right of the shelves
 const BOARD = 12 // px thickness of each drawn shelf board
@@ -285,10 +286,10 @@ export default function SectionView({
                         {guess && showMark && <span className="guess-mark" aria-label="guessed size">~</span>}
                         {estimated && showMark && <span className="guess-mark" aria-label="size partly estimated">≈</span>}
                         {!photo && nameAcross && (
-                          <span className="tile-name" style={{ WebkitLineClamp: lines }}>{info.description}</span>
+                          <span className="tile-name" style={{ WebkitLineClamp: lines }}>{niceName(info.description)}</span>
                         )}
                         {!photo && !nameAcross && nameUp && (
-                          <span className={`tile-name-up${showBadge ? '' : ' no-badge'}`}><span>{info.description}</span></span>
+                          <span className={`tile-name-up${showBadge ? '' : ' no-badge'}`}><span>{niceName(info.description)}</span></span>
                         )}
                         {p.tooDeep && <span className="warn-mark" title="Deeper than the shelf">!</span>}
                       </div>
