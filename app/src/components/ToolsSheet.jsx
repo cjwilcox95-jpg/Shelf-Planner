@@ -1,4 +1,4 @@
-import { ChevronRight, Columns3, GitCompare, Printer, Redo2, Ruler, SlidersHorizontal, TrendingUp } from 'lucide-react'
+import { ChevronRight, CircleQuestionMark, Columns3, GitCompare, Printer, Redo2, Ruler, SlidersHorizontal, TrendingUp } from 'lucide-react'
 import { Sheet } from './Panels.jsx'
 
 // Scanning has its own button in the bottom bar, so it is not repeated here.
@@ -9,6 +9,7 @@ const TOOLS = [
   { id: 'compare', icon: GitCompare, title: 'Compare with another plan', text: 'What to add, take out, move or change.' },
   { id: 'shelf', icon: Columns3, title: 'Shelf sizes', text: 'Width, depth, room above; add or remove a shelf.' },
   { id: 'guesses', icon: SlidersHorizontal, title: 'Default size guesses', text: 'The typical sizes that guesses start from.' },
+  { id: 'help', icon: CircleQuestionMark, title: 'How it works', text: 'The basics in one minute, and what the words mean.' },
 ]
 
 /** Everything that is not used every minute, as one plain list. */

@@ -67,6 +67,7 @@ async function openStatus(page) {
 async function loadData(page) {
   await page.goto('./')
   await page.getByTestId('data-file').setInputFiles(CATALOG)
+  await page.getByRole('button', { name: 'Got it' }).click() // the welcome, shown once on a new phone
   await expect(page.getByTestId('status-pill')).toBeVisible()
 }
 
@@ -100,8 +101,9 @@ const center = async (loc) => {
 
 test('first run: load store data, the whole AFI Ketchup-Mustard section appears', async ({ page }) => {
   await page.goto('./')
-  await expect(page.getByText('Load your store data')).toBeVisible()
+  await expect(page.getByText('Have a file for your store?')).toBeVisible()
   await page.getByTestId('data-file').setInputFiles(CATALOG)
+  await page.getByRole('button', { name: 'Got it' }).click() // the welcome
   await expect(page.getByTestId('plan-name')).toContainText('Ketchup - Mustard')
   await expect(rows(page)).toHaveCount(7)
   expect(await shelfNames(page, 'Shelf 7 (top)')).toHaveLength(10)
@@ -283,8 +285,8 @@ test('shelf size for one shelf or all, add and remove a shelf', async ({ page })
   await page.getByTestId('open-shelf').click()
   await page.getByTestId('field-clearanceIn').fill('6')
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByTestId('section-status')).toHaveText('Width fits') // the 6.6 in mustard bottles no longer clear 6 in
-  await expect(await openStatus(page)).toContainText('taller than the clearance')
+  await expect(page.getByTestId('section-status')).toHaveText(/^\d+ to check$/) // the 6.6 in mustard bottles no longer clear 6 in
+  await expect(await openStatus(page)).toContainText('too tall for the room above')
   await page.getByRole('button', { name: 'Done' }).click()
   await page.getByTestId('open-shelf').click()
   await page.getByRole('button', { name: '36', exact: true }).click()
@@ -331,6 +333,7 @@ test('export a backup, then load it on a fresh phone', async ({ page, browser },
   const p2 = await fresh.newPage()
   await p2.goto('./')
   await p2.getByTestId('data-file').setInputFiles(file)
+  await p2.getByRole('button', { name: 'Got it' }).click() // the welcome
   await expect(p2.getByTestId('status-pill')).toBeVisible()
   await p2.getByRole('button', { name: 'Plans', exact: true }).click()
   await expect(p2.getByTestId('plan-list').locator('li')).toHaveCount(2)

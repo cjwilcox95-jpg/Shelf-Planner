@@ -96,4 +96,8 @@ describe('search ignores punctuation', () => {
     expect(search(idx2, 'cheese, mac 7.25').map((i) => i.upc)).toEqual(['400000000003'])
     expect(search(idx2, '&')).toEqual([])
   })
+  it('a possessive typed for a name that has none still finds it', () => {
+    expect(search(idx2, "mac's cheese").map((i) => i.upc)).toEqual(['400000000003'])
+    expect(search(idx2, "french's sqz").map((i) => i.upc)).toEqual(['400000000002'])
+  })
 })

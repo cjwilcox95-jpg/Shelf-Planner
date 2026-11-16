@@ -5,9 +5,9 @@ import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
-// Your real store data when it is on this computer; otherwise the made-up demo products (e2e/fixtures).
+// Your real store data when it is on this computer; otherwise the made-up demo products that come with the app.
 const REAL = path.resolve('../data/build/catalog.json')
-const DEMO = path.resolve('e2e/fixtures/demo-catalog.json')
+const DEMO = path.resolve('public/demo-catalog.json')
 const CATALOG = fs.existsSync(REAL) ? REAL : DEMO
 const AISLE = path.resolve('../data/build/aisle/aisle-plans-backup.json')
 const MOVEMENT = path.resolve('../data/build/movement.json')
@@ -65,7 +65,11 @@ test('tour of every screen', async ({ page }, info) => {
 
   await page.goto('./')
   await snap('first-run')
-  await page.getByTestId('data-file').setInputFiles(CATALOG)
+  if (CATALOG === DEMO) await page.getByTestId('try-demo').click()
+  else await page.getByTestId('data-file').setInputFiles(CATALOG)
+  await expect(page.getByRole('dialog', { name: 'Welcome' })).toBeVisible()
+  await snap('welcome')
+  await page.getByRole('button', { name: 'Got it' }).click()
   await expect(page.getByTestId('status-pill')).toBeVisible()
   await snap('whole-set')
   await sheet(() => page.getByTestId('status-pill').click(), 'status')
@@ -101,6 +105,12 @@ test('tour of every screen', async ({ page }, info) => {
   await snap('plans-backup')
   await page.getByRole('button', { name: 'Done' }).click()
   await sheet(() => page.getByTestId('open-tools').click(), 'tools')
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-help').click()
+  await snap('how-it-works')
+  await page.getByTestId('help-words').scrollIntoViewIfNeeded()
+  await snap('how-it-works-words')
+  await page.getByRole('button', { name: 'Done' }).click()
   await page.getByTestId('open-tools').click()
   await page.getByTestId('tool-guesses').click()
   await snap('guesses')

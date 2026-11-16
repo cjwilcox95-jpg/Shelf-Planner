@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Sheet } from './Panels.jsx'
 import { changeCount, comparePlans } from '../lib/compare.js'
+import { niceName } from '../lib/text.js'
 
 const spot = (x) => `shelf ${x.shelf} #${x.pos}`
 const fac = (x) => `${x.facings}${x.high > 1 ? ` × ${x.high} high` : ''}`
@@ -9,7 +10,7 @@ const fac = (x) => `${x.facings}${x.high > 1 ? ` × ${x.high} high` : ''}`
 export function CompareSheet({ plan, others, compareId, onCompareId, products, onSelect, onPrint, onCopyNow, onClose }) {
   const base = others.find((p) => p.id === compareId) || null
   const c = useMemo(() => (base ? comparePlans(base, plan) : null), [base, plan])
-  const name = (x) => products.info(x.item).description
+  const name = (x) => niceName(products.info(x.item).description)
   const List = ({ title, items, line, tap = true }) => (items.length > 0 && (
     <>
       <h3 className="sheet-section">{title} ({items.length})</h3>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Sheet } from './Panels.jsx'
 import { fmtIn } from '../lib/fit.js'
 import { paceText } from '../lib/movement.js'
+import { niceName } from '../lib/text.js'
 
 const niceDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 
@@ -28,7 +29,7 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
             <button className="row" onClick={() => onSelect(r.uid)}>
               <span className="row-pos">{r.pos ?? '–'}</span>
               <span className="row-main">
-                <span className="row-name">{r.name}</span>
+                <span className="row-name">{niceName(r.name)}</span>
                 <span className="row-sub">{r.shelf} · {line ? line(r) : `${r.facings} facing${r.facings > 1 ? 's' : ''} · ${paceText(r)}`}</span>
               </span>
             </button>
@@ -72,7 +73,7 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
         <>
           <p>See which products may run out, which take a lot of room for what they sell, and what to cut first when a shelf is over.</p>
           <p className="muted small">
-            Load a sales movement file: <strong>movement.json</strong> (made from your BRData report) or a CSV export with a UPC column and a units-sold column.
+            Load a sales file: <strong>movement.json</strong> (made from your store’s sales report) or a CSV export with a UPC column and a units-sold column.
             Only UPC and units sold are read. Sales dollars, cost, margin and on-hand are ignored and never saved.
           </p>
           {fileInput}
@@ -107,7 +108,7 @@ export function MovementSheet({ movement, rows, tips, deliveryDays, onDeliveryDa
                         <button className="row" onClick={() => onSelect(r.uid)}>
                           <span className="row-pos">{r.pos}</span>
                           <span className="row-main">
-                            <span className="row-name">{r.name}</span>
+                            <span className="row-name">{niceName(r.name)}</span>
                             <span className="row-sub">{r.facings} → {r.facings - 1} facings frees {fmtIn(r.unitWidth)} in · {paceText(r)}</span>
                           </span>
                         </button>

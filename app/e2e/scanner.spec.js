@@ -13,6 +13,7 @@ const rows = (page) => page.getByTestId('shelf-row')
 async function loadData(page) {
   await page.goto('./')
   await page.getByTestId('data-file').setInputFiles(CATALOG)
+  await page.getByRole('button', { name: 'Got it' }).click() // the welcome, shown once on a new phone
   await expect(page.getByTestId('status-pill')).toBeVisible()
 }
 

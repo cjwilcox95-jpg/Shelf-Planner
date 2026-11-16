@@ -1,7 +1,7 @@
 // The main screen's pieces, built for one hand in the aisle: a status tag, the products of the shelf you are
 // working on (facings right on each row, arrows to move), the ▲/▼ shelf switcher, and the "off the shelf" list.
 import { useEffect, useRef } from 'react'
-import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Info, LayoutPanelTop, Minus, Plus, Trash2, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Info, LayoutPanelTop, Minus, Plus, ScanBarcode, Trash2, XCircle } from 'lucide-react'
 import { fmtIn } from '../lib/fit.js'
 import { positions, shelfLabel } from '../lib/plan.js'
 import { sectionOf } from '../lib/aisle.js'
@@ -31,7 +31,8 @@ export function StatusPill({ check, onClick }) {
   const other = check.tooDeep + check.tooTall
   const tone = over ? 'bad' : other ? 'caution' : 'ok'
   const Icon = over ? XCircle : other ? AlertTriangle : CheckCircle2
-  const text = over ? `${over} ${over > 1 ? 'shelves' : 'shelf'} over` : other ? 'Width fits' : 'Everything fits'
+  // too tall or too deep is a warning, never dressed up as good news
+  const text = over ? `${over} ${over > 1 ? 'shelves' : 'shelf'} over` : other ? `${other} to check` : 'Everything fits'
   return (
     <button className={`status-pill ${tone}`} onClick={onClick} data-testid="status-pill" aria-label={`${text}. Show details`}>
       <Icon size={17} aria-hidden="true" /><span data-testid="section-status">{text}</span>
@@ -43,7 +44,7 @@ const facingsText = (n) => `${n} facing${n > 1 ? 's' : ''}`
 const joinParts = (...parts) => parts.filter(Boolean).join(' · ')
 
 /** The products of one shelf, left to right, each with its facings; a tapped row shows its moves. */
-export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid, onSelect, onFacings, onGapWidth, onMove, onTakeOff, onDetails }) {
+export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid, onSelect, onFacings, onGapWidth, onMove, onTakeOff, onDetails, onAdd, onScan }) {
   const listRef = useRef(null)
   // an opened row scrolls into view, so its buttons are not hidden under the shelf switcher
   useEffect(() => {
@@ -52,7 +53,17 @@ export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid
   const posOf = positions(shelf.items)
   const up = neighbourShelf(plan, shelf.id, 1)
   const down = neighbourShelf(plan, shelf.id, -1)
-  if (!shelf.items.length) return <p className="empty" data-testid="shelf-empty">Nothing on this shelf yet. Tap Add to put a product here.</p>
+  if (!shelf.items.length) {
+    return (
+      <div className="empty" data-testid="shelf-empty">
+        <p>Nothing on this shelf yet.</p>
+        <div className="btn-grid two">
+          <button className="btn primary" onClick={onAdd}><Plus size={18} aria-hidden="true" />Add a product</button>
+          <button className="btn" onClick={onScan}><ScanBarcode size={18} aria-hidden="true" />Scan one</button>
+        </div>
+      </div>
+    )
+  }
   return (
     <ol className="frows" data-testid="shelf-rows" ref={listRef}>
       {shelf.items.map((item, i) => {

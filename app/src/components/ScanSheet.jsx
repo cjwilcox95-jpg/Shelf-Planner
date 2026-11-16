@@ -5,6 +5,7 @@ import { prettyUpc } from '../lib/upc.js'
 import { loadReader, matchScan, readOne } from '../lib/barcode.js'
 import { FRACTIONS, parseInches, withFraction } from '../lib/tape.js'
 import { sourceMark } from '../lib/sizes.js'
+import { niceName, niceSize } from '../lib/text.js'
 
 const SCAN_EVERY_MS = 180
 
@@ -31,7 +32,7 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
     const m = matchScan(text, format, (k) => products.byUpc.has(k))
     const upc = m.upc || m.best
     if (!upc) {
-      setStatus(`Read ${text}, but that is not a US product barcode. Try the other barcode on the package.`)
+      setStatus(`Read ${text}, but that is not a product barcode this app knows (UPC). Try the other barcode on the package.`)
       return false
     }
     paused.current = true
@@ -173,8 +174,8 @@ export function ScanSheet({ mode: startMode = 'find', products, whereInPlan, tar
 
       {hit && (
         <div className="scan-hit" data-testid="scan-hit">
-          <div className="scan-hit-name">{hit.inCatalog ? hit.info.description : 'Not in your store data'}</div>
-          <div className="muted small">{hit.inCatalog && hit.info.size ? `${hit.info.size} · ` : ''}UPC {prettyUpc(hit.upc)}</div>
+          <div className="scan-hit-name">{hit.inCatalog ? niceName(hit.info.description) : 'Not in your store’s list'}</div>
+          <div className="muted small">{hit.inCatalog && hit.info.size ? `${niceSize(hit.info.size)} · ` : ''}UPC {prettyUpc(hit.upc)}</div>
           {mode === 'find' ? (
             <FindResult hit={hit} where={where} targetLabel={targetLabel} onShow={onShow} onShowTray={onShowTray} onAdd={onAdd}
               onMeasure={() => setMode('measure')} onNext={next} />

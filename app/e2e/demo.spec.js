@@ -1,21 +1,25 @@
-// The everyday actions of the app, tested on made-up demo products (e2e/fixtures/demo-catalog.json), so these
-// tests run on any computer: no private store data is needed. Remake the demo file with
-//   node e2e/make-demo-catalog.mjs
+// The everyday actions of the app, tested on the made-up demo products that come with it
+// (public/demo-catalog.json), so these tests run on any computer: no private store data is needed.
+// Remake the demo file with:  node scripts/make-demo-catalog.mjs
 // The demo "Ketchup Mustard" set: 5 shelves of 4 ft (Shelf 5 is the top), 3 products off the shelf.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { checkDigit } from '../src/lib/upc.js'
 
-const CATALOG = path.resolve('e2e/fixtures/demo-catalog.json')
+const CATALOG = path.resolve('public/demo-catalog.json')
 const demo = JSON.parse(fs.readFileSync(CATALOG, 'utf8'))
 
 const rows = (page) => page.getByTestId('shelf-row') // top shelf first
 const openRow = (page) => page.locator('.frow.open')
 const done = (page) => page.getByRole('button', { name: 'Done' }).click()
 
+/** Open the app the way a new person does: try the demo, read the welcome, close it. */
 async function loadData(page) {
   await page.goto('./')
-  await page.getByTestId('data-file').setInputFiles(CATALOG)
+  await page.getByTestId('try-demo').click()
+  await expect(page.getByRole('dialog', { name: 'Welcome' })).toBeVisible()
+  await page.getByRole('button', { name: 'Got it' }).click()
   await expect(page.getByTestId('status-pill')).toBeVisible()
 }
 /** Product names on shelf n (1 = bottom), left to right, read from the drawing. */
@@ -267,7 +271,7 @@ test('shelf size for one shelf or all, add and remove a shelf', async ({ page })
   await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
   await expect(page.locator('.toast')).toContainText('Every shelf updated')
   // no shelf is over now; the room above every shelf became shelf 3's 10 in, so the tall bottles are flagged instead
-  await expect(page.getByTestId('section-status')).toHaveText('Width fits')
+  await expect(page.getByTestId('section-status')).toHaveText(/^\d+ to check$/)
   await page.getByTestId('open-shelf').click()
   await page.getByRole('button', { name: 'Add a shelf on top' }).click()
   await wholeSet(page)
@@ -379,7 +383,7 @@ test('backup: export, then load it on a fresh phone; the import also takes a sto
   await page.getByTestId('open-plans').click()
   await expect(page.getByTestId('backup-due')).toBeVisible() // changed and never backed up
   await page.getByTestId('tab-backup').click()
-  await expect(page.getByTestId('store-info')).toHaveText(`Store data: ${demo.items.length} products, built 2026-01-01.`)
+  await expect(page.getByTestId('store-info')).toContainText(`${demo.items.length} made-up demo products`)
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-backup').click()])
   const file = info.outputPath('backup.json')
   await download.saveAs(file)
@@ -392,6 +396,7 @@ test('backup: export, then load it on a fresh phone; the import also takes a sto
   const fresh = await ctx.newPage()
   await fresh.goto('./')
   await fresh.getByTestId('data-file').setInputFiles(file)
+  await fresh.getByRole('button', { name: 'Got it' }).click() // the welcome, on a phone that has not seen it
   await expect(fresh.getByTestId('plan-name')).toHaveText('Ketchup Mustard (AFI 2026-03)')
   await rows(fresh).nth(0).getByTestId('tile').nth(0).click()
   await expect(fresh.locator('.frow.open').getByTestId('row-facings')).toHaveText(facings)
@@ -401,7 +406,7 @@ test('backup: export, then load it on a fresh phone; the import also takes a sto
 test('tools: one list without repeats; guesses, print, compare with a copy, sales help all open', async ({ page }) => {
   await loadData(page)
   await page.getByTestId('open-tools').click()
-  await expect(page.locator('.tool-title')).toHaveText(['Measure as you go', 'Print or save as PDF', 'Sales help', 'Compare with another plan', 'Shelf sizes', 'Default size guesses'])
+  await expect(page.locator('.tool-title')).toHaveText(['Measure as you go', 'Print or save as PDF', 'Sales help', 'Compare with another plan', 'Shelf sizes', 'Default size guesses', 'How it works'])
   await expect(page.getByTestId('redo')).toBeDisabled() // nothing to redo yet
   await page.getByTestId('tool-guesses').click()
   await expect(page.getByRole('dialog', { name: 'Default size guesses' })).toBeVisible()
@@ -472,4 +477,181 @@ test('phone: the whole set fits on the screen without scrolling', async ({ page 
   })
   expect(hint.y).toBeGreaterThan(0)
   expect(text.bottom).toBeLessThanOrEqual(scan.y) // the hint is not hidden behind the Scan button
+})
+
+// ---------- a first-time user ----------
+
+test('first screen: the demo opens with no file, the welcome shows once, and How it works is under Tools', async ({ page }) => {
+  await page.goto('./')
+  await expect(page.getByRole('heading', { name: 'Shelf Planner' })).toBeVisible()
+  await expect(page.getByTestId('storage-broken')).toHaveCount(0)
+  await page.getByTestId('try-demo').click()
+  const welcome = page.getByRole('dialog', { name: 'Welcome' })
+  await expect(welcome.getByTestId('help-steps').locator('li')).toHaveCount(5)
+  await expect(welcome.getByTestId('help-demo')).toContainText('made-up demo products')
+  await page.getByRole('button', { name: 'Got it' }).click()
+  await expect(page.getByTestId('plan-name')).toHaveText('Ketchup Mustard (AFI 2026-03)')
+  await page.reload()
+  await expect(page.getByTestId('status-pill')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0) // not shown a second time
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-help').click()
+  const help = page.getByRole('dialog', { name: 'How it works' })
+  await expect(help.getByTestId('help-words')).toContainText('Facing')
+  await expect(help).toContainText('press and hold')
+  await done(page)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('first screen: a file that is not a Shelf Planner file is refused in plain words', async ({ page }, info) => {
+  const junk = info.outputPath('holiday.json')
+  fs.writeFileSync(junk, JSON.stringify({ photos: 'of the dog' }))
+  const text = info.outputPath('notes.json')
+  fs.writeFileSync(text, 'not json at all')
+  await page.goto('./')
+  await page.getByTestId('data-file').setInputFiles(junk)
+  await expect(page.getByTestId('welcome-error')).toContainText('This is not a Shelf Planner file')
+  await page.getByTestId('data-file').setInputFiles(text)
+  await expect(page.getByTestId('welcome-error')).toContainText('Could not read that file')
+  await expect(page.getByTestId('try-demo')).toBeEnabled() // still usable after a wrong file
+})
+
+test('a browser that cannot save says so on the first screen', async ({ page }) => {
+  await page.addInitScript(() => {
+    // what a locked-down browser does: opening the app's storage fails
+    Object.defineProperty(window, 'indexedDB', { value: { open() { const req = {}; setTimeout(() => { req.error = new Error('storage is off'); req.onerror?.() }, 0); return req } } })
+  })
+  await page.goto('./')
+  await expect(page.getByTestId('storage-broken')).toContainText('not letting Shelf Planner save')
+})
+
+test('keyboard: Tab to a shelf and press Enter to open it; Escape closes a panel and focus goes back', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'a keyboard is a desktop thing')
+  await loadData(page)
+  const shelf3 = rows(page).nth(2).getByTestId('board-label')
+  await shelf3.focus()
+  await expect(shelf3).toHaveAccessibleName(/Work on Shelf 3/)
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('focus-name')).toHaveText('Shelf 3')
+  // a panel takes the focus when it opens and hands it back when it closes
+  await page.getByTestId('open-tools').focus()
+  await page.keyboard.press('Enter')
+  const tools = page.getByRole('dialog', { name: 'Tools' })
+  await expect(tools).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(tools).toHaveCount(0)
+  await expect(page.getByTestId('open-tools')).toBeFocused()
+})
+
+test('an empty shelf offers Add and Scan right there', async ({ page }) => {
+  await loadData(page)
+  await page.getByTestId('open-plans').click()
+  await page.getByTestId('new-plan').click()
+  await page.getByTestId('new-blank').click()
+  await page.getByTestId('start-blank').click()
+  await rows(page).first().getByTestId('board-label').click()
+  const empty = page.getByTestId('shelf-empty')
+  await expect(empty).toContainText('Nothing on this shelf yet')
+  await empty.getByRole('button', { name: 'Scan one' }).click()
+  await expect(page.getByRole('dialog', { name: 'Scan a barcode' })).toBeVisible()
+  await done(page)
+  await empty.getByRole('button', { name: 'Add a product' }).click()
+  await page.getByTestId('search-input').fill("sunnyvale's mayo, 15") // punctuation does not get in the way
+  await page.getByTestId('add-result').first().click()
+  await expect(page.getByTestId('shelf-rows').getByTestId('frow')).toHaveCount(1)
+})
+
+test('a scanned product that is not in the store list can be added and given a name', async ({ page }) => {
+  await loadData(page)
+  await openShelf(page, 1)
+  await page.getByTestId('open-scan-bar').click()
+  const unknown = `49000000001${checkDigit('49000000001')}` // made up; not in the demo list
+  await page.getByTestId('scan-typed').fill(unknown)
+  await page.getByRole('button', { name: 'Look up' }).click()
+  await expect(page.getByTestId('scan-hit')).toContainText('Not in your store’s list')
+  await page.getByTestId('scan-add').click()
+  await expect(openRow(page).locator('.row-name')).toHaveText(/^UPC 4-90000-00001-\d$/i)
+  await expect(openRow(page)).toContainText('not in store files')
+  await openRow(page).getByTestId('details').click()
+  await page.getByTestId('name-it').click()
+  await page.getByLabel('Product name').fill('Local honey 12 oz')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByTestId('selected-panel')).toContainText('Local Honey 12 Oz')
+  await done(page)
+  await expect(openRow(page).locator('.row-name')).toHaveText('Local Honey 12 Oz')
+  await page.reload()
+  expect((await shelfNames(page, 1)).at(-1)).toBe('Local honey 12 oz') // the name is saved with the plan
+})
+
+test('the tag never calls a problem good news: too tall is "to check", with the reason in the panel', async ({ page }) => {
+  await loadData(page)
+  await openShelf(page, 1)
+  await page.getByTestId('open-shelf').click()
+  await page.getByTestId('field-clearanceIn').fill('5')
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
+  const n = (await shelfNames(page, 1)).length
+  await expect(page.getByTestId('section-status')).toHaveText(`${n} to check`)
+  await expect(page.getByTestId('status-pill')).toHaveClass(/caution/)
+  await page.getByTestId('status-pill').click()
+  await expect(page.getByTestId('summary-status')).toHaveText('Fits side to side')
+  await expect(page.getByTestId('summary')).toContainText(`${n} products too tall for the room above`)
+})
+
+test('if a screen breaks: a plain message, the plans are safe, a backup can be saved, and the app opens again', async ({ page }) => {
+  await loadData(page)
+  await openProduct(page, 0, 0)
+  await openRow(page).getByRole('button', { name: 'One more facing' }).click()
+  const facings = await openRow(page).getByTestId('row-facings').innerText()
+  // break the next start on purpose: sorting names (used when the product list is prepared) throws
+  await page.addInitScript(() => { window.__breakOnce = sessionStorage.getItem('broke') !== '1'; if (window.__breakOnce) { sessionStorage.setItem('broke', '1'); Intl.Collator = function () { throw new Error('test: the screen broke') } } })
+  await page.reload()
+  const crash = page.getByTestId('crash')
+  await expect(crash).toContainText('Something went wrong')
+  await expect(crash).toContainText('Your plans are safe')
+  await expect(crash).toContainText('test: the screen broke')
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('crash-backup').click()])
+  const backup = JSON.parse(fs.readFileSync(await download.path(), 'utf8'))
+  expect(backup.kind).toBe('shelf-planner-backup')
+  expect(backup.plans).toHaveLength(1)
+  expect(backup.plans[0].shelves.at(-1).items[0].facings).toBe(Number(facings))
+  await page.getByTestId('crash-reload').click() // the second start is not broken
+  await expect(page.getByTestId('plan-name')).toHaveText('Ketchup Mustard (AFI 2026-03)')
+})
+
+test('a damaged plan saved on the phone is repaired at start instead of breaking the app', async ({ page }) => {
+  await loadData(page)
+  // damage what is saved: one shelf becomes nonsense, one product loses its barcode
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const req = indexedDB.open('shelf-planner')
+    req.onsuccess = () => {
+      const tx = req.result.transaction('kv', 'readwrite')
+      const kv = tx.objectStore('kv')
+      const get = kv.get('plans')
+      get.onsuccess = () => {
+        const plans = get.result
+        const p = Object.values(plans)[0]
+        p.shelves[0] = 'nonsense'
+        delete p.shelves[1].items[0].upc
+        kv.put(plans, 'plans')
+      }
+      tx.oncomplete = () => { req.result.close(); resolve() }
+      tx.onerror = () => reject(tx.error)
+    }
+  }))
+  const before = demo.resets[0].shelves[1].items.length
+  await page.reload()
+  await expect(page.locator('.toast')).toContainText('A damaged plan was repaired: Ketchup Mustard')
+  await expect(rows(page)).toHaveCount(4) // the broken shelf is gone, the rest is there
+  expect(await shelfNames(page, 1)).toHaveLength(before - 1)
+  await expect(page.getByTestId('crash')).toHaveCount(0)
+})
+
+test('an update that arrives while the app is open is announced, with a button to use it', async ({ page }) => {
+  await loadData(page)
+  await expect(page.getByTestId('update-ready')).toHaveCount(0)
+  await page.evaluate(() => window.dispatchEvent(new Event('shelf-planner-updated'))) // what main.jsx sends when a new version takes over
+  await expect(page.getByTestId('update-ready')).toContainText('A newer version of the app is ready')
+  await page.getByTestId('update-ready').getByRole('button', { name: 'Use it now' }).click()
+  await expect(page.getByTestId('status-pill')).toBeVisible() // reloaded
+  await expect(page.getByTestId('update-ready')).toHaveCount(0)
 })

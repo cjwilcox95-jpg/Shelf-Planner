@@ -66,13 +66,14 @@ export function search(index, query, limit = 60) {
       if (isExact || String(e.item.upc).includes(d)) top.add((isExact ? 0 : n) + e.i, e.item)
     }
   } else {
-    const words = searchText(q).split(/\s+/).filter(Boolean)
+    // each typed word, as the ways it may be written in a name: "french's" also finds FRENCH (and FRENCHS)
+    const words = q.split(/\s+/).map((w) => [...new Set([searchText(w), searchText(w.replace(/['’`]S$/, ''))])].filter(Boolean)).filter((alts) => alts.length)
     if (!words.length) return []
     for (const e of index) {
-      if (!words.every((w) => e.hay.includes(w))) continue
+      if (!words.every((alts) => alts.some((w) => e.hay.includes(w)))) continue
       // rank already puts special orders last; a name starting with the first word goes first within each group
       const special = e.item.specialOrder ? 2 : 0
-      const starts = e.hay.startsWith(words[0]) ? 0 : 1
+      const starts = words[0].some((w) => e.hay.startsWith(w)) ? 0 : 1
       top.add((special + starts) * n + e.rank, e.item)
     }
   }

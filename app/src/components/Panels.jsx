@@ -30,13 +30,13 @@ const whenChanged = (iso) => {
 export function SectionSummary({ plan, check, anyGuess, missing, productCount }) {
   const notes = []
   if (check.tooDeep) notes.push(`${check.tooDeep} product${check.tooDeep > 1 ? 's' : ''} too deep for the shelf`)
-  if (check.tooTall) notes.push(`${check.tooTall} product${check.tooTall > 1 ? 's' : ''} taller than the clearance`)
+  if (check.tooTall) notes.push(`${check.tooTall} product${check.tooTall > 1 ? 's' : ''} too tall for the room above`)
   if (missing) notes.push(`${missing} not in your store's item files`)
   const over = check.overCount
   const otherProblems = check.tooDeep + check.tooTall
   let status = 'Everything fits'
   if (over) status = `${over} ${over > 1 ? 'shelves' : 'shelf'} over`
-  else if (otherProblems) status = 'Width fits'
+  else if (otherProblems) status = 'Fits side to side'
   const tone = over ? 'over' : otherProblems ? 'caution' : 'ok'
   const Icon = over ? XCircle : otherProblems ? AlertTriangle : CheckCircle2
   return (
@@ -67,8 +67,9 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
 }
 
 /** Everything about one product on a shelf: its photo, its size, how it fits, and moving it to another shelf. */
-export function DetailsSheet({ plan, where, index, item, info, placed, dims, photo, thumb, movement, onEditSize, onPickPhoto, onRemovePhoto, onHigh, onStartPlace, onClose }) {
+export function DetailsSheet({ plan, where, index, item, info, placed, dims, photo, thumb, movement, onEditSize, onPickPhoto, onRemovePhoto, onHigh, onDescribe, onStartPlace, onClose }) {
   const [busy, setBusy] = useState(false)
+  const [naming, setNaming] = useState(null) // the name being typed for a product that is not in the store files
   const full = useFullPhoto(item.upc, photo) // the photo itself, read when the details open
   const photoUrl = photo ? full || thumb : null // the small copy until then
   const pick = async (e) => {
@@ -88,7 +89,6 @@ export function DetailsSheet({ plan, where, index, item, info, placed, dims, pho
   const warns = []
   if (placed.tooDeep) warns.push('Deeper than the shelf')
   if (placed.tooTall) warns.push('Too tall for the room above the shelf')
-  if (!info.inCatalog) warns.push('Not in your store files')
   return (
     <Sheet title="Product details" onClose={onClose}>
       <section className="detail" data-testid="selected-panel" aria-label="Selected product">
@@ -104,6 +104,19 @@ export function DetailsSheet({ plan, where, index, item, info, placed, dims, pho
           </div>
         </div>
         {warns.length > 0 && <p className="detail-warn" role="status">{warns.join(' · ')}</p>}
+        {!info.inCatalog && (
+          <div className="detail-unknown" data-testid="detail-unknown">
+            <p>This product is not in your store’s list, so its size is a rough guess.</p>
+            {naming == null ? (
+              <button className="btn" onClick={() => setNaming(/^UPC /.test(info.description) ? '' : info.description)} data-testid="name-it">Give it a name</button>
+            ) : (
+              <form className="rename" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onDescribe(naming); setNaming(null) }}>
+                <input autoFocus value={naming} maxLength={60} onChange={(e) => setNaming(e.target.value)} aria-label="Product name" placeholder="e.g. Local honey 12 oz" />
+                <button className="btn primary">Save</button>
+              </form>
+            )}
+          </div>
+        )}
         <dl className="facts">
           <div><dt>On the shelf</dt><dd data-testid="detail-width">
             {item.facings} × {g('w')}{fmtIn(dims.w, 2)} in = <strong>{g('w')}{fmtIn(placed.widthIn)} in wide</strong>
@@ -144,19 +157,29 @@ export function ConfirmSheet({ title, text, yes, onYes, onClose }) {
   )
 }
 
-/** A panel that slides up from the bottom of the screen. */
-export function Sheet({ title, onClose, children, tall }) {
+/**
+ * A panel that comes up from the bottom of the screen. Every panel in the app is one of these: a title, one
+ * button to close it (also Escape, or a tap outside), and the content.
+ * The keyboard focus moves into the panel when it opens and goes back to where it was when it closes.
+ */
+export function Sheet({ title, onClose, children, tall, doneLabel = 'Done' }) {
+  const ref = useRef(null)
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+  useEffect(() => {
+    const before = document.activeElement
+    if (!ref.current?.contains(before)) ref.current?.focus({ preventScroll: true })
+    return () => { if (before?.isConnected && before !== document.body) before.focus?.({ preventScroll: true }) }
+  }, [])
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className={`sheet${tall ? ' tall' : ''}`} role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div className={`sheet${tall ? ' tall' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
           <h2>{title}</h2>
-          <button className="btn" onClick={onClose}>Done</button>
+          <button className="btn" onClick={onClose} data-testid="sheet-done">{doneLabel}</button>
         </div>
         <div className="sheet-body">{children}</div>
       </div>

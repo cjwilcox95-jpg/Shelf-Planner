@@ -1,11 +1,13 @@
-// Makes e2e/fixtures/demo-catalog.json: a small MADE-UP store-data file (invented brands and UPCs, no real
-// store data), so the screens can be tested on any computer without the private store files.
-//   node e2e/make-demo-catalog.mjs
+// Makes public/demo-catalog.json: a small MADE-UP store-data file, so anyone can try the app without a file of
+// their own, and so the browser tests run on any computer. Nothing in it comes from a real store:
+//  - the brands are invented;
+//  - every UPC starts with 4, the range kept for a shop's own in-house codes, so none is a real product's barcode.
+//   node scripts/make-demo-catalog.mjs
 import fs from 'node:fs'
 import path from 'node:path'
 import { checkDigit } from '../src/lib/upc.js'
 
-const OUT = path.resolve(path.dirname(new URL(import.meta.url).pathname), 'fixtures/demo-catalog.json')
+const OUT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../public/demo-catalog.json')
 const brands = ['SUNNYVALE', 'RED BARN', 'OAKFIELD', 'BLUE HERON', 'GOLDEN ACRE', 'MAPLE RUN', 'PRAIRIE', 'COPPER POT']
 const kinds = [
   ['KETCHUP SQZ', ['14 OZ', '20 OZ', '32 OZ', '38 OZ', '64 OZ'], '10'], ['MUSTARD YELLOW', ['8 OZ', '14 OZ', '20 OZ'], '10'],
@@ -17,7 +19,7 @@ const kinds = [
 let n = 0
 const items = []
 for (const b of brands) for (const [k, sizes, sub] of kinds) for (const s of sizes) {
-  const first11 = `0${String(41000 + n * 37).padStart(5, '0')}${String(10000 + n * 13).padStart(5, '0')}`
+  const first11 = `4${String(10000 + n * 37).padStart(5, '0')}${String(10000 + n * 13).padStart(5, '0')}`
   n++
   const [v, u] = s.split(' ')
   items.push({ upc: first11 + checkDigit(first11), description: `${b} ${k}`, pack: 12, size: s, sizeValue: Number(v), uom: u, classCode: '301', subclassCode: sub, source: 'demo' })
@@ -59,5 +61,5 @@ fs.mkdirSync(path.dirname(OUT), { recursive: true })
 fs.writeFileSync(OUT, JSON.stringify({
   kind: 'shelf-planner-catalog', version: 'demo', built: '2026-01-01', sources: ['made-up demo data'],
   classNames: { 301: 'Demo grocery' }, subclassNames: { '301-10': 'Condiments', '301-20': 'Frozen' }, items, resets, afiSizes: {},
-}, null, 1) + '\n')
+}) + '\n')
 console.log(`${items.length} made-up products, ${resets.length} sets -> ${OUT}`)

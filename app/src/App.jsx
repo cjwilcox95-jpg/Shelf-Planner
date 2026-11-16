@@ -23,7 +23,8 @@ import { CompareSheet } from './components/CompareSheet.jsx'
 import { CHANGE_COLUMNS, changeRows, comparePlans } from './lib/compare.js'
 import { MovementSheet } from './components/MovementSheet.jsx'
 import { aisleRows, makeAisleView, mergeAisles, newAisle, sectionOf, splitAisleView } from './lib/aisle.js'
-import { cleanCatalog } from './lib/clean.js'
+import { cleanCatalog, repairPlans } from './lib/clean.js'
+import { HelpSheet } from './components/Help.jsx'
 import { cleanGuessEdits } from './lib/guess.js'
 import { ScanSheet } from './components/ScanSheet.jsx'
 import { loadReader } from './lib/barcode.js'
@@ -70,6 +71,9 @@ export default function App() {
   const [deliveryDays, setDeliveryDays] = useState(7)
   const [saveError, setSaveError] = useState(false)
   const [aisles, setAisles] = useState({}) // id -> { id, name, planIds (left to right) }
+  const [storageBroken, setStorageBroken] = useState(false) // the browser will not let the app save anything
+  const [updateReady, setUpdateReady] = useState(false) // a newer version of the app took over while this one was open
+  const [helpSeen, setHelpSeen] = useState(null) // has the welcome been shown on this phone? (null = not known yet)
   const aislesRef = useRef({})
   const boxRef = useRef(null)
   const winRef = useRef(null)
@@ -102,7 +106,15 @@ export default function App() {
   }, [])
 
   const startWith = useCallback((cat, saved, currentId, oldShelf) => {
-    let all = saved && Object.keys(saved).length ? saved : null
+    // check the plans saved on this phone before the screens use them; a damaged one is repaired, never a blank screen
+    const checked = repairPlans(saved, () => newId('s'))
+    if (checked.repaired.length || checked.dropped) {
+      save(`damagedPlans:${new Date().toISOString()}`, saved).catch(() => {}) // the plans as they were, kept aside
+      showToast(checked.repaired.length
+        ? `A damaged plan was repaired: ${checked.repaired.join(', ')}. Have a look at it.`
+        : 'A damaged plan could not be read and was left out.')
+    }
+    let all = Object.keys(checked.plans).length ? checked.plans : null
     if (!all) {
       const p = oldShelf ? planFromOldShelf(oldShelf) : starterPlan(cat)
       all = { [p.id]: p }
@@ -113,11 +125,17 @@ export default function App() {
     const view = aisle ? makeAisleView(aisle, all) : null
     openPlan(view?.sections.length ? view : all[currentId] || mostRecent(all))
     setPhase('ready')
-  }, [commitPlans, openPlan])
+  }, [commitPlans, openPlan]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load what is saved on this device.
   useEffect(() => {
     (async () => {
+      try { await load('seenHelp').then((seen) => setHelpSeen(!!seen)) } catch (e) {
+        console.error('nothing can be saved in this browser', e)
+        setStorageBroken(true)
+        setPhase('needData')
+        return
+      }
       try {
         const [cat, saved, currentId, oldShelf, lastBk] = await Promise.all(
           ['catalog', 'plans', 'currentPlanId', 'shelf', 'lastBackupAt'].map((k) => load(k)))
@@ -144,6 +162,23 @@ export default function App() {
       }
     })()
   }, [startWith])
+
+  // A newer version took over while the app was open (see main.jsx): offer to reload.
+  useEffect(() => {
+    const on = () => setUpdateReady(true)
+    window.addEventListener('shelf-planner-updated', on)
+    return () => window.removeEventListener('shelf-planner-updated', on)
+  }, [])
+
+  // The first time the app is used on this phone, say how it works (once).
+  useEffect(() => {
+    if (phase === 'ready' && helpSeen === false) setSheet((open) => open || 'welcome')
+  }, [phase, helpSeen])
+  const closeWelcome = () => {
+    setSheet(null)
+    setHelpSeen(true)
+    save('seenHelp', true).catch(() => {})
+  }
 
   // Fetch the barcode reader in the background once, so scanning also works later without a signal.
   useEffect(() => {
@@ -354,7 +389,7 @@ export default function App() {
     // Runs again when anything changes the size of the drawing or of the room around it: the view, the scale,
     // the width of the screen, the shelves' heights, and the bars that share the screen with the drawing.
   }, [phase, zoomed, plan.id, activeShelf.id, plan.shelves.length, plan.tray.length, scale, fitScale, // eslint-disable-line react-hooks/exhaustive-deps
-    wholeScale, boxWidth, rowsTallestIn, backupDue, saveError])
+    wholeScale, boxWidth, rowsTallestIn, backupDue, saveError, updateReady])
 
   // ---------- moving around the set ----------
   /** Work on one shelf (zoomed in). */
@@ -544,7 +579,20 @@ export default function App() {
   const onImportFile = (file, onProgress) => importFile(file, onProgress).catch((e) => `Could not finish loading that file: ${e.message || e}. Nothing on this phone was deleted; try again.`)
   const importFile = async (file, onProgress) => {
     let doc
-    try { doc = JSON.parse((await file.text()).replace(/^\uFEFF/, '')) } catch { return 'Could not read that file.' }
+    try { doc = JSON.parse((await file.text()).replace(/^\uFEFF/, '')) } catch { return 'Could not read that file. Pick a Shelf Planner file: a backup, catalog.json, or a photo or size pack.' }
+    return importDoc(doc, onProgress)
+  }
+  /** The made-up demo products that come with the app, for looking around without a file. */
+  const onDemo = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}demo-catalog.json`)
+      if (!res.ok) throw new Error(`the demo file did not load (${res.status})`)
+      return await importDoc(await res.json())
+    } catch (e) {
+      return `Could not open the demo: ${e.message || e}. Check your signal and try again.`
+    }
+  }
+  const importDoc = async (doc, onProgress) => {
     const kind = identifyFile(doc)
     if (!kind.type) return kind.problem
     if (kind.type === 'photos') {
@@ -570,12 +618,14 @@ export default function App() {
     }
     if (kind.type === 'catalog') {
       const cat = cleanCatalog(doc)
+      if (!cat.items.length) return 'Could not use that file: none of its products has a 12-digit UPC.'
+      const leavingDemo = catalog?.version === 'demo' && cat.version !== 'demo'
       await save('catalog', cat)
       await askToKeepData()
       setCatalog(cat)
       if (phase !== 'ready') startWith(cat, await load('plans'), await load('currentPlanId'), await load('shelf'))
-      const msg = `Store data loaded: ${cat.items.length.toLocaleString()} products.`
-      return msg
+      return `Store data loaded: ${cat.items.length.toLocaleString()} products.` +
+        (leavingDemo ? ' The demo plans are still under Your plans; delete them when you like.' : '')
     }
     // backup
     // Store data: the backup's copy is used only when this phone has none, or the backup's is newer.
@@ -618,7 +668,7 @@ export default function App() {
   }
 
   if (phase === 'loading') return <div className="center-msg">Loading…</div>
-  if (phase === 'needData') return <ImportScreen onFile={onImportFile} />
+  if (phase === 'needData') return <WelcomeScreen onFile={onImportFile} onDemo={onDemo} storageBroken={storageBroken} />
 
   const missing = plan.shelves.reduce((n, s) => n + s.items.filter((i) => !products.info(i).inCatalog).length, 0)
   const productCount = plan.shelves.reduce((n, s) => n + s.items.filter((i) => i.kind !== 'gap').length, 0)
@@ -642,6 +692,12 @@ export default function App() {
         <StatusPill check={check} onClick={() => setSheet('status')} />
       </header>
 
+      {updateReady && (
+        <div className="save-error update-ready" role="status" data-testid="update-ready">
+          A newer version of the app is ready.
+          <button className="btn" onClick={() => window.location.reload()}>Use it now</button>
+        </div>
+      )}
       {saveError && (
         <div className="save-error" role="alert" data-testid="save-error">
           Could not save on this phone (storage may be full). Export a backup now so nothing is lost.
@@ -721,7 +777,8 @@ export default function App() {
                   setDetailsOpen(false)
                   setPlacing(false)
                 }}
-                onDetails={(uid) => { setSelectedUid(uid); setDetailsOpen(true) }} />
+                onDetails={(uid) => { setSelectedUid(uid); setDetailsOpen(true) }}
+                onAdd={() => setSheet('add')} onScan={() => setSheet('scan')} />
               {plan.tray.length > 0 && (
                 <button className="tray-link" onClick={() => setSheet('tray')} data-testid="open-tray">
                   <span>{plan.tray.length} off the shelf</span><ChevronRight size={20} aria-hidden="true" />
@@ -773,7 +830,7 @@ export default function App() {
             focusShelf(activeShelf.id)
             setSheet(null) // close the list so you see it land on the shelf
           }}
-          onDelete={(uid) => act({ type: 'deleteItem', uid }, `Deleted ${products.info(findItem(plan, uid).item).description}`)}
+          onDelete={(uid) => act({ type: 'deleteItem', uid }, `Deleted ${niceName(products.info(findItem(plan, uid).item).description)}`)}
           onClose={() => setSheet(null)} />
       )}
 
@@ -881,6 +938,9 @@ export default function App() {
           onSelect={(uid) => { focusItem(uid); setSheet(null) }}
           onPrint={() => setSheet('print')} onClose={() => setSheet(null)} />
       )}
+      {(sheet === 'help' || sheet === 'welcome') && (
+        <HelpSheet first={sheet === 'welcome'} demo={catalog.version === 'demo'} onClose={sheet === 'welcome' ? closeWelcome : () => setSheet(null)} />
+      )}
       {sheet === 'guesses' && (
         <GuessTableSheet types={products.types} onSave={onSaveGuesses} onClose={() => setSheet(null)} />
       )}
@@ -888,7 +948,9 @@ export default function App() {
         <PlansSheet
           plans={plans} currentId={plan.id} resets={catalog.resets || []} lastBackupAt={lastBackupAt} backupDue={backupDue}
           photoCount={Object.keys(photoIndex).length}
-          storeInfo={`Store data: ${catalog.items.length.toLocaleString()} products, built ${catalog.built}.`}
+          storeInfo={catalog.version === 'demo'
+            ? `Store data: ${catalog.items.length} made-up demo products. Import your store’s file to replace them.`
+            : `Store data: ${catalog.items.length.toLocaleString()} products, built ${catalog.built}.`}
           aisles={aisles} currentAisleId={plan.aisleId || null}
           onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle}
           onOpen={onOpenPlan} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDeletePlan}
@@ -913,6 +975,7 @@ export default function App() {
           onPickPhoto={(f) => onPickPhoto(sel.item, f)}
           onRemovePhoto={() => onRemovePhoto(sel.item)}
           onHigh={(n) => act({ type: 'high', uid: sel.item.uid, high: n })}
+          onDescribe={(name) => act({ type: 'describe', uid: sel.item.uid, description: name }, 'Name saved')}
           onStartPlace={() => { setPlacing(true); setDetailsOpen(false) }}
           onClose={() => setDetailsOpen(false)}
         />
@@ -930,40 +993,53 @@ export default function App() {
   )
 }
 
-function ImportScreen({ onFile }) {
+/** The first screen: try the demo, or load a file for your store. */
+function WelcomeScreen({ onFile, onDemo, storageBroken }) {
   const [msg, setMsg] = useState(null)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(null) // 'demo' | 'file' while one of them is loading
   const [progress, setProgress] = useState(null) // "Loading photos… 400 of 960" while a backup's photos load
-  const pick = async (e) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    setBusy(true)
+  const run = async (what, job) => {
+    setBusy(what)
     setMsg(null)
     setProgress(null)
-    const result = await onFile(file, setProgress).catch((err) => `Could not load it: ${err.message}`)
-    setBusy(false)
+    const result = await job().catch((err) => `Could not load it: ${err.message}`)
+    setBusy(null)
     setProgress(null)
-    setMsg(result)
+    setMsg(result) // on success this screen has already been replaced by the app
+  }
+  const pick = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) run('file', () => onFile(file, setProgress))
   }
   return (
     <div className="import">
       <img className="logo" src="logo.svg" alt="" />
       <h1>Shelf Planner</h1>
-      <p>Plan shelf sets in real inches and see what fits before you move anything.</p>
-      <div className="import-card">
-        <h2>Load your store data</h2>
-        <p>
-          Pick <strong>catalog.json</strong> (your store's product list: names, sizes and UPCs, no costs or prices),
-          or a <strong>shelf-planner-backup</strong> file from another phone.
+      <p>Plan your shelves in real inches, and see what fits before you move anything.</p>
+      {storageBroken && (
+        <p className="error" role="alert" data-testid="storage-broken">
+          This browser is not letting Shelf Planner save anything, so it could not keep your plans. That happens in a
+          private (incognito) window, or when storage is turned off. Open the app in a normal window instead.
         </p>
-        <p className="muted">The file stays on this phone. Nothing is uploaded anywhere.</p>
-        <label className={`btn primary wide file-btn${busy ? ' busy' : ''}`}>
-          {busy ? progress || 'Loading…' : 'Choose file'}
-          <input type="file" accept=".json,application/json" onChange={pick} disabled={busy} data-testid="data-file" />
-        </label>
-        {msg && <p className="error" role="alert">{msg}</p>}
+      )}
+      <div className="import-card">
+        <h2>New here?</h2>
+        <p>Look around with made-up demo products. There is nothing to load.</p>
+        <button className="btn primary wide" onClick={() => run('demo', onDemo)} disabled={!!busy} data-testid="try-demo">
+          {busy === 'demo' ? 'Opening…' : 'Try it with demo products'}
+        </button>
       </div>
+      <div className="import-card">
+        <h2>Have a file for your store?</h2>
+        <p>Choose the <strong>backup file</strong> someone shared with you, or your store’s product file (<strong>catalog.json</strong>).</p>
+        <label className={`btn wide file-btn${busy ? ' busy' : ''}`}>
+          {busy === 'file' ? progress || 'Loading…' : 'Choose the file'}
+          <input type="file" accept=".json,application/json" onChange={pick} disabled={!!busy} data-testid="data-file" />
+        </label>
+        <p className="muted small">The file stays on this phone. Nothing is uploaded anywhere, and no costs or prices are ever used.</p>
+      </div>
+      {msg && <p className="error" role="alert" data-testid="welcome-error">{msg}</p>}
     </div>
   )
 }
