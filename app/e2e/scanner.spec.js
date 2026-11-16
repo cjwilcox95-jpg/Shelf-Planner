@@ -25,7 +25,7 @@ if (!fs.existsSync(path.join(BARCODES, `${ON_PLAN}.y4m`)) || !fs.existsSync(path
 }
 
 test.use({
-  launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${path.join(BARCODES, `${ON_PLAN}.y4m`)}`] },
+  launchOptions: { ...(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {}), args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${path.join(BARCODES, `${ON_PLAN}.y4m`)}`] },
   permissions: ['camera'],
 })
 
@@ -59,7 +59,6 @@ test.describe('scanner with a camera', () => {
     // the product now shows measured sizes (no ~ or ≈ mark) everywhere
     await rows(page).nth(0).getByTestId('tile').nth(0).click()
     await page.locator('.frow.open').getByTestId('details').click()
-    await page.getByRole('button', { name: 'More', exact: true }).click()
     await expect(page.getByTestId('selected-panel')).toContainText('2.75 W × 8.5 H')
     await expect(page.getByTestId('selected-panel')).toContainText('W measured · H measured')
   })

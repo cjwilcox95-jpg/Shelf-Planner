@@ -5,7 +5,8 @@ export default defineConfig({
   timeout: 60_000,
   reporter: 'list',
   outputDir: '../data/build/test-results',
-  use: { baseURL: 'http://localhost:4173/' },
+  // PW_CHROME: path of a Chrome to use when the downloaded one is missing (cloud sessions)
+  use: { baseURL: 'http://localhost:4173/', launchOptions: process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {} },
   webServer: {
     command: 'npx vite preview --port 4173 --strictPort',
     url: 'http://localhost:4173/',

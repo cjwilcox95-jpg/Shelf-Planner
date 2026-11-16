@@ -5,6 +5,7 @@ import { prettyUpc } from '../lib/upc.js'
 import { measureFromPhoto, SOURCE_LABEL } from '../lib/sizes.js'
 import { FRACTIONS, parseInches, withFraction } from '../lib/tape.js'
 import { useFullPhoto } from '../lib/usePhotos.js'
+import { niceName, niceSize } from '../lib/text.js'
 
 const CHIP_AUTO = { afi: 'AFI', afiEstimate: 'AFI estimate', guess: 'guess' }
 
@@ -78,9 +79,9 @@ export function SizeSheet({ info, photo, thumb, dims, rec, types, shelfWidthIn, 
       <div className="size-head">
         {photoUrl ? <img src={photoUrl} alt="" className="size-thumb" /> : <div className="size-thumb empty">no photo</div>}
         <div>
-          <strong>{info.description}</strong>
-          <div className="muted small">{info.size}{info.pack ? ` · pack ${info.pack}` : ''} · UPC {prettyUpc(info.upc)}</div>
-          <div className="muted small">Saved for this product everywhere it is used.</div>
+          <strong>{niceName(info.description)}</strong>
+          <div className="muted small">{niceSize(info.size)}{info.pack ? ` · pack ${info.pack}` : ''} · UPC {prettyUpc(info.upc)}</div>
+          <div className="muted small">The size is saved for this product everywhere it is used.</div>
         </div>
       </div>
 
@@ -94,16 +95,14 @@ export function SizeSheet({ info, photo, thumb, dims, rec, types, shelfWidthIn, 
               onFocus={() => setFocus(k)} onChange={(e) => setValue(k, e.target.value)} aria-label={label} data-testid={`size-${k}`}
             />
             <span className="unit">in</span>
-            {/\//.test(form[k].value) && inches(k) > 0 && <span className="measure-read">= {fmtIn(inches(k), 3)}</span>}
+            <select className="select src-select" value={form[k].src} onChange={(e) => setSrc(k, e.target.value)}
+              aria-label={`Where the ${label.toLowerCase()} came from`} data-testid={`src-${k}`}>
+              <option value="measured">{SOURCE_LABEL.measured}</option>
+              <option value="photo">{SOURCE_LABEL.photo}</option>
+              <option value="auto">{CHIP_AUTO[autoSrc(k)]}</option>
+            </select>
           </div>
-          <div className="chips" role="radiogroup" aria-label={`Where the ${label.toLowerCase()} came from`}>
-            {['measured', 'photo', 'auto'].map((src) => (
-              <button type="button" key={src} role="radio" aria-checked={form[k].src === src}
-                className={`chip${form[k].src === src ? ' on' : ''}`} onClick={() => setSrc(k, src)}>
-                {src === 'auto' ? CHIP_AUTO[autoSrc(k)] : SOURCE_LABEL[src]}
-              </button>
-            ))}
-          </div>
+          {/\//.test(form[k].value) && inches(k) > 0 && <div className="measure-read">= {fmtIn(inches(k), 3)} in</div>}
         </div>
       ))}
       <div className="chips fractions" aria-label="Add a fraction to the box you are typing in">
@@ -114,13 +113,16 @@ export function SizeSheet({ info, photo, thumb, dims, rec, types, shelfWidthIn, 
       </div>
       <button className="btn wide" onClick={() => setMeasuring(true)} data-testid="open-measure">Measure from a photo…</button>
 
-      <label className="field">
-        <span>Package type (used for guesses)</span>
-        <select value={type} onChange={(e) => setType(e.target.value)} className="select">
-          <option value="">Automatic ({types.find((t) => t.id === dims.type)?.label || dims.type})</option>
-          {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-        </select>
-      </label>
+      <details className="more-opts">
+        <summary>Package type: {type ? types.find((t) => t.id === type)?.label || type : `automatic (${types.find((t) => t.id === dims.type)?.label || dims.type})`}</summary>
+        <label className="field">
+          <span>Package type (used for guesses)</span>
+          <select value={type} onChange={(e) => setType(e.target.value)} className="select" data-testid="package-type">
+            <option value="">Automatic ({types.find((t) => t.id === dims.type)?.label || dims.type})</option>
+            {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+        </label>
+      </details>
       <label className="field">
         <span>Notes</span>
         <textarea className="notes" rows={3} value={note} onChange={(e) => setNote(e.target.value)}
@@ -128,7 +130,6 @@ export function SizeSheet({ info, photo, thumb, dims, rec, types, shelfWidthIn, 
       </label>
       <button className="btn primary wide" onClick={save} disabled={!valid || saving} data-testid="save-size">{saving ? 'Saving…' : 'Save'}</button>
       {error && <p className="error" role="alert">{error}</p>}
-      <p className="muted small">~ = guess · ≈ = from photo · no mark = measured with a tape.</p>
     </Sheet>
   )
 }
@@ -156,9 +157,8 @@ export function GuessTableSheet({ types, onSave, onClose }) {
   return (
     <Sheet title="Default size guesses" onClose={onClose} tall>
       <p className="muted small">
-        Every product without a real size gets a guess: a typical product of its package type, scaled by its size
-        (twice the ounces is about 1.26 times bigger each way). Change a row to change every guess of that type.
-        An “at oz” of 0 means that type is guessed the same size whatever it holds (dye boxes, pod bags, sheets).
+        A product without a real size gets a guess: a typical product of its package type, scaled by its size.
+        Change a row to change every guess of that type. An “at oz” of 0 means the same size whatever it holds.
       </p>
       <div className="guess-table">
         {types.map((t) => (

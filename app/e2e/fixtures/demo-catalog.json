@@ -1,0 +1,2926 @@
+{
+ "kind": "shelf-planner-catalog",
+ "version": "demo",
+ "built": "2026-01-01",
+ "sources": [
+  "made-up demo data"
+ ],
+ "classNames": {
+  "301": "Demo grocery"
+ },
+ "subclassNames": {
+  "301-10": "Condiments",
+  "301-20": "Frozen"
+ },
+ "items": [
+  {
+   "upc": "041000100000",
+   "description": "SUNNYVALE KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041037100134",
+   "description": "SUNNYVALE KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041074100265",
+   "description": "SUNNYVALE KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041111100395",
+   "description": "SUNNYVALE KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041148100528",
+   "description": "SUNNYVALE KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041185100659",
+   "description": "SUNNYVALE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041222100789",
+   "description": "SUNNYVALE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041259100912",
+   "description": "SUNNYVALE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041296101040",
+   "description": "SUNNYVALE MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041333101170",
+   "description": "SUNNYVALE MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041370101300",
+   "description": "SUNNYVALE MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041407101433",
+   "description": "SUNNYVALE BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041444101564",
+   "description": "SUNNYVALE BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041481101695",
+   "description": "SUNNYVALE BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041518101827",
+   "description": "SUNNYVALE RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041555101958",
+   "description": "SUNNYVALE RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041592102086",
+   "description": "SUNNYVALE HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041629102218",
+   "description": "SUNNYVALE HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041666102349",
+   "description": "SUNNYVALE STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041703102479",
+   "description": "SUNNYVALE PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041740102609",
+   "description": "SUNNYVALE SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041777102733",
+   "description": "SUNNYVALE FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "041814102863",
+   "description": "SUNNYVALE FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "041851102994",
+   "description": "RED BARN KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041888103124",
+   "description": "RED BARN KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041925103254",
+   "description": "RED BARN KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041962103385",
+   "description": "RED BARN KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "041999103518",
+   "description": "RED BARN KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042036103645",
+   "description": "RED BARN MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042073103776",
+   "description": "RED BARN MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042110103905",
+   "description": "RED BARN MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042147104036",
+   "description": "RED BARN MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042184104167",
+   "description": "RED BARN MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042221104297",
+   "description": "RED BARN MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042258104420",
+   "description": "RED BARN BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042295104551",
+   "description": "RED BARN BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042332104681",
+   "description": "RED BARN BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042369104814",
+   "description": "RED BARN RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042406104944",
+   "description": "RED BARN RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042443105072",
+   "description": "RED BARN HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042480105202",
+   "description": "RED BARN HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042517105335",
+   "description": "RED BARN STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042554105466",
+   "description": "RED BARN PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042591105597",
+   "description": "RED BARN SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042628105729",
+   "description": "RED BARN FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "042665105850",
+   "description": "RED BARN FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "042702105980",
+   "description": "OAKFIELD KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042739106110",
+   "description": "OAKFIELD KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042776106241",
+   "description": "OAKFIELD KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042813106371",
+   "description": "OAKFIELD KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042850106501",
+   "description": "OAKFIELD KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042887106635",
+   "description": "OAKFIELD MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042924106765",
+   "description": "OAKFIELD MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042961106896",
+   "description": "OAKFIELD MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "042998107026",
+   "description": "OAKFIELD MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043035107153",
+   "description": "OAKFIELD MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043072107284",
+   "description": "OAKFIELD MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043109107416",
+   "description": "OAKFIELD BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043146107547",
+   "description": "OAKFIELD BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043183107678",
+   "description": "OAKFIELD BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043220107807",
+   "description": "OAKFIELD RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043257107931",
+   "description": "OAKFIELD RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043294108069",
+   "description": "OAKFIELD HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043331108199",
+   "description": "OAKFIELD HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043368108322",
+   "description": "OAKFIELD STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043405108452",
+   "description": "OAKFIELD PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043442108583",
+   "description": "OAKFIELD SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043479108716",
+   "description": "OAKFIELD FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "043516108846",
+   "description": "OAKFIELD FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "043553108977",
+   "description": "BLUE HERON KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043590109104",
+   "description": "BLUE HERON KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043627109237",
+   "description": "BLUE HERON KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043664109368",
+   "description": "BLUE HERON KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043701109498",
+   "description": "BLUE HERON KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043738109621",
+   "description": "BLUE HERON MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043775109752",
+   "description": "BLUE HERON MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043812109882",
+   "description": "BLUE HERON MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043849110011",
+   "description": "BLUE HERON MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043886110142",
+   "description": "BLUE HERON MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043923110272",
+   "description": "BLUE HERON MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043960110402",
+   "description": "BLUE HERON BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "043997110536",
+   "description": "BLUE HERON BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044034110663",
+   "description": "BLUE HERON BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044071110794",
+   "description": "BLUE HERON RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044108110926",
+   "description": "BLUE HERON RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044145111054",
+   "description": "BLUE HERON HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044182111185",
+   "description": "BLUE HERON HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044219111317",
+   "description": "BLUE HERON STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044256111448",
+   "description": "BLUE HERON PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044293111579",
+   "description": "BLUE HERON SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044330111708",
+   "description": "BLUE HERON FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "044367111832",
+   "description": "BLUE HERON FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "044404111962",
+   "description": "GOLDEN ACRE KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044441112090",
+   "description": "GOLDEN ACRE KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044478112223",
+   "description": "GOLDEN ACRE KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044515112353",
+   "description": "GOLDEN ACRE KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044552112484",
+   "description": "GOLDEN ACRE KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044589112617",
+   "description": "GOLDEN ACRE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044626112747",
+   "description": "GOLDEN ACRE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044663112878",
+   "description": "GOLDEN ACRE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044700113004",
+   "description": "GOLDEN ACRE MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044737113138",
+   "description": "GOLDEN ACRE MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044774113269",
+   "description": "GOLDEN ACRE MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044811113399",
+   "description": "GOLDEN ACRE BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044848113522",
+   "description": "GOLDEN ACRE BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044885113653",
+   "description": "GOLDEN ACRE BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044922113783",
+   "description": "GOLDEN ACRE RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044959113916",
+   "description": "GOLDEN ACRE RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "044996114044",
+   "description": "GOLDEN ACRE HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045033114171",
+   "description": "GOLDEN ACRE HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045070114301",
+   "description": "GOLDEN ACRE STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045107114434",
+   "description": "GOLDEN ACRE PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045144114565",
+   "description": "GOLDEN ACRE SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045181114696",
+   "description": "GOLDEN ACRE FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "045218114828",
+   "description": "GOLDEN ACRE FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "045255114959",
+   "description": "MAPLE RUN KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045292115087",
+   "description": "MAPLE RUN KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045329115219",
+   "description": "MAPLE RUN KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045366115340",
+   "description": "MAPLE RUN KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045403115470",
+   "description": "MAPLE RUN KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045440115600",
+   "description": "MAPLE RUN MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045477115734",
+   "description": "MAPLE RUN MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045514115864",
+   "description": "MAPLE RUN MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045551115995",
+   "description": "MAPLE RUN MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045588116125",
+   "description": "MAPLE RUN MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045625116255",
+   "description": "MAPLE RUN MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045662116386",
+   "description": "MAPLE RUN BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045699116519",
+   "description": "MAPLE RUN BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045736116649",
+   "description": "MAPLE RUN BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045773116770",
+   "description": "MAPLE RUN RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045810116909",
+   "description": "MAPLE RUN RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045847117030",
+   "description": "MAPLE RUN HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045884117161",
+   "description": "MAPLE RUN HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045921117291",
+   "description": "MAPLE RUN STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045958117424",
+   "description": "MAPLE RUN PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "045995117555",
+   "description": "MAPLE RUN SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046032117682",
+   "description": "MAPLE RUN FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "046069117815",
+   "description": "MAPLE RUN FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "046106117945",
+   "description": "PRAIRIE KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046143118073",
+   "description": "PRAIRIE KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046180118203",
+   "description": "PRAIRIE KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046217118336",
+   "description": "PRAIRIE KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046254118467",
+   "description": "PRAIRIE KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046291118598",
+   "description": "PRAIRIE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046328118720",
+   "description": "PRAIRIE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046365118851",
+   "description": "PRAIRIE MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046402118981",
+   "description": "PRAIRIE MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046439119111",
+   "description": "PRAIRIE MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046476119242",
+   "description": "PRAIRIE MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046513119372",
+   "description": "PRAIRIE BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046550119502",
+   "description": "PRAIRIE BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046587119636",
+   "description": "PRAIRIE BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046624119766",
+   "description": "PRAIRIE RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046661119897",
+   "description": "PRAIRIE RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046698120026",
+   "description": "PRAIRIE HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046735120156",
+   "description": "PRAIRIE HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046772120287",
+   "description": "PRAIRIE STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046809120419",
+   "description": "PRAIRIE PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046846120540",
+   "description": "PRAIRIE SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046883120671",
+   "description": "PRAIRIE FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "046920120800",
+   "description": "PRAIRIE FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "046957120934",
+   "description": "COPPER POT KETCHUP SQZ",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "046994121062",
+   "description": "COPPER POT KETCHUP SQZ",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047031121199",
+   "description": "COPPER POT KETCHUP SQZ",
+   "pack": 12,
+   "size": "32 OZ",
+   "sizeValue": 32,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047068121322",
+   "description": "COPPER POT KETCHUP SQZ",
+   "pack": 12,
+   "size": "38 OZ",
+   "sizeValue": 38,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047105121452",
+   "description": "COPPER POT KETCHUP SQZ",
+   "pack": 12,
+   "size": "64 OZ",
+   "sizeValue": 64,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047142121583",
+   "description": "COPPER POT MUSTARD YELLOW",
+   "pack": 12,
+   "size": "8 OZ",
+   "sizeValue": 8,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047179121716",
+   "description": "COPPER POT MUSTARD YELLOW",
+   "pack": 12,
+   "size": "14 OZ",
+   "sizeValue": 14,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047216121846",
+   "description": "COPPER POT MUSTARD YELLOW",
+   "pack": 12,
+   "size": "20 OZ",
+   "sizeValue": 20,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047253121977",
+   "description": "COPPER POT MUSTARD SPICY BRN",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047290122104",
+   "description": "COPPER POT MAYO REAL",
+   "pack": 12,
+   "size": "15 OZ",
+   "sizeValue": 15,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047327122237",
+   "description": "COPPER POT MAYO REAL",
+   "pack": 12,
+   "size": "30 OZ",
+   "sizeValue": 30,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047364122368",
+   "description": "COPPER POT BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047401122498",
+   "description": "COPPER POT BBQ SAUCE ORIG",
+   "pack": 12,
+   "size": "28 OZ",
+   "sizeValue": 28,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047438122621",
+   "description": "COPPER POT BBQ SAUCE HNY",
+   "pack": 12,
+   "size": "18 OZ",
+   "sizeValue": 18,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047475122752",
+   "description": "COPPER POT RELISH SWEET",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047512122882",
+   "description": "COPPER POT RELISH SWEET",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047549123012",
+   "description": "COPPER POT HOT SAUCE",
+   "pack": 12,
+   "size": "5 OZ",
+   "sizeValue": 5,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047586123143",
+   "description": "COPPER POT HOT SAUCE",
+   "pack": 12,
+   "size": "12 OZ",
+   "sizeValue": 12,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047623123273",
+   "description": "COPPER POT STEAK SAUCE",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047660123403",
+   "description": "COPPER POT PICKLES DILL SPEARS",
+   "pack": 12,
+   "size": "24 OZ",
+   "sizeValue": 24,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047697123537",
+   "description": "COPPER POT SALSA MILD",
+   "pack": 12,
+   "size": "16 OZ",
+   "sizeValue": 16,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "10",
+   "source": "demo"
+  },
+  {
+   "upc": "047734123667",
+   "description": "COPPER POT FRZ PIZZA PEPPERONI",
+   "pack": 12,
+   "size": "22 OZ",
+   "sizeValue": 22,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  },
+  {
+   "upc": "047771123798",
+   "description": "COPPER POT FRZ DINNER CHICKEN",
+   "pack": 12,
+   "size": "10 OZ",
+   "sizeValue": 10,
+   "uom": "OZ",
+   "classCode": "301",
+   "subclassCode": "20",
+   "source": "demo"
+  }
+ ],
+ "resets": [
+  {
+   "id": "demo-ketchup",
+   "name": "KETCHUP MUSTARD",
+   "date": "2026-03",
+   "widthFt": 4,
+   "heightFt": 6,
+   "shelves": [
+    {
+     "shelf": 1,
+     "depthIn": 22,
+     "clearanceIn": 13,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041111100395",
+       "description": "SUNNYVALE KETCHUP SQZ",
+       "casePack": 12,
+       "size": "38 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041148100528",
+       "description": "SUNNYVALE KETCHUP SQZ",
+       "casePack": 12,
+       "size": "64 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041962103385",
+       "description": "RED BARN KETCHUP SQZ",
+       "casePack": 12,
+       "size": "38 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041999103518",
+       "description": "RED BARN KETCHUP SQZ",
+       "casePack": 12,
+       "size": "64 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042813106371",
+       "description": "OAKFIELD KETCHUP SQZ",
+       "casePack": 12,
+       "size": "38 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042850106501",
+       "description": "OAKFIELD KETCHUP SQZ",
+       "casePack": 12,
+       "size": "64 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043664109368",
+       "description": "BLUE HERON KETCHUP SQZ",
+       "casePack": 12,
+       "size": "38 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 2,
+     "depthIn": 22,
+     "clearanceIn": 11,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041037100134",
+       "description": "SUNNYVALE KETCHUP SQZ",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 3,
+       "capacity": 36,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041074100265",
+       "description": "SUNNYVALE KETCHUP SQZ",
+       "casePack": 12,
+       "size": "32 OZ",
+       "facings": 3,
+       "capacity": 36,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041888103124",
+       "description": "RED BARN KETCHUP SQZ",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041925103254",
+       "description": "RED BARN KETCHUP SQZ",
+       "casePack": 12,
+       "size": "32 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042739106110",
+       "description": "OAKFIELD KETCHUP SQZ",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042776106241",
+       "description": "OAKFIELD KETCHUP SQZ",
+       "casePack": 12,
+       "size": "32 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043590109104",
+       "description": "BLUE HERON KETCHUP SQZ",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043627109237",
+       "description": "BLUE HERON KETCHUP SQZ",
+       "casePack": 12,
+       "size": "32 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "044441112090",
+       "description": "GOLDEN ACRE KETCHUP SQZ",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 3,
+     "depthIn": 22,
+     "clearanceIn": 10,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041185100659",
+       "description": "SUNNYVALE MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "8 OZ",
+       "facings": 4,
+       "capacity": 48,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041222100789",
+       "description": "SUNNYVALE MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "14 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041259100912",
+       "description": "SUNNYVALE MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041296101040",
+       "description": "SUNNYVALE MUSTARD SPICY BRN",
+       "casePack": 12,
+       "size": "12 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042036103645",
+       "description": "RED BARN MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "8 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042073103776",
+       "description": "RED BARN MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "14 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042110103905",
+       "description": "RED BARN MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042147104036",
+       "description": "RED BARN MUSTARD SPICY BRN",
+       "casePack": 12,
+       "size": "12 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042887106635",
+       "description": "OAKFIELD MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "8 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042924106765",
+       "description": "OAKFIELD MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "14 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042961106896",
+       "description": "OAKFIELD MUSTARD YELLOW",
+       "casePack": 12,
+       "size": "20 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 4,
+     "depthIn": 22,
+     "clearanceIn": 10,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041407101433",
+       "description": "SUNNYVALE BBQ SAUCE ORIG",
+       "casePack": 12,
+       "size": "18 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041444101564",
+       "description": "SUNNYVALE BBQ SAUCE ORIG",
+       "casePack": 12,
+       "size": "28 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041481101695",
+       "description": "SUNNYVALE BBQ SAUCE HNY",
+       "casePack": 12,
+       "size": "18 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041666102349",
+       "description": "SUNNYVALE STEAK SAUCE",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042258104420",
+       "description": "RED BARN BBQ SAUCE ORIG",
+       "casePack": 12,
+       "size": "18 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042295104551",
+       "description": "RED BARN BBQ SAUCE ORIG",
+       "casePack": 12,
+       "size": "28 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042332104681",
+       "description": "RED BARN BBQ SAUCE HNY",
+       "casePack": 12,
+       "size": "18 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042517105335",
+       "description": "RED BARN STEAK SAUCE",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043109107416",
+       "description": "OAKFIELD BBQ SAUCE ORIG",
+       "casePack": 12,
+       "size": "18 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 5,
+     "depthIn": 22,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041518101827",
+       "description": "SUNNYVALE RELISH SWEET",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep",
+       "high": 2
+      },
+      {
+       "location": 1,
+       "upc": "041555101958",
+       "description": "SUNNYVALE RELISH SWEET",
+       "casePack": 12,
+       "size": "16 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041592102086",
+       "description": "SUNNYVALE HOT SAUCE",
+       "casePack": 12,
+       "size": "5 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041629102218",
+       "description": "SUNNYVALE HOT SAUCE",
+       "casePack": 12,
+       "size": "12 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042369104814",
+       "description": "RED BARN RELISH SWEET",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042406104944",
+       "description": "RED BARN RELISH SWEET",
+       "casePack": 12,
+       "size": "16 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042443105072",
+       "description": "RED BARN HOT SAUCE",
+       "casePack": 12,
+       "size": "5 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042480105202",
+       "description": "RED BARN HOT SAUCE",
+       "casePack": 12,
+       "size": "12 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043220107807",
+       "description": "OAKFIELD RELISH SWEET",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043257107931",
+       "description": "OAKFIELD RELISH SWEET",
+       "casePack": 12,
+       "size": "16 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043294108069",
+       "description": "OAKFIELD HOT SAUCE",
+       "casePack": 12,
+       "size": "5 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043331108199",
+       "description": "OAKFIELD HOT SAUCE",
+       "casePack": 12,
+       "size": "12 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    }
+   ],
+   "unallocated": [
+    {
+     "location": 1,
+     "upc": "041740102609",
+     "description": "SUNNYVALE SALSA MILD",
+     "casePack": 12,
+     "size": "16 OZ",
+     "facings": 1,
+     "capacity": 12,
+     "status": "keep"
+    },
+    {
+     "location": 1,
+     "upc": "042591105597",
+     "description": "RED BARN SALSA MILD",
+     "casePack": 12,
+     "size": "16 OZ",
+     "facings": 1,
+     "capacity": 12,
+     "status": "keep"
+    },
+    {
+     "location": 1,
+     "upc": "043442108583",
+     "description": "OAKFIELD SALSA MILD",
+     "casePack": 12,
+     "size": "16 OZ",
+     "facings": 1,
+     "capacity": 12,
+     "status": "keep"
+    }
+   ]
+  },
+  {
+   "id": "demo-pickles",
+   "name": "PICKLES RELISH",
+   "date": "2026-02",
+   "widthFt": 4,
+   "heightFt": 6,
+   "shelves": [
+    {
+     "shelf": 1,
+     "depthIn": 22,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041703102479",
+       "description": "SUNNYVALE PICKLES DILL SPEARS",
+       "casePack": 12,
+       "size": "24 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042554105466",
+       "description": "RED BARN PICKLES DILL SPEARS",
+       "casePack": 12,
+       "size": "24 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043405108452",
+       "description": "OAKFIELD PICKLES DILL SPEARS",
+       "casePack": 12,
+       "size": "24 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "044256111448",
+       "description": "BLUE HERON PICKLES DILL SPEARS",
+       "casePack": 12,
+       "size": "24 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "045107114434",
+       "description": "GOLDEN ACRE PICKLES DILL SPEARS",
+       "casePack": 12,
+       "size": "24 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "045958117424",
+       "description": "MAPLE RUN PICKLES DILL SPEARS",
+       "casePack": 12,
+       "size": "24 OZ",
+       "facings": 2,
+       "capacity": 24,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 2,
+     "depthIn": 22,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041518101827",
+       "description": "SUNNYVALE RELISH SWEET",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "041555101958",
+       "description": "SUNNYVALE RELISH SWEET",
+       "casePack": 12,
+       "size": "16 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042369104814",
+       "description": "RED BARN RELISH SWEET",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042406104944",
+       "description": "RED BARN RELISH SWEET",
+       "casePack": 12,
+       "size": "16 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043220107807",
+       "description": "OAKFIELD RELISH SWEET",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043257107931",
+       "description": "OAKFIELD RELISH SWEET",
+       "casePack": 12,
+       "size": "16 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "044071110794",
+       "description": "BLUE HERON RELISH SWEET",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "044108110926",
+       "description": "BLUE HERON RELISH SWEET",
+       "casePack": 12,
+       "size": "16 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    }
+   ],
+   "unallocated": []
+  },
+  {
+   "id": "demo-freezer",
+   "name": "FROZEN PIZZA DINNERS",
+   "date": "2026-01",
+   "widthFt": 5,
+   "heightFt": 6,
+   "doors": 2,
+   "fixture": "Freezer, 2 doors",
+   "shelves": [
+    {
+     "shelf": 1,
+     "door": 1,
+     "depthIn": 24,
+     "clearanceIn": 12,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041777102733",
+       "description": "SUNNYVALE FRZ PIZZA PEPPERONI",
+       "casePack": 12,
+       "size": "22 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042628105729",
+       "description": "RED BARN FRZ PIZZA PEPPERONI",
+       "casePack": 12,
+       "size": "22 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 2,
+     "door": 1,
+     "depthIn": 24,
+     "clearanceIn": 12,
+     "items": [
+      {
+       "location": 1,
+       "upc": "041814102863",
+       "description": "SUNNYVALE FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "042665105850",
+       "description": "RED BARN FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "043516108846",
+       "description": "OAKFIELD FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "044367111832",
+       "description": "BLUE HERON FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 1,
+     "door": 2,
+     "depthIn": 24,
+     "clearanceIn": 12,
+     "items": [
+      {
+       "location": 1,
+       "upc": "043479108716",
+       "description": "OAKFIELD FRZ PIZZA PEPPERONI",
+       "casePack": 12,
+       "size": "22 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "044330111708",
+       "description": "BLUE HERON FRZ PIZZA PEPPERONI",
+       "casePack": 12,
+       "size": "22 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    },
+    {
+     "shelf": 2,
+     "door": 2,
+     "depthIn": 24,
+     "clearanceIn": 12,
+     "items": [
+      {
+       "location": 1,
+       "upc": "045218114828",
+       "description": "GOLDEN ACRE FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "046069117815",
+       "description": "MAPLE RUN FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "046920120800",
+       "description": "PRAIRIE FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      },
+      {
+       "location": 1,
+       "upc": "047771123798",
+       "description": "COPPER POT FRZ DINNER CHICKEN",
+       "casePack": 12,
+       "size": "10 OZ",
+       "facings": 1,
+       "capacity": 12,
+       "status": "keep"
+      }
+     ]
+    }
+   ],
+   "unallocated": []
+  }
+ ],
+ "afiSizes": {}
+}

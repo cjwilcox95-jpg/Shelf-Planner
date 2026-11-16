@@ -51,6 +51,7 @@ app/           The web app (React + Vite).
                  src/lib/        fit math, dimension guesses, search, undo, on-device storage (with unit tests)
                  src/components/ the shelf drawing and panels
                  e2e/            browser tests at phone and desktop size, with finger dragging
+                 e2e/fixtures/   made-up demo products (invented brands and UPCs) so the tests run without store data
 data/build/    The finished catalog and report. NEVER committed (store data); copied to your phone instead.
 ```
 
@@ -67,15 +68,18 @@ To rebuild the catalog after getting new files: put them in `data/raw/`, then ru
 
 - The app opens on the **whole set**, fitted to the screen, with each shelf's name and room left on its board.
 - **Tap a shelf or a product** to zoom in to that shelf. Its products are listed underneath, left to right, with
-  **facings − / +** on every row. Tap a row for **Left, Right, Up, Down, Take off** and **Details** (photo, size,
-  stacking, Move).
-- At the bottom: **▲ / ▼** step between shelves (or swipe the drawing), and the **mini picture** of the whole set
-  zooms back out. Bottom bar: **Plans · Undo · Scan · Add · Tools** (Redo and Shelf sizes are in Tools).
+  **facings − / +** on every row. Tap a row for **Left, Right, Up, Down, Take off** and **Details** (one panel with
+  the photo, how it fits, its size, stacking, **Edit size** and **Move**).
+- At the bottom of a shelf: **▲ / ▼** step between shelves (or swipe the drawing), and **Whole set** zooms back
+  out. Bottom bar: **Plans · Undo · Scan · Add · Tools** (Redo and Shelf sizes are in Tools).
+- **Plans**: tap a plan to open it; the **⋯** button on its row has Copy, Rename and Delete. **New** starts a plan
+  from an AFI set, an empty section, or an aisle. **Backup** exports, and imports any file the app knows
+  (a backup, a photo or size pack, a newer store-data file).
 - The tag at the top says whether everything fits; tap it for details and the **Off the shelf** list.
 
 ## Tools in the app
 
-- **Scan a barcode** (the Scan button in the middle of the bottom bar, also in Add and Tools): point the phone camera at a product's barcode to see where it is in the
+- **Scan a barcode** (the Scan button in the middle of the bottom bar, also beside the search box in Add): point the phone camera at a product's barcode to see where it is in the
   plan or add it. A photo of the barcode or the typed digits work too. Reads UPC-A, UPC-E (small packages) and
   EAN-13, on the phone, with the free zxing-wasm library bundled in the app (nothing is sent anywhere).
 - **Measure as you go** (Tools): scan, type the tape-measured width, height and depth (whole inches plus a
@@ -84,7 +88,7 @@ To rebuild the catalog after getting new files: put them in `data/raw/`, then ru
   boxes. Optionally a change list compared with another plan. Save to Files, print, or save page 1 as a picture.
 - **Compare with another plan**: what to add, take out, move (to another shelf or along the same one), facings
   and stacking changes, and shelf size changes, going from one plan (e.g. "current") to the open one ("proposed").
-- **Sales help (worth a look)**: from a sales movement file (`movement.json` or a CSV export). Lists what may run
+- **Sales help**: from a sales movement file (`movement.json` or a CSV export). Lists what may run
   out before the next delivery, where a full case will not fit, facings that could be given up, the slowest sellers
   per foot of shelf, best sellers, no sales, and for a shelf that is over, which facings to give up first.
   **Units sold only**: sales dollars, cost, margin and on-hand are ignored and never saved. Nothing changes a plan.
@@ -95,7 +99,7 @@ To rebuild the catalog after getting new files: put them in `data/raw/`, then ru
 - **Aisles** (under Plans): several sections side by side. Move products from one section to the next and see what hangs
   over into the neighbour. Changes are saved into each section's own plan.
 
-Tap a product's row, then **Details**, then **More** for *Stacked* (stack 2 or more high). **＋ Add** can add an
+Tap a product's row, then **Details** for *Stacked* (stack 2 or more high). **＋ Add** can add an
 **empty space** (a gap of any width that counts toward the shelf).
 
 ## Sales movement data
@@ -126,7 +130,8 @@ cd app
 npm install
 npm test            # fit math and other unit tests
 npm run build
-npx playwright test # browser tests (needs data/build/catalog.json)
+npx playwright test demo tour   # browser tests on made-up demo products: run anywhere
+npx playwright test             # all browser tests (app.spec and scanner.spec need data/build/catalog.json)
 ```
 
 Publishing: the built `app/dist` folder is pushed to the `gh-pages` branch, which GitHub Pages serves.

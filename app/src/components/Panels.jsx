@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Archive, CheckCircle2, ChevronRight, Copy, Download, FolderOpen, Pencil, Plus, ScanBarcode, Search, Snowflake, Store, Trash2, Upload, XCircle } from 'lucide-react'
+import { AlertTriangle, Archive, CheckCircle2, ChevronRight, Copy, Download, Ellipsis, FolderOpen, MoveVertical, Pencil, Plus, Ruler, ScanBarcode, Search, Snowflake, Store, Trash2, Upload, XCircle } from 'lucide-react'
 import { fmtIn } from '../lib/fit.js'
 import { search } from '../lib/search.js'
 import { prettyUpc } from '../lib/upc.js'
-import { positions, shelfLabel, TRAY } from '../lib/plan.js'
+import { positions, shelfLabel } from '../lib/plan.js'
+import { niceName, niceSize } from '../lib/text.js'
 import { LETTERS } from '../lib/aisle.js'
 import { sourceMark, SOURCE_LABEL } from '../lib/sizes.js'
 import { useFullPhoto, useThumbs } from '../lib/usePhotos.js'
@@ -15,6 +16,14 @@ const shortDate = (iso) => {
   const d = new Date(iso)
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
     d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+/** Short enough for a list: the time for today, otherwise the day. */
+const whenChanged = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 /** The whole section at a glance. */
@@ -57,11 +66,10 @@ export function SectionSummary({ plan, check, anyGuess, missing, productCount })
   )
 }
 
-/** The selected product, pinned above the bottom buttons so it is always in reach. */
-export function SelectedBar({ plan, where, index, item, info, placed, dims, placing, photo, thumb, movement, onEditSize, onPickPhoto, onRemovePhoto, onFacings, onHigh, onGapWidth, onStartPlace, onCancelPlace, onTakeOff, onDelete, onClose }) {
-  const [more, setMore] = useState(false)
+/** Everything about one product on a shelf: its photo, its size, how it fits, and moving it to another shelf. */
+export function DetailsSheet({ plan, where, index, item, info, placed, dims, photo, thumb, movement, onEditSize, onPickPhoto, onRemovePhoto, onHigh, onStartPlace, onClose }) {
   const [busy, setBusy] = useState(false)
-  const full = useFullPhoto(item.upc, photo) // the photo itself, read when this product is selected
+  const full = useFullPhoto(item.upc, photo) // the photo itself, read when the details open
   const photoUrl = photo ? full || thumb : null // the small copy until then
   const pick = async (e) => {
     const f = e.target.files?.[0]
@@ -71,107 +79,57 @@ export function SelectedBar({ plan, where, index, item, info, placed, dims, plac
     await onPickPhoto(f)
     setBusy(false)
   }
-  const inTray = where === TRAY
   const g = (k) => sourceMark(dims.source[k])
-  const shelfItems = inTray ? [] : plan.shelves.find((x) => x.id === where).items
-  const place = inTray ? 'Off the shelf' : `${shelfLabel(plan, where)}, #${positions(shelfItems).get(item.uid) ?? index + 1}`
-  if (info.gap) {
-    const w = Number(item.widthIn) || 0
-    return (
-      <section className="selected-bar" data-testid="selected-panel" aria-label="Selected empty space">
-        <div className="selected-head">
-          <div className="selected-text">
-            <div className="muted small">{shelfLabel(plan, where)}</div>
-            <div className="selected-name">Empty space</div>
-            <div className="muted small">Room left open on purpose. It counts toward the shelf width.</div>
+  const shelfItems = plan.shelves.find((x) => x.id === where).items
+  const place = `${shelfLabel(plan, where)}, #${positions(shelfItems).get(item.uid) ?? index + 1}`
+  const high = item.high || 1
+  const sources = ['w', 'h', 'd'].map((k) => SOURCE_LABEL[dims.source[k]])
+  const from = sources.every((x) => x === sources[0]) ? sources[0] : `W ${sources[0]} · H ${sources[1]} · D ${sources[2]}`
+  const warns = []
+  if (placed.tooDeep) warns.push('Deeper than the shelf')
+  if (placed.tooTall) warns.push('Too tall for the room above the shelf')
+  if (!info.inCatalog) warns.push('Not in your store files')
+  return (
+    <Sheet title="Product details" onClose={onClose}>
+      <section className="detail" data-testid="selected-panel" aria-label="Selected product">
+        <div className="detail-head">
+          <label className={`photo-slot${photo ? ' has-photo' : ''}`} aria-label={photo ? 'Change photo' : 'Add photo'}>
+            {photoUrl ? <img src={photoUrl} alt="" data-full={full ? '1' : undefined} /> : <span>{busy ? '…' : photo ? '…' : '＋\nPhoto'}</span>}
+            <input type="file" accept="image/*" onChange={pick} data-testid="photo-input" />
+          </label>
+          <div className="detail-text">
+            <div className="detail-name">{niceName(info.description)}</div>
+            <div className="muted small">{[niceSize(info.size), info.pack && `pack ${info.pack}`].filter(Boolean).join(' · ')}</div>
+            <div className="muted small"><span className="nowrap">UPC {prettyUpc(info.upc)}</span> · {place}</div>
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        <div className="selected-actions">
-          <div className="stepper" aria-label="Width of the empty space">
-            <button className="btn step" onClick={() => onGapWidth(w - 0.5)} disabled={w <= 0.5} aria-label="Half an inch narrower">−</button>
-            <div className="step-value"><span data-testid="gap-width">{fmtIn(w, 2)}</span><small>inches</small></div>
-            <button className="btn step" onClick={() => onGapWidth(w + 0.5)} aria-label="Half an inch wider">+</button>
-          </div>
-          <button className="btn" onClick={onStartPlace}>Move</button>
-          <button className="btn danger" onClick={onTakeOff}>Remove</button>
+        {warns.length > 0 && <p className="detail-warn" role="status">{warns.join(' · ')}</p>}
+        <dl className="facts">
+          <div><dt>On the shelf</dt><dd data-testid="detail-width">
+            {item.facings} × {g('w')}{fmtIn(dims.w, 2)} in = <strong>{g('w')}{fmtIn(placed.widthIn)} in wide</strong>
+          </dd></div>
+          <div><dt>Holds</dt><dd>{placed.tooDeep ? 'won’t fit front to back' : `${placed.capacity} units (${item.facings} wide × ${placed.unitsDeep} deep${high > 1 ? ` × ${high} high` : ''})`}</dd></div>
+          {movement && <div><dt>Sells</dt><dd data-testid="sells">{movement}</dd></div>}
+          <div><dt>Size each</dt><dd>{g('w')}{fmtIn(dims.w, 2)} W × {g('h')}{fmtIn(dims.h, 2)} H × {g('d')}{fmtIn(dims.d, 2)} D in</dd></div>
+          <div><dt>Size from</dt><dd>{from}{dims.source.w === 'guess' ? ` (${dims.basis})` : ''}</dd></div>
+          {dims.afi && <div><dt>AFI</dt><dd>{dims.afi.w} W × {dims.afi.h} H{dims.afi.d ? ` × ≈${dims.afi.d} D` : ''} in, from the {dims.afi.reset} planogram ({dims.afi.date})</dd></div>}
+          {dims.note && <div><dt>Notes</dt><dd>{dims.note}</dd></div>}
+          {info.specialOrder && <div><dt>Store</dt><dd>KEHE special order</dd></div>}
+          <div className="facts-ctl"><dt>Stacked</dt><dd>
+            <span className="mini-stepper">
+              <button className="btn" onClick={() => onHigh(high - 1)} disabled={high <= 1} aria-label="One less high">−</button>
+              <strong data-testid="high">{high} high</strong>
+              <button className="btn" onClick={() => onHigh(high + 1)} aria-label="Stack one more high">+</button>
+            </span>
+          </dd></div>
+          {photo && <div className="facts-ctl"><dt>Photo</dt><dd>{photo.source}{' '}<button className="link-btn" onClick={onRemovePhoto}>Remove photo</button></dd></div>}
+        </dl>
+        <div className="btn-grid two detail-btns">
+          <button className="btn" onClick={onEditSize} data-testid="edit-size"><Ruler size={18} aria-hidden="true" />Edit size</button>
+          <button className="btn primary" onClick={onStartPlace} data-testid="move-item"><MoveVertical size={18} aria-hidden="true" />Move</button>
         </div>
       </section>
-    )
-  }
-  const high = item.high || 1
-  return (
-    <section className="selected-bar" data-testid="selected-panel" aria-label="Selected product">
-      <div className="selected-head">
-        <label className={`photo-slot${photo ? ' has-photo' : ''}`} aria-label={photo ? 'Change photo' : 'Add photo'}>
-          {photoUrl ? <img src={photoUrl} alt="" data-full={full ? '1' : undefined} /> : <span>{busy ? '…' : photo ? '…' : '＋\nPhoto'}</span>}
-          <input type="file" accept="image/*" onChange={pick} data-testid="photo-input" />
-        </label>
-        <div className="selected-text">
-          <div className="muted small">{place}</div>
-          <div className="selected-name">{info.description}</div>
-          <div className="muted small">{info.size}{info.pack ? ` · pack ${info.pack}` : ''} · <span className="nowrap">UPC {prettyUpc(info.upc)}</span></div>
-        </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
-      </div>
-      <div className="selected-actions">
-          <div className="stepper" role="group" aria-label="Facings">
-            <button className="btn step" onClick={() => onFacings(item.facings - 1)} disabled={item.facings <= 1} aria-label="One less facing">−</button>
-            <div className="step-value"><span data-testid="facings">{item.facings}</span><small>facings</small></div>
-            <button className="btn step" onClick={() => onFacings(item.facings + 1)} aria-label="One more facing">+</button>
-          </div>
-          <button className="btn" onClick={onStartPlace}>{inTray ? 'Put on shelf' : 'Move'}</button>
-          {inTray
-            ? <button className="btn danger" onClick={onDelete}>Delete</button>
-            : <button className="btn danger" onClick={onTakeOff}>Take off</button>}
-      </div>
-      {placed && (
-        <p className="selected-facts">
-          {item.facings} × {g('w')}{fmtIn(dims.w, 2)} in = <strong>{g('w')}{fmtIn(placed.widthIn)} in wide</strong>
-          {high > 1 && ` · ${high} high`}
-          {' · '}{placed.tooDeep ? <span className="warn">deeper than the shelf</span> : `about ${placed.unitsDeep} deep`}
-          {movement && <> · <span data-testid="sells">{movement}</span></>}
-          {placed.tooTall && <> · <span className="warn">too tall</span></>}
-          {!info.inCatalog && <> · <span className="warn">not in store files</span></>}
-          {' '}<button className="link-btn" onClick={onEditSize} data-testid="edit-size">Edit size</button>
-          <button className="link-btn" onClick={() => setMore(!more)}>{more ? 'Less' : 'More'}</button>
-        </p>
-      )}
-      {more && (
-        <dl className="facts">
-          <div><dt>Size each</dt><dd>{g('w')}{fmtIn(dims.w, 2)} W × {g('h')}{fmtIn(dims.h, 2)} H × {g('d')}{fmtIn(dims.d, 2)} D in</dd></div>
-          <div><dt>Where from</dt><dd>W {SOURCE_LABEL[dims.source.w]} · H {SOURCE_LABEL[dims.source.h]} · D {SOURCE_LABEL[dims.source.d]}</dd></div>
-          {dims.note && <div><dt>Notes</dt><dd>{dims.note}</dd></div>}
-          {placed && <div><dt>On the shelf</dt><dd>{placed.tooDeep ? 'won’t fit front to back' : `${placed.capacity} units (${item.facings} wide × ${placed.unitsDeep} deep${high > 1 ? ` × ${high} high` : ''})`}</dd></div>}
-          {!inTray && (
-            <div><dt>Stacked</dt><dd>
-              <span className="mini-stepper">
-                <button className="btn" onClick={() => onHigh(high - 1)} disabled={high <= 1} aria-label="One less high">−</button>
-                <strong data-testid="high">{high} high</strong>
-                <button className="btn" onClick={() => onHigh(high + 1)} aria-label="Stack one more high">+</button>
-              </span>
-            </dd></div>
-          )}
-          {info.specialOrder && <div><dt>Store</dt><dd>KEHE special order</dd></div>}
-          {dims.source.w === 'guess' && <div><dt>Guess</dt><dd>from {dims.basis}</dd></div>}
-          {dims.afi && <div><dt>AFI</dt><dd>{dims.afi.w} W × {dims.afi.h} H{dims.afi.d ? ` × ≈${dims.afi.d} D` : ''} in, from the {dims.afi.reset} planogram ({dims.afi.date})</dd></div>}
-          <div><dt>Photo</dt><dd>
-            {photo
-              ? <>{photo.source}{' '}<button className="link-btn" onClick={onRemovePhoto}>Remove photo</button></>
-              : 'none yet: tap the ＋ Photo square'}
-          </dd></div>
-        </dl>
-      )}
-    </section>
-  )
-}
-
-/** One tab button of the Plans sheet (defined outside it, so focus stays on it after a tap). */
-function PlanTab({ id, label, icon: I, tab, setTab }) {
-  return (
-    <button type="button" role="tab" aria-selected={tab === id} className={`tabs-btn${tab === id ? ' on' : ''}`} onClick={() => setTab(id)} data-testid={`tab-${id}`}>
-      <I size={18} aria-hidden="true" /> {label}
-    </button>
+    </Sheet>
   )
 }
 
@@ -216,18 +174,23 @@ export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), phot
   useEffect(() => { inputRef.current?.focus() }, [])
   return (
     <Sheet title={`Add to ${targetLabel}`} onClose={onClose} tall>
-      <button className="btn wide scan-btn" onClick={onScan} data-testid="open-scan"><ScanBarcode size={22} aria-hidden="true" />Scan a barcode</button>
-      <input
-        ref={inputRef} className="search" type="search" inputMode="search"
-        placeholder="Name or UPC, e.g. heinz ketchup 20"
-        value={q} onChange={(e) => setQ(e.target.value)}
-        aria-label="Search products" data-testid="search-input"
-      />
+      <div className="search-row">
+        <div className="search-wrap">
+          <Search size={20} aria-hidden="true" />
+          <input
+            ref={inputRef} className="search" type="search" inputMode="search"
+            placeholder="Name or UPC"
+            value={q} onChange={(e) => setQ(e.target.value)}
+            aria-label="Search products" data-testid="search-input"
+          />
+        </div>
+        <button className="icon-btn scan-btn" onClick={onScan} data-testid="open-scan" aria-label="Scan a barcode"><ScanBarcode size={24} aria-hidden="true" /></button>
+      </div>
       {q.trim() && !results.length && <p className="empty">No products match “{q}”.</p>}
       {!q.trim() && (
         <>
-          <p className="muted">Type part of a name (any order: “ketchup hnz”) or the digits of a UPC. To add to a different shelf, close this and tap that shelf first.</p>
-          <button className="btn wide" onClick={onAddGap} data-testid="add-gap">Add an empty space (2 in, change it after)</button>
+          <p className="muted">Type part of a name, in any order, or the digits of a UPC.</p>
+          <button className="btn wide" onClick={onAddGap} data-testid="add-gap">Add an empty space</button>
         </>
       )}
       <ul className="results">
@@ -235,10 +198,9 @@ export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), phot
           <li key={p.upc}>
             {thumbs[p.upc] && <img className="frow-thumb" src={thumbs[p.upc]} alt="" />}
             <div className="result-main">
-              <div className="row-name">{p.description}</div>
+              <div className="row-name">{niceName(p.description)}</div>
               <div className="row-sub">
-                {p.size}{p.pack ? ` · pack ${p.pack}` : ''} · {sub[`${p.classCode}-${p.subclassCode}`] || ''}
-                {p.aisle ? ` · ${p.aisle}` : ''}
+                {[niceSize(p.size), p.pack && `pack ${p.pack}`, sub[`${p.classCode}-${p.subclassCode}`], p.aisle].filter(Boolean).join(' · ')}
               </div>
               <div className="row-sub">UPC {prettyUpc(p.upc)}
                 {p.specialOrder && <span className="tag">special order</span>}
@@ -256,7 +218,7 @@ export function AddSheet({ index, catalog, targetLabel, inPlan = new Map(), phot
 }
 
 /** Size of one shelf (or all of them), and adding/removing shelves. */
-export function ShelfSheet({ plan, shelf, catalog, inAisle, onSave, onAddShelf, onRemoveShelf, onClose, onReplaceData, onOpenGuesses }) {
+export function ShelfSheet({ plan, shelf, inAisle, onSave, onAddShelf, onRemoveShelf, onClose }) {
   const [form, setForm] = useState({ widthIn: shelf.widthIn, depthIn: shelf.depthIn, clearanceIn: shelf.clearanceIn })
   const [all, setAll] = useState(false)
   const valid = ['widthIn', 'depthIn', 'clearanceIn'].every((k) => Number(form[k]) > 0 && Number(form[k]) <= 600)
@@ -304,32 +266,66 @@ export function ShelfSheet({ plan, shelf, catalog, inAisle, onSave, onAddShelf, 
           <p className="muted small">Removing a shelf moves its products to “Off the shelf”. You can undo.</p>
         </>
       )}
-      <hr />
-      <button className="btn wide" onClick={onOpenGuesses} data-testid="open-guesses">Default size guesses…</button>
-      <p className="muted small">Store data: {catalog.items.length.toLocaleString()} products, built {catalog.built}.</p>
-      <button className="btn wide" onClick={onReplaceData}>Load a newer store-data file</button>
     </Sheet>
+  )
+}
+
+/** One tab button of the Plans sheet (defined outside it, so focus stays on it after a tap). */
+function PlanTab({ id, label, icon: I, tab, setTab }) {
+  return (
+    <button type="button" role="tab" aria-selected={tab === id} className={`tabs-btn${tab === id ? ' on' : ''}`} onClick={() => setTab(id)} data-testid={`tab-${id}`}>
+      <I size={18} aria-hidden="true" /> {label}
+    </button>
+  )
+}
+
+/**
+ * One plan or aisle in the list: tap it to open it; the ⋯ button shows what else you can do with it
+ * (the buttons passed as children).
+ */
+function EntryRow({ title, sub, current, menuOpen, onOpen, onMore, renameForm, openTestId, children }) {
+  return (
+    <li className={current ? 'current' : ''}>
+      {renameForm || (
+        <div className="plan-top">
+          <button className="plan-open" onClick={onOpen} data-testid={openTestId} aria-label={current ? `${title}: open now` : `Open ${title}`}>
+            <span className="row-main">
+              <span className="row-name">{title}</span>
+              <span className="row-sub">{current && <span className="badge">Open now</span>}{sub}</span>
+            </span>
+            {!current && <ChevronRight size={20} className="row-go" aria-hidden="true" />}
+          </button>
+          <button className="icon-btn ghost" onClick={onMore} aria-expanded={menuOpen} aria-label={`More for ${title}`} data-testid="entry-more">
+            <Ellipsis size={22} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+      {menuOpen && !renameForm && <div className="plan-btns">{children}</div>}
+    </li>
   )
 }
 
 /** All saved plans: open, copy, rename, delete, start new, back up. */
 export function PlansSheet({
-  plans, currentId, resets, lastBackupAt, backupDue = false, photoCount = 0, onOpen, onDuplicate, onRename, onDelete,
+  plans, currentId, resets, lastBackupAt, backupDue = false, photoCount = 0, storeInfo = '', onOpen, onDuplicate, onRename, onDelete,
   onNewBlank, onNewAfi, onExport, onImportFile, onClose,
   aisles = {}, currentAisleId, onOpenAisle, onNewAisle, onRenameAisle, onDeleteAisle,
 }) {
+  const [tab, setTab] = useState('plans') // plans | new | backup
+  const [kind, setKind] = useState('afi') // under New: afi | blank | aisle
+  const [menu, setMenu] = useState(null) // the plan or aisle whose Copy / Rename / Delete buttons are showing
   const [renaming, setRenaming] = useState(null)
   const [name, setName] = useState('')
   const [blank, setBlank] = useState({ shelves: 5, widthIn: 48 })
   const [msg, setMsg] = useState(null)
   const [resetQ, setResetQ] = useState('')
   const list = Object.values(plans).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+  const aisleList = Object.values(aisles).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
   const pick = async (e) => {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (f) setMsg(await onImportFile(f, setMsg)) // a long load says how far it got in the same place
   }
-  const [tab, setTab] = useState('plans')
   const [used, setUsed] = useState(null) // bytes this app uses on the phone, where the browser says
   useEffect(() => {
     if (tab !== 'backup') return undefined
@@ -342,6 +338,17 @@ export function PlansSheet({
     ['Shelves', matches.filter((r) => !r.fixture)],
     ['Freezer', matches.filter((r) => r.fixture)],
   ].filter(([, list]) => list.length)
+  const toggleMenu = (id) => setMenu(menu === id ? null : id)
+  const startRename = (id, current) => { setRenaming(id); setName(current) }
+  const renameForm = (label, onSave) => (
+    <form className="rename" onSubmit={(e) => { e.preventDefault(); onSave(name.trim()); setRenaming(null); setMenu(null) }}>
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label={label} />
+      <button className="btn primary">Save</button>
+    </form>
+  )
+  const kindChip = (id, label) => (
+    <button type="button" className={`chip${kind === id ? ' on' : ''}`} aria-pressed={kind === id} onClick={() => setKind(id)} data-testid={`new-${id}`}>{label}</button>
+  )
   return (
     <Sheet title="Plans" onClose={onClose} tall>
       {backupDue && (
@@ -350,107 +357,112 @@ export function PlansSheet({
           <button className="btn" onClick={async () => setMsg(await onExport())} data-testid="backup-now">Back up now</button>
         </div>
       )}
-      <div className="tabs" role="tablist" aria-label="Plans, AFI sets and backup">
+      <div className="tabs" role="tablist" aria-label="Your plans, a new plan, and backup">
         <PlanTab id="plans" label="Your plans" icon={FolderOpen} tab={tab} setTab={setTab} />
-        <PlanTab id="afi" label="AFI sets" icon={Store} tab={tab} setTab={setTab} />
+        <PlanTab id="new" label="New" icon={Plus} tab={tab} setTab={setTab} />
         <PlanTab id="backup" label="Backup" icon={Archive} tab={tab} setTab={setTab} />
       </div>
       {msg && <p className={msg.startsWith('Could not') || msg.startsWith('This is not') ? 'error' : 'ok-msg'} role="status">{msg}</p>}
 
       <div role="tabpanel" hidden={tab !== 'plans'}>
-        <div className="new-plan-row">
-          <button className="btn primary" onClick={() => setTab('afi')}><Store size={18} aria-hidden="true" /> AFI set</button>
-          <button className="btn" onClick={() => setTab('blank')} data-testid="new-blank"><Plus size={18} aria-hidden="true" /> Empty section</button>
-        </div>
-        <AislesPart plans={plans} aisles={aisles} currentAisleId={currentAisleId}
-          onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle} />
-
-        <h3 className="sheet-section">Sections ({list.length})</h3>
+        {aisleList.length > 0 && (
+          <>
+            <h3 className="sheet-section">Aisles ({aisleList.length})</h3>
+            <ul className="plan-list" data-testid="aisle-list">
+              {aisleList.map((a) => (
+                <EntryRow key={a.id} title={a.name} current={a.id === currentAisleId} menuOpen={menu === a.id}
+                  sub={a.planIds.filter((id) => plans[id]).map((id, i) => `${LETTERS[i]} = ${plans[id].name}`).join(' · ') || 'no sections left'}
+                  onOpen={() => (a.id === currentAisleId ? onClose() : onOpenAisle(a.id))} onMore={() => toggleMenu(a.id)} openTestId="open-aisle"
+                  renameForm={renaming === a.id ? renameForm('Aisle name', (n) => onRenameAisle(a.id, n || a.name)) : null}>
+                  <button className="btn ghost" onClick={() => startRename(a.id, a.name)}><Pencil size={16} aria-hidden="true" />Rename</button>
+                  <button className="btn ghost danger" onClick={() => onDeleteAisle(a.id)} aria-label={`Delete aisle ${a.name}`}><Trash2 size={16} aria-hidden="true" />Delete</button>
+                </EntryRow>
+              ))}
+            </ul>
+            <h3 className="sheet-section">Sections ({list.length})</h3>
+          </>
+        )}
         <ul className="plan-list" data-testid="plan-list">
           {list.map((p) => (
-            <li key={p.id} className={p.id === currentId ? 'current' : ''}>
-              {renaming === p.id ? (
-                <form className="rename" onSubmit={(e) => { e.preventDefault(); onRename(p.id, name.trim() || p.name); setRenaming(null) }}>
-                  <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Plan name" />
-                  <button className="btn primary">Save</button>
-                </form>
-              ) : (
-                <div className="plan-name">
-                  <strong>{p.name}</strong>
-                  <span className="muted small">
-                    {p.id === currentId && <span className="badge">Open now</span>}
-                    {p.shelves.length} shelves · {Number((Math.max(...p.shelves.map((x) => x.widthIn)) / 12).toFixed(1))} ft · changed {shortDate(p.updatedAt)}
-                  </span>
-                </div>
-              )}
-              <div className="plan-btns">
-                {p.id !== currentId && <button className="btn primary" onClick={() => onOpen(p.id)}>Open</button>}
-                <button className="btn ghost" onClick={() => onDuplicate(p.id)}><Copy size={16} aria-hidden="true" />Copy</button>
-                <button className="btn ghost" onClick={() => { setRenaming(p.id); setName(p.name) }}><Pencil size={16} aria-hidden="true" />Rename</button>
-                <button className="btn ghost danger icon-only" onClick={() => onDelete(p.id)} aria-label={`Delete ${p.name}`} title="Delete"><Trash2 size={18} aria-hidden="true" /></button>
-              </div>
-            </li>
+            <EntryRow key={p.id} title={p.name} current={p.id === currentId} menuOpen={menu === p.id}
+              sub={`${p.shelves.length} shelves · ${Number((Math.max(...p.shelves.map((x) => x.widthIn)) / 12).toFixed(1))} ft${p.id === currentId ? '' : ` · changed ${whenChanged(p.updatedAt)}`}`}
+              onOpen={() => (p.id === currentId ? onClose() : onOpen(p.id))} onMore={() => toggleMenu(p.id)} openTestId="open-plan"
+              renameForm={renaming === p.id ? renameForm('Plan name', (n) => onRename(p.id, n || p.name)) : null}>
+              <button className="btn ghost" onClick={() => onDuplicate(p.id)}><Copy size={16} aria-hidden="true" />Copy</button>
+              <button className="btn ghost" onClick={() => startRename(p.id, p.name)}><Pencil size={16} aria-hidden="true" />Rename</button>
+              <button className="btn ghost danger" onClick={() => onDelete(p.id)} aria-label={`Delete ${p.name}`}><Trash2 size={16} aria-hidden="true" />Delete</button>
+            </EntryRow>
           ))}
         </ul>
-        <p className="muted small">Tip: “Copy” a plan to keep the current set and try a proposed one next to it.</p>
+        <button className="btn wide" onClick={() => setTab('new')} data-testid="new-plan"><Plus size={18} aria-hidden="true" /> New plan</button>
       </div>
 
-      <div role="tabpanel" hidden={tab !== 'blank'}>
-        <h3 className="sheet-section">New empty section</h3>
-        <div className="new-blank">
-          <div>
-            <span className="field-label">Shelves</span>
-            <div className="chips">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                <button key={n} type="button" className={`chip${blank.shelves === n ? ' on' : ''}`} onClick={() => setBlank({ ...blank, shelves: n })}>{n}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <span className="field-label">Width</span>
-            <div className="chips">
-              {[30, 36, 48, 96].map((w) => (
-                <button key={w} type="button" className={`chip${blank.widthIn === w ? ' on' : ''}`} onClick={() => setBlank({ ...blank, widthIn: w })}>{w} in</button>
-              ))}
-            </div>
-          </div>
-          <button className="btn primary wide" onClick={() => onNewBlank(blank)}>Start an empty section</button>
-          <button className="btn wide" onClick={() => setTab('plans')}>Back to your plans</button>
+      <div role="tabpanel" hidden={tab !== 'new'}>
+        <div className="chips kind-chips" role="group" aria-label="What to start from">
+          {kindChip('afi', 'AFI set')}
+          {kindChip('blank', 'Empty section')}
+          {kindChip('aisle', 'Aisle')}
         </div>
-      </div>
 
-      <div role="tabpanel" hidden={tab !== 'afi'}>
-        <p className="muted small">Copies a whole AFI set into a new plan: every shelf with AFI’s facings, sizes and shelf heights. A freezer set with several doors opens as an aisle, one section per door.</p>
-        <div className="search-wrap">
-          <Search size={20} aria-hidden="true" />
-          <input className="search" type="search" placeholder="Find a set, e.g. ketchup or freezer" value={resetQ}
-            onChange={(e) => setResetQ(e.target.value)} aria-label="Find an AFI set" data-testid="reset-search" />
-        </div>
-        {groups.map(([title, list]) => (
-          <section key={title}>
-            <h3 className="sheet-section">{title === 'Freezer' ? <Snowflake size={18} aria-hidden="true" /> : <Store size={18} aria-hidden="true" />} {title} ({list.length})</h3>
-            <ul className="item-list">
-              {list.map((r) => {
-                const levels = new Set(r.shelves.map((x) => x.shelf)).size
-                const products = r.shelves.reduce((n, x) => n + x.items.length, 0)
-                return (
-                  <li key={r.id}>
-                    <button className="row" onClick={() => onNewAfi(r)} data-testid={`afi-${r.id}`}>
-                      <span className="row-main">
-                        <span className="row-name">{r.name}</span>
-                        <span className="row-sub">
-                          {r.fixture ? `${r.fixture} · ` : ''}{Number(r.widthFt.toFixed(2))} ft · {levels} shelves · {products} products · AFI {r.date}
-                        </span>
-                      </span>
-                      <ChevronRight size={20} className="row-go" aria-hidden="true" />
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        ))}
-        {!matches.length && <p className="empty">No AFI set matches “{resetQ}”.</p>}
+        {kind === 'afi' && (
+          <>
+            <p className="muted small">Copies a whole AFI set into a new plan, with AFI’s facings and shelf heights.</p>
+            <div className="search-wrap">
+              <Search size={20} aria-hidden="true" />
+              <input className="search" type="search" placeholder="Find a set, e.g. ketchup or freezer" value={resetQ}
+                onChange={(e) => setResetQ(e.target.value)} aria-label="Find an AFI set" data-testid="reset-search" />
+            </div>
+            {groups.map(([title, list]) => (
+              <section key={title}>
+                <h3 className="sheet-section">{title === 'Freezer' ? <Snowflake size={18} aria-hidden="true" /> : <Store size={18} aria-hidden="true" />} {title} ({list.length})</h3>
+                <ul className="item-list">
+                  {list.map((r) => {
+                    const levels = new Set(r.shelves.map((x) => x.shelf)).size
+                    const products = r.shelves.reduce((n, x) => n + x.items.length, 0)
+                    return (
+                      <li key={r.id}>
+                        <button className="row" onClick={() => onNewAfi(r)} data-testid={`afi-${r.id}`}>
+                          <span className="row-main">
+                            <span className="row-name">{niceName(r.name)}</span>
+                            <span className="row-sub">
+                              {r.fixture ? `${r.fixture} · ` : ''}{Number(r.widthFt.toFixed(2))} ft · {levels} shelves · {products} products · AFI {r.date}
+                            </span>
+                          </span>
+                          <ChevronRight size={20} className="row-go" aria-hidden="true" />
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            ))}
+            {!matches.length && <p className="empty">No AFI set matches “{resetQ}”.</p>}
+          </>
+        )}
+
+        {kind === 'blank' && (
+          <div className="new-blank">
+            <div>
+              <span className="field-label">Shelves</span>
+              <div className="chips">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                  <button key={n} type="button" className={`chip${blank.shelves === n ? ' on' : ''}`} onClick={() => setBlank({ ...blank, shelves: n })}>{n}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="field-label">Width</span>
+              <div className="chips">
+                {[30, 36, 48, 96].map((w) => (
+                  <button key={w} type="button" className={`chip${blank.widthIn === w ? ' on' : ''}`} onClick={() => setBlank({ ...blank, widthIn: w })}>{w} in</button>
+                ))}
+              </div>
+            </div>
+            <button className="btn primary wide" onClick={() => onNewBlank(blank)} data-testid="start-blank">Start an empty section</button>
+          </div>
+        )}
+
+        {kind === 'aisle' && <MakeAisle plans={plans} onNewAisle={onNewAisle} />}
       </div>
 
       <div role="tabpanel" hidden={tab !== 'backup'}>
@@ -467,88 +479,52 @@ export function PlansSheet({
             Photos on this phone: <strong data-testid="photo-count">{photoCount.toLocaleString()}</strong>
             {used != null && <> · Space used: <strong>{(used / 1e6).toFixed(used < 1e7 ? 1 : 0)} MB</strong></>}
           </p>
+          {storeInfo && <p className="muted small" data-testid="store-info">{storeInfo}</p>}
           <button className="btn primary wide" onClick={async () => setMsg(await onExport())} data-testid="export-backup"><Download size={18} aria-hidden="true" /> Export backup</button>
           <label className="btn wide file-btn">
-            <Upload size={18} aria-hidden="true" /> Import backup, photo/size pack or catalog file
+            <Upload size={18} aria-hidden="true" /> Import a file
             <input type="file" accept=".json,application/json" onChange={pick} data-testid="import-file" />
           </label>
-          <p className="muted small">Importing adds and updates; it never deletes anything on this phone.</p>
+          <p className="muted small">Import takes a backup, a photo or size pack, or a newer store-data file. It adds and updates; it never deletes anything on this phone.</p>
         </div>
       </div>
     </Sheet>
   )
 }
 
-/** Aisles: several plans side by side. Pick the sections in order, left to right. */
-function AislesPart({ plans, aisles, currentAisleId, onOpenAisle, onNewAisle, onRenameAisle, onDeleteAisle }) {
-  const [making, setMaking] = useState(false)
+/** A new aisle: several plans side by side. Pick the sections in order, left to right. */
+function MakeAisle({ plans, onNewAisle }) {
   const [picked, setPicked] = useState([])
   const [name, setName] = useState('')
-  const [renaming, setRenaming] = useState(null)
-  const list = Object.values(aisles).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
   const planList = Object.values(plans).sort((a, b) => a.name.localeCompare(b.name))
   const toggle = (id) => setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id])
+  if (planList.length < 2) {
+    return <p className="empty" data-testid="aisle-needs-two">An aisle shows sections side by side. Make at least two sections first.</p>
+  }
   return (
-    <>
-      <h3 className="sheet-section">Aisles</h3>
-      {list.length === 0 && !making && <p className="muted small">An aisle shows several sections side by side, so you can move products from one to the next.</p>}
-      <ul className="plan-list" data-testid="aisle-list">
-        {list.map((a) => (
-          <li key={a.id} className={a.id === currentAisleId ? 'current' : ''}>
-            {renaming === a.id ? (
-              <form className="rename" onSubmit={(e) => { e.preventDefault(); onRenameAisle(a.id, name.trim() || a.name); setRenaming(null) }}>
-                <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Aisle name" />
-                <button className="btn primary">Save</button>
-              </form>
-            ) : (
-              <div className="plan-name">
-                <strong>{a.name}</strong>
-                <span className="muted small">
-                  {a.id === currentAisleId ? 'Open now · ' : ''}
-                  {a.planIds.filter((id) => plans[id]).map((id, i) => `${LETTERS[i]} = ${plans[id].name}`).join(' · ') || 'no sections left'}
-                </span>
-              </div>
-            )}
-            <div className="plan-btns">
-              {a.id !== currentAisleId && <button className="btn primary" onClick={() => onOpenAisle(a.id)} data-testid="open-aisle">Open</button>}
-              <button className="btn" onClick={() => { setRenaming(a.id); setName(a.name) }}>Rename</button>
-              <button className="btn danger" onClick={() => onDeleteAisle(a.id)} aria-label={`Delete aisle ${a.name}`}>Delete</button>
-            </div>
-          </li>
-        ))}
+    <div className="make-aisle" data-testid="make-aisle">
+      <p className="muted small">An aisle shows sections side by side. Tap them in order, left to right as you face the aisle.</p>
+      <ul className="item-list">
+        {planList.map((p) => {
+          const n = picked.indexOf(p.id)
+          return (
+            <li key={p.id}>
+              <button className={`row${n >= 0 ? ' selected' : ''}`} onClick={() => toggle(p.id)} aria-pressed={n >= 0}>
+                <span className="row-pos">{n >= 0 ? n + 1 : ''}</span>
+                <span className="row-main"><span className="row-name">{p.name}</span>
+                  <span className="row-sub">{p.shelves.length} shelves · {Math.max(...p.shelves.map((s) => s.widthIn)) / 12} ft</span></span>
+              </button>
+            </li>
+          )
+        })}
       </ul>
-      {!making ? (
-        <button className="btn wide" onClick={() => { setMaking(true); setPicked([]); setName('') }} data-testid="new-aisle"
-          disabled={planList.length < 2}>Make an aisle from plans…</button>
-      ) : (
-        <div className="make-aisle" data-testid="make-aisle">
-          <p className="muted small">Tap the sections in order, left to right as you face the aisle.</p>
-          <ul className="item-list">
-            {planList.map((p) => {
-              const n = picked.indexOf(p.id)
-              return (
-                <li key={p.id}>
-                  <button className={`row${n >= 0 ? ' selected' : ''}`} onClick={() => toggle(p.id)} aria-pressed={n >= 0}>
-                    <span className="row-pos">{n >= 0 ? n + 1 : ''}</span>
-                    <span className="row-main"><span className="row-name">{p.name}</span>
-                      <span className="row-sub">{p.shelves.length} shelves · {Math.max(...p.shelves.map((s) => s.widthIn)) / 12} ft</span></span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-          <label className="field">
-            <span>Aisle name</span>
-            <input className="search" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Laundry aisle" data-testid="aisle-name" />
-          </label>
-          <div className="btn-grid two">
-            <button className="btn primary" disabled={picked.length < 2} onClick={() => { onNewAisle(name.trim() || 'New aisle', picked); setMaking(false) }} data-testid="save-aisle">
-              Make the aisle ({picked.length})
-            </button>
-            <button className="btn" onClick={() => setMaking(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </>
+      <label className="field">
+        <span>Aisle name</span>
+        <input className="search" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Laundry aisle" data-testid="aisle-name" />
+      </label>
+      <button className="btn primary wide" disabled={picked.length < 2} onClick={() => onNewAisle(name.trim() || 'New aisle', picked)} data-testid="save-aisle">
+        Make the aisle ({picked.length})
+      </button>
+    </div>
   )
 }

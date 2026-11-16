@@ -1,13 +1,13 @@
 // The main screen's pieces, built for one hand in the aisle: a status tag, the products of the shelf you are
-// working on (facings right on each row, arrows to move), the ▲/▼ shelf switcher with a live mini picture of
-// the whole set, and the "off the shelf" list.
+// working on (facings right on each row, arrows to move), the ▲/▼ shelf switcher, and the "off the shelf" list.
 import { useEffect, useRef } from 'react'
-import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Info, Minus, Plus, Trash2, XCircle, ZoomOut } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Info, LayoutPanelTop, Minus, Plus, Trash2, XCircle } from 'lucide-react'
 import { fmtIn } from '../lib/fit.js'
 import { positions, shelfLabel } from '../lib/plan.js'
-import { aisleRows, sectionOf } from '../lib/aisle.js'
+import { sectionOf } from '../lib/aisle.js'
 import { sourceMark } from '../lib/sizes.js'
 import { Sheet } from './Panels.jsx'
+import { niceName, niceSize } from '../lib/text.js'
 
 /** The shelves of the section a shelf belongs to, bottom first (a whole plan, or one section of an aisle). */
 export function sectionShelves(plan, shelfId) {
@@ -40,10 +40,6 @@ export function StatusPill({ check, onClick }) {
 }
 
 const facingsText = (n) => `${n} facing${n > 1 ? 's' : ''}`
-/** Names in normal case, easier to read than the store files' capitals; short codes like FDC or HNZ stay as they are. */
-export const niceName = (s) => String(s || '').split(' ')
-  .map((w) => (w.length <= 3 && !/[AEIOU]/i.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())).join(' ')
-const niceSize = (s) => String(s || '').replace(/\b(OZ|LB|CT|PK|GL|QT|LT|EA)\b/g, (u) => u.toLowerCase())
 const joinParts = (...parts) => parts.filter(Boolean).join(' · ')
 
 /** The products of one shelf, left to right, each with its facings; a tapped row shows its moves. */
@@ -119,60 +115,8 @@ export function ShelfRows({ plan, shelf, fit, products, thumbs = {}, selectedUid
   )
 }
 
-/** A small live picture of the whole set (or aisle); the shelf you are on is outlined. Tap it to see it all. */
-export function MiniMap({ plan, fits, products, activeShelfId, onClick, width = 56, height = 40 }) {
-  const rows = plan.sections
-    ? aisleRows(plan).map((cells) => cells.filter(Boolean).map((c) => ({ shelf: c.shelf, offsetIn: c.section.offsetIn })))
-    : [...plan.shelves].reverse().map((s) => [{ shelf: s, offsetIn: 0 }])
-  const spanIn = Math.max(...rows.flat().map((c) => c.offsetIn + Math.max(c.shelf.widthIn, fits[c.shelf.id].usedIn)))
-  // as big as fits in a small box (the shelf buttons beside it stay one finger tall)
-  const tallIn = rows.reduce((n, cells) => n + Math.max(...cells.map((c) => c.shelf.clearanceIn)), 0)
-  const m = Math.min(width / spanIn, (height - rows.length * 3) / tallIn)
-  return (
-    <button className="minimap" onClick={onClick} data-testid="minimap" aria-label="See the whole set">
-      <span className="minimap-pic" style={{ width: spanIn * m }}>
-        {rows.map((cells, r) => {
-          const h = Math.max(2, Math.max(...cells.map((c) => c.shelf.clearanceIn)) * m)
-          return (
-            <span key={r} className="mm-level">
-              <span className="mm-bay" style={{ height: h }}>
-                {cells.map((c) => {
-                  let x = c.offsetIn
-                  return (
-                    <span key={c.shelf.id} className={`mm-cell${c.shelf.id === activeShelfId ? ' on' : ''}`}
-                      style={{ left: c.offsetIn * m, width: c.shelf.widthIn * m }}>
-                      {fits[c.shelf.id].items.map((p, k) => {
-                        const item = c.shelf.items[k]
-                        const left = (x - c.offsetIn) * m
-                        x += p.widthIn
-                        return p.gap ? null : (
-                          <i key={p.uid} style={{ left, width: Math.max(1, p.widthIn * m), height: Math.min(h, Math.max(2, p.heightIn * m)), background: products.info(item).color }} />
-                        )
-                      })}
-                    </span>
-                  )
-                })}
-              </span>
-              <span className={`mm-board${cells.some((c) => fits[c.shelf.id].isOver) ? ' over' : ''}`} />
-            </span>
-          )
-        })}
-      </span>
-      <span className="mm-cap"><ZoomOut size={14} aria-hidden="true" />Whole set</span>
-    </button>
-  )
-}
-
-/** Step to the shelf above or below, with the mini picture between (zoomed in), or a way back in (zoomed out). */
-export function Switcher({ plan, activeShelfId, zoomed, onStep, onZoomIn, children }) {
-  if (!zoomed) {
-    return (
-      <div className="switcher whole" data-testid="switcher">
-        <span className="switcher-where"><b>Whole set</b>Tap a shelf to work on it</span>
-        <button className="btn primary" onClick={onZoomIn} data-testid="zoom-in-shelf">Work on {shortShelf(plan, activeShelfId)}</button>
-      </div>
-    )
-  }
+/** Step to the shelf above or below, with the way back to the whole set between them. Only shown on one shelf. */
+export function Switcher({ plan, activeShelfId, onStep, onWhole }) {
   const up = neighbourShelf(plan, activeShelfId, 1)
   const down = neighbourShelf(plan, activeShelfId, -1)
   return (
@@ -180,7 +124,9 @@ export function Switcher({ plan, activeShelfId, zoomed, onStep, onZoomIn, childr
       <button className="btn" onClick={() => onStep(1)} disabled={!up} data-testid="shelf-up" aria-label={up ? `Go up to ${shortShelf(plan, up.id)}` : 'This is the top shelf'}>
         <ChevronUp size={20} aria-hidden="true" />{up ? shortShelf(plan, up.id) : 'Top'}
       </button>
-      {children}
+      <button className="btn" onClick={onWhole} data-testid="whole-set" aria-label="See the whole set">
+        <LayoutPanelTop size={20} aria-hidden="true" />Whole set
+      </button>
       <button className="btn" onClick={() => onStep(-1)} disabled={!down} data-testid="shelf-down" aria-label={down ? `Go down to ${shortShelf(plan, down.id)}` : 'This is the bottom shelf'}>
         <ChevronDown size={20} aria-hidden="true" />{down ? shortShelf(plan, down.id) : 'Bottom'}
       </button>

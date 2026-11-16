@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { ChevronRight, FolderOpen, LayoutGrid, Pencil, Plus, ScanBarcode, Undo2 } from 'lucide-react'
 import SectionView from './components/SectionView.jsx'
-import { AddSheet, ConfirmSheet, PlansSheet, SectionSummary, SelectedBar, Sheet, ShelfSheet } from './components/Panels.jsx'
-import { MiniMap, ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf, niceName } from './components/Focus.jsx'
+import { AddSheet, ConfirmSheet, DetailsSheet, PlansSheet, SectionSummary, Sheet, ShelfSheet } from './components/Panels.jsx'
+import { ShelfRows, StatusPill, Switcher, TraySheet, neighbourShelf } from './components/Focus.jsx'
+import { niceName } from './lib/text.js'
 import { checkPlan, fmtIn } from './lib/fit.js'
 import { buildIndex } from './lib/search.js'
 import {
@@ -305,7 +306,8 @@ export default function App() {
 
   const activeShelf = plan.shelves.find((s) => s.id === activeShelfId) || plan.shelves[plan.shelves.length - 1]
   const sel = selectedUid ? findItem(plan, selectedUid) : null
-  const barOpen = !!sel && detailsOpen && !placing // while moving, the shelf heading says what to do instead
+  // the details of the tapped product; hidden while moving it (the shelf heading says what to do) and while its size is edited
+  const detailsShown = !!sel && sel.where !== TRAY && sel.item.kind !== 'gap' && detailsOpen && !placing && sheet !== 'size'
 
   // Remind about backups: never backed up after making changes, or the last one is over a week old.
   const changedSince = (t) => Object.values(plans).some((p) => (p.updatedAt || '') > (t || p.createdAt || ''))
@@ -351,8 +353,8 @@ export default function App() {
     }
     // Runs again when anything changes the size of the drawing or of the room around it: the view, the scale,
     // the width of the screen, the shelves' heights, and the bars that share the screen with the drawing.
-  }, [phase, sheet === 'data', zoomed, plan.id, activeShelf.id, plan.shelves.length, plan.tray.length, scale, fitScale, // eslint-disable-line react-hooks/exhaustive-deps
-    wholeScale, boxWidth, rowsTallestIn, backupDue, saveError, barOpen])
+  }, [phase, zoomed, plan.id, activeShelf.id, plan.shelves.length, plan.tray.length, scale, fitScale, // eslint-disable-line react-hooks/exhaustive-deps
+    wholeScale, boxWidth, rowsTallestIn, backupDue, saveError])
 
   // ---------- moving around the set ----------
   /** Work on one shelf (zoomed in). */
@@ -502,12 +504,12 @@ export default function App() {
   /** Start from an AFI set: one plan, or for a freezer set with several doors, one plan per door shown as an aisle. */
   const onNewAfi = (r) => {
     const { plans: made, aisleName } = plansFromAfi(r)
-    if (!aisleName) { onNewPlan(made[0], `New plan from AFI ${r.name}`); return }
+    if (!aisleName) { onNewPlan(made[0], `New plan from AFI ${niceName(r.name)}`); return }
     commitPlans({ ...allPlans(), ...Object.fromEntries(made.map((p) => [p.id, p])) })
     const a = newAisle(aisleName, made.map((p) => p.id))
     commitAisles({ ...aislesRef.current, [a.id]: a })
     onOpenAisle(a.id)
-    showToast(`New plan from AFI ${r.name}: ${made.length} doors side by side`)
+    showToast(`New plan from AFI ${niceName(r.name)}: ${made.length} doors side by side`)
   }
 
   const onNewPlan = (p, message) => {
@@ -573,8 +575,6 @@ export default function App() {
       setCatalog(cat)
       if (phase !== 'ready') startWith(cat, await load('plans'), await load('currentPlanId'), await load('shelf'))
       const msg = `Store data loaded: ${cat.items.length.toLocaleString()} products.`
-      if (phase === 'ready') showToast(msg) // the sheet closes, so say it on the main screen
-      setSheet(null)
       return msg
     }
     // backup
@@ -610,7 +610,6 @@ export default function App() {
       await save('guessEdits', incomingGuesses)
       setGuessEdits(incomingGuesses)
     }
-    if (sheet === 'data') setSheet(null)
     return `Backup loaded: ${counts.added} new plan${counts.added === 1 ? '' : 's'}, ${counts.updated} updated` +
       (counts.keptPhone ? `, ${counts.keptPhone} kept because this phone’s copy was newer` : '') +
       (pics.added ? `, ${pics.added} photos added` : '') +
@@ -619,9 +618,7 @@ export default function App() {
   }
 
   if (phase === 'loading') return <div className="center-msg">Loading…</div>
-  if (phase === 'needData' || sheet === 'data') {
-    return <ImportScreen onFile={onImportFile} onCancel={phase === 'ready' ? () => setSheet(null) : null} />
-  }
+  if (phase === 'needData') return <ImportScreen onFile={onImportFile} />
 
   const missing = plan.shelves.reduce((n, s) => n + s.items.filter((i) => !products.info(i).inCatalog).length, 0)
   const productCount = plan.shelves.reduce((n, s) => n + s.items.filter((i) => i.kind !== 'gap').length, 0)
@@ -688,6 +685,8 @@ export default function App() {
           />
         </div>
 
+        {!zoomed && <p className="whole-hint" data-testid="whole-hint">Tap a shelf to work on it</p>}
+
         {zoomed && (
           <>
             {placing && sel && (
@@ -734,42 +733,10 @@ export default function App() {
         )}
       </main>
 
-      {barOpen && (
-        <SelectedBar
-          plan={plan}
-          where={sel.where}
-          index={sel.index}
-          item={sel.item}
-          info={products.info(sel.item)}
-          dims={products.dims(sel.item)}
-          placed={placed}
-          placing={placing}
-          photo={photoIndex[sel.item.upc]}
-          thumb={thumbs[sel.item.upc]}
-          movement={movement && sel.where !== TRAY ? paceText(sales.find((r) => r.upc === sel.item.upc)) : null}
-          onEditSize={() => setSheet('size')}
-          onPickPhoto={(f) => onPickPhoto(sel.item, f)}
-          onRemovePhoto={() => onRemovePhoto(sel.item)}
-          onFacings={(n) => act({ type: 'facings', uid: sel.item.uid, facings: n })}
-          onHigh={(n) => act({ type: 'high', uid: sel.item.uid, high: n })}
-          onGapWidth={(w) => act({ type: 'gapWidth', uid: sel.item.uid, widthIn: w })}
-          onStartPlace={() => { setPlacing(true); setDetailsOpen(false) }}
-          onCancelPlace={() => setPlacing(false)}
-          onTakeOff={() => {
-            const gap = sel.item.kind === 'gap'
-            act({ type: 'takeOff', uid: sel.item.uid }, gap ? 'Empty space removed' : 'Taken off the shelf')
-            setSelectedUid(null)
-            setDetailsOpen(false)
-          }}
-          onDelete={() => { act({ type: 'deleteItem', uid: sel.item.uid }, `Deleted ${products.info(sel.item).description}`); setSelectedUid(null); setDetailsOpen(false) }}
-          onClose={() => { setDetailsOpen(false); setPlacing(false) }}
-        />
+      {zoomed && (
+        <Switcher plan={plan} activeShelfId={activeShelf.id} onStep={onStepShelf}
+          onWhole={() => { setZoomed(false); setSelectedUid(null); setDetailsOpen(false); setPlacing(false) }} />
       )}
-
-      <Switcher plan={plan} activeShelfId={activeShelf.id} zoomed={zoomed} onStep={onStepShelf} onZoomIn={() => focusShelf(activeShelf.id)}>
-        <MiniMap plan={plan} fits={check.byShelf} products={products} activeShelfId={activeShelf.id}
-          onClick={() => { setZoomed(false); setSelectedUid(null); setDetailsOpen(false); setPlacing(false) }} />
-      </Switcher>
 
       <nav className="tabbar d-tabs" aria-label="Main">
         <button className="tab" onClick={() => setSheet('plans')} aria-label="Plans" data-testid="open-plans">
@@ -825,7 +792,7 @@ export default function App() {
           onAdd={onAdd} onAddGap={onAddGap} onScan={() => setSheet('scan')} onClose={() => setSheet(null)} />
       )}
       {sheet === 'shelf' && (
-        <ShelfSheet plan={plan} shelf={activeShelf} catalog={catalog} inAisle={!!plan.sections}
+        <ShelfSheet plan={plan} shelf={activeShelf} inAisle={!!plan.sections}
           onSave={(changes, all) => act({ type: 'shelf', shelfId: activeShelf.id, changes, all }, all ? 'Every shelf updated' : 'Shelf updated')}
           onAddShelf={(position) => {
             const id = newId('s')
@@ -833,9 +800,7 @@ export default function App() {
             setActiveShelfId(id)
           }}
           onRemoveShelf={(shelfId) => act({ type: 'removeShelf', shelfId }, 'Shelf removed; its products are off the shelf')}
-          onClose={() => setSheet(null)}
-          onReplaceData={() => setSheet('data')}
-          onOpenGuesses={() => setSheet('guesses')} />
+          onClose={() => setSheet(null)} />
       )}
       {sheet === 'size' && sel && (
         <SizeSheet
@@ -923,12 +888,34 @@ export default function App() {
         <PlansSheet
           plans={plans} currentId={plan.id} resets={catalog.resets || []} lastBackupAt={lastBackupAt} backupDue={backupDue}
           photoCount={Object.keys(photoIndex).length}
+          storeInfo={`Store data: ${catalog.items.length.toLocaleString()} products, built ${catalog.built}.`}
           aisles={aisles} currentAisleId={plan.aisleId || null}
           onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle}
           onOpen={onOpenPlan} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDeletePlan}
           onNewBlank={({ shelves, widthIn }) => onNewPlan(newPlan({ name: `New ${shelves}-shelf section`, shelves, widthIn }), 'New empty section')}
           onNewAfi={onNewAfi}
           onExport={onExport} onImportFile={onImportFile} onClose={() => setSheet(null)} />
+      )}
+
+      {detailsShown && (
+        <DetailsSheet
+          plan={plan}
+          where={sel.where}
+          index={sel.index}
+          item={sel.item}
+          info={products.info(sel.item)}
+          dims={products.dims(sel.item)}
+          placed={placed}
+          photo={photoIndex[sel.item.upc]}
+          thumb={thumbs[sel.item.upc]}
+          movement={movement ? paceText(sales.find((r) => r.upc === sel.item.upc)) : null}
+          onEditSize={() => setSheet('size')}
+          onPickPhoto={(f) => onPickPhoto(sel.item, f)}
+          onRemovePhoto={() => onRemovePhoto(sel.item)}
+          onHigh={(n) => act({ type: 'high', uid: sel.item.uid, high: n })}
+          onStartPlace={() => { setPlacing(true); setDetailsOpen(false) }}
+          onClose={() => setDetailsOpen(false)}
+        />
       )}
 
       {ask && <ConfirmSheet {...ask} onClose={() => setAsk(null)} />}
@@ -943,7 +930,7 @@ export default function App() {
   )
 }
 
-function ImportScreen({ onFile, onCancel }) {
+function ImportScreen({ onFile }) {
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(null) // "Loading photos… 400 of 960" while a backup's photos load
@@ -976,7 +963,6 @@ function ImportScreen({ onFile, onCancel }) {
           <input type="file" accept=".json,application/json" onChange={pick} disabled={busy} data-testid="data-file" />
         </label>
         {msg && <p className="error" role="alert">{msg}</p>}
-        {onCancel && <button className="btn wide" onClick={onCancel}>Cancel</button>}
       </div>
     </div>
   )

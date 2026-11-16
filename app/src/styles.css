@@ -5,6 +5,7 @@
    Rules from the brief: text at least 14 px, anything you tap at least 44 px, works with one hand.
    One layer only: each rule is written once, in the order the screen is built (top bar → shelves → list →
    shelf buttons → bottom bar → panels).
+   Streamlined on 2026-11-16: every panel is the same kind of panel, and nothing is offered twice.
    ===================================================================== */
 @import '@fontsource/barlow/latin-500.css';
 @import '@fontsource/barlow/latin-600.css';
@@ -96,7 +97,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0 10px; }
 .file-btn { position: relative; overflow: hidden; }
 .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
 
-:is(.btn, .icon-btn, .row, .chip, .tab, .tool, .tabs-btn, .frow-main, .frow-step button, .frow-acts button, .minimap, .status-pill, .tray-link, .link-btn):focus-visible {
+:is(.btn, .icon-btn, .row, .chip, .tab, .tool, .tabs-btn, .frow-main, .frow-step button, .frow-acts button, .plan-open, .status-pill, .tray-link, .link-btn):focus-visible {
   outline: 3px solid var(--green); outline-offset: 2px;
 }
 
@@ -115,7 +116,13 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0 10px; }
 :is(.field input, .field-row input, .select, .notes, .search, .rename input, .scan-type input, .measure-row input, .measure-ref input, .guess-fields input):focus {
   border-color: var(--green); outline: none; box-shadow: 0 0 0 3px var(--green-soft);
 }
-.field-row input { width: 140px; }
+.field-row input { width: 120px; }
+.field-row .src-select { flex: 1; min-width: 0; width: auto; min-height: 48px; margin-left: 4px; font-size: 16px; color: var(--muted); }
+.more-opts { margin: 14px 0; }
+.more-opts summary { min-height: 44px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; color: var(--green-dark); }
+.more-opts summary::before { content: "›"; font-size: 22px; line-height: 1; transition: transform 0.15s; }
+.more-opts[open] summary::before { transform: rotate(90deg); }
+.more-opts summary::-webkit-details-marker { display: none; }
 .field input.is-guess { background: var(--well); color: var(--muted); font-style: italic; }
 .unit { color: var(--muted); font-weight: 600; }
 .check { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 6px 0; font-weight: 600; }
@@ -293,8 +300,14 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
   font-size: 14px; font-weight: 700; line-height: 16px;
 }
 .drop-marker { position: absolute; z-index: 15; width: 4px; border-radius: 3px; background: var(--green); box-shadow: 0 0 0 3px rgba(31, 138, 91, 0.25); }
-/* whole set: pictures and names speak for themselves; numbers appear when you zoom in to a shelf */
+/* whole set: the picture speaks for itself; numbers appear when you zoom in to a shelf */
 .d-app.whole .pos-badge, .d-app.whole .high-mark { display: none; }
+/* the bottom padding keeps the words clear of the Scan button, which rises above the bottom bar */
+.whole-hint { flex: none; margin: 0; padding: 10px 16px 34px; text-align: center; font-size: 15px; color: var(--muted); }
+@media (max-width: 700px) {
+  /* on a phone the whole set is small: a few half-written names only add noise */
+  .d-app.whole .tile-name, .d-app.whole .tile-name-up { display: none; }
+}
 
 /* shelf headings (used where the drawing is not compact) and the aisle */
 .shelf-head {
@@ -418,31 +431,13 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
 .row:active { background: #faf9f6; }
 .row.selected { box-shadow: inset 0 0 0 2px var(--green), var(--shadow); }
 
-/* ---------- shelf switcher: ▲ shelf above · the mini picture · ▼ shelf below ---------- */
+/* ---------- shelf switcher: ▲ shelf above · whole set · ▼ shelf below ---------- */
 .switcher {
-  flex: none; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center;
+  flex: none; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: center;
   padding: 8px 12px 26px; background: var(--bg);
 }
-.switcher > .btn { min-height: 48px; gap: 4px; font-size: 16px; background: var(--card); box-shadow: var(--shadow); color: var(--green-dark); }
+.switcher > .btn { min-height: 48px; padding: 0 8px; gap: 4px; font-size: 16px; background: var(--card); box-shadow: var(--shadow); color: var(--green-dark); white-space: nowrap; }
 .switcher > .btn:disabled { color: var(--muted); box-shadow: none; background: transparent; }
-.switcher.whole { grid-template-columns: 1fr auto; padding-left: 18px; }
-.switcher-where { display: flex; flex-direction: column; font-size: 14px; color: var(--muted); }
-.switcher-where b { font-size: 18px; font-weight: 800; color: var(--ink); }
-.switcher.whole .btn.primary { min-height: 48px; padding: 0 20px; background: var(--green); color: #fff; }
-.minimap {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 10px; cursor: pointer;
-  border: 0; border-radius: var(--radius-sm); background: var(--card); box-shadow: var(--shadow);
-}
-.minimap:active { background: var(--green-soft); }
-.minimap-pic { display: flex; flex-direction: column; }
-.mm-level, .mm-bay, .mm-board { display: block; }
-.mm-bay { position: relative; }
-.mm-cell { position: absolute; top: 0; bottom: 0; overflow: hidden; background: var(--well); }
-.mm-cell.on { z-index: 1; background: var(--green-soft); box-shadow: 0 0 0 2px var(--green); }
-.mm-cell i { position: absolute; bottom: 0; border-right: 1px solid #fff; }
-.mm-board { height: 3px; background: var(--wood); }
-.mm-board.over { background: var(--danger); }
-.mm-cap { display: inline-flex; align-items: center; gap: 3px; font-size: 14px; font-weight: 700; color: var(--green-dark); }
 
 /* ---------- bottom bar: Plans · Undo · Scan · Add · Tools ---------- */
 .tabbar {
@@ -468,39 +463,22 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
 .tab.scan:active .scan-bubble { transform: scale(0.96); }
 .tab-dot { position: absolute; top: 7px; right: calc(50% - 20px); width: 11px; height: 11px; border-radius: 50%; background: var(--caution); box-shadow: 0 0 0 2px #fff; }
 
-/* ---------- the selected product's details (pinned above the bottom bar) ---------- */
-.selected-bar {
-  position: fixed; left: 0; right: 0; z-index: 35; max-width: 980px; margin: 0 auto;
-  bottom: calc(70px + env(safe-area-inset-bottom)); max-height: 70vh; overflow-y: auto;
-  padding: 14px 16px; background: var(--card); border-radius: 26px 26px 0 0; box-shadow: var(--shadow-up);
-}
-.d-app .selected-bar { padding-bottom: 34px; } /* room for the Scan button, which rises above the bottom bar */
-.selected-bar::before { content: ""; display: block; width: 40px; height: 5px; margin: -6px auto 10px; border-radius: 3px; background: #e2ddd3; }
-.selected-bar.compact { padding-top: 8px; padding-bottom: 8px; }
-.selected-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.selected-text { flex: 1; min-width: 0; }
-.selected-name { font-size: 19px; font-weight: 800; line-height: 1.2; }
-.selected-head .icon-btn { box-shadow: none; background: var(--well); border-radius: 50%; }
-.selected-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
-.selected-actions > .btn { padding: 0 16px; }
-.stepper { display: flex; align-items: center; gap: 2px; margin-right: auto; padding: 3px; border-radius: 999px; background: var(--well); }
-.step { width: 44px; padding: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); color: var(--green-dark); font-size: 24px; }
-.step-value { min-width: 54px; display: flex; flex-direction: column; text-align: center; line-height: 1.05; }
-.step-value span { font-size: 24px; font-weight: 800; }
-.step-value small { font-size: 14px; color: var(--muted); }
-.placing-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; color: var(--green-dark); }
-.selected-bar.compact .placing-hint { margin-top: 0; }
-.placing-text .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.selected-facts { margin: 12px 0 0; font-size: 15px; color: #45524b; }
-.facts { margin: 8px 0 0; padding: 12px 14px; display: grid; gap: 6px; font-size: 15px; background: var(--well); border-radius: var(--radius-sm); }
+/* ---------- a product's details (a panel like the others) ---------- */
+.detail-head { display: flex; gap: 14px; align-items: center; }
+.detail-text { flex: 1; min-width: 0; }
+.detail-name { font-size: 20px; font-weight: 800; line-height: 1.2; }
+.detail-warn { margin: 12px 0 0; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--danger-soft); color: var(--danger); font-weight: 700; }
+.detail-btns { margin: 14px 0 0; }
+.facts { margin: 14px 0 0; padding: 12px 16px; display: grid; gap: 8px; font-size: 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
 .facts div { display: flex; gap: 8px; }
-.facts dt { color: var(--muted); min-width: 108px; }
+.facts div.facts-ctl { align-items: center; }
+.facts dt { flex: none; color: var(--muted); width: 104px; }
 .facts dd { margin: 0; }
 .mini-stepper { display: inline-flex; align-items: center; gap: 6px; }
 .mini-stepper .btn { min-width: 44px; padding: 0; }
 .mini-stepper strong { min-width: 3.2em; text-align: center; }
 .photo-slot {
-  position: relative; flex: none; width: 64px; height: 64px; display: grid; place-items: center; overflow: hidden; cursor: pointer;
+  position: relative; flex: none; width: 76px; height: 76px; display: grid; place-items: center; overflow: hidden; cursor: pointer;
   border: 2px dashed var(--line-strong); border-radius: var(--radius-sm); background: #fff;
   font-size: 14px; font-weight: 700; color: var(--green-dark); text-align: center; white-space: pre-line; line-height: 1.1;
 }
@@ -564,36 +542,41 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
 .aisle-key strong { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-right: 4px; border-radius: 50%; background: var(--green-soft); color: var(--green-dark); font-size: 14px; }
 
 /* plans */
-.new-plan-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
 .plan-list { list-style: none; margin: 0; padding: 0; }
-.plan-list li { padding: 14px 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.plan-list li { padding: 6px 6px 6px 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
 .plan-list li + li { margin-top: 10px; }
 .plan-list li.current { box-shadow: inset 0 0 0 2px var(--green), var(--shadow); }
-.plan-name { display: flex; flex-direction: column; gap: 2px; }
-.plan-name strong { font-size: 17px; font-weight: 800; }
-.plan-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.plan-top { display: flex; align-items: center; gap: 4px; }
+.plan-open {
+  flex: 1; min-width: 0; min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 6px 0;
+  border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); text-align: left; cursor: pointer;
+}
+.plan-open .row-name { font-weight: 800; }
+.plan-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 10px 8px 0; }
 .plan-btns .btn { min-height: 44px; padding: 0 14px; gap: 5px; font-size: 15px; }
-.rename { display: flex; gap: 8px; }
+.rename { display: flex; gap: 8px; padding: 6px 10px 6px 0; }
 .rename input { flex: 1; min-width: 0; min-height: 44px; font-size: 17px; }
 .backup-card, .new-blank, .import-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
 .btn-grid { display: grid; gap: 8px; }
 .btn-grid.two { grid-template-columns: 1fr 1fr; margin-bottom: 8px; }
+.kind-chips { margin: 0 0 14px; }
 
-/* tools */
-.redo-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 12px; }
-.tool-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+/* tools: one plain list */
+.tool-list { list-style: none; margin: 0; padding: 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.tool-list li + li { border-top: 1px solid var(--line); }
 .tool {
-  width: 100%; height: 100%; min-height: 128px; padding: 16px; display: flex; flex-direction: column; gap: 6px;
-  text-align: left; cursor: pointer; border: 0; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow);
+  width: 100%; min-height: 68px; padding: 10px 14px; display: flex; align-items: center; gap: 14px;
+  text-align: left; cursor: pointer; border: 0; background: none; color: var(--ink);
 }
 .tool:active { background: #faf9f6; }
-.tool-icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: var(--green-soft); color: var(--green-dark); }
-.tool-title { font-size: 17px; font-weight: 800; line-height: 1.2; }
+.tool-icon { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--green-soft); color: var(--green-dark); }
+.tool-title { font-size: 17px; font-weight: 700; line-height: 1.2; }
 .tool-text { font-size: 14px; color: var(--muted); line-height: 1.3; }
 
 /* add a product */
-.scan-btn { margin: 0 0 12px; background: var(--green); box-shadow: none; color: #fff; }
-.scan-btn:active { background: var(--green-dark); }
+.search-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.search-row .search-wrap { flex: 1; min-width: 0; }
+.scan-btn { flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--green-soft); box-shadow: none; color: var(--green-dark); }
 .results li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 8px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
 .result-main { flex: 1; min-width: 0; }
 .results .row-name { font-size: 16px; }

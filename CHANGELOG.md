@@ -2,6 +2,29 @@
 
 Plain-English notes on what changed at each stage.
 
+## Streamlined (2026-11-16)
+
+CJ asked to revisit the app and streamline it. Same features, fewer things on screen, and nothing offered twice:
+- **Whole set**: the strip with "Work on Shelf 5" is gone (tapping a shelf already does that), so the drawing has
+  the room. On a phone the half-written product names on the small tiles are hidden; they show when you zoom in.
+- **One shelf**: the tiny picture between the ▲ ▼ buttons is now a plain **Whole set** button.
+- **Details** is one ordinary panel: photo, how it fits, its size, stacking, **Edit size** and **Move**. No "More"
+  to tap, and it no longer repeats the facings and Take off buttons that are already on the row.
+- **Plans**: tap a plan to open it. Copy, Rename and Delete sit behind a **⋯** button on each row. Everything for
+  starting a plan is under **New** (AFI set, empty section, aisle). Aisles are listed only once you have one.
+- **Tools** is a short list. "Scan a barcode" is no longer repeated there (it has its own button), and the title is
+  just "Sales help". Redo is at the bottom of the list.
+- **Shelf size** only has shelf things. Loading a newer store-data file is done with Plans > Backup > Import a
+  file, which now says how many products the store data has.
+- **Add**: the search box comes first with a small scan button beside it; shorter help text.
+- **Size & notes**: where each number came from is one small menu per line instead of nine buttons; package type is
+  folded away.
+- Names read in normal case in more places (search results, AFI set list, new plans made from an AFI set).
+- **Tests that run anywhere**: a made-up set of demo products (invented brands, no store data) is in
+  `app/e2e/fixtures`. `demo.spec.js` (14 tests of the everyday actions) and the screen tour run on it at phone and
+  desktop size. The older tests in `app.spec.js` still need the real store files; they were updated for the new
+  screens but could not be run this time, because the store files were not on the machine.
+
 ## Fresh look (2026-11-05)
 
 CJ didn't like the navy look (colours, too busy, felt cheap) and picked "Fresh & friendly" from four styles

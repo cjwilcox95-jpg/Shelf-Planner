@@ -30,8 +30,8 @@ async function trayNames(page) {
 }
 /** Back to the whole set (if zoomed in to a shelf). */
 async function wholeSet(page) {
-  if (await page.getByTestId('minimap').count()) await page.getByTestId('minimap').click()
-  await expect(page.getByTestId('minimap')).toHaveCount(0)
+  if (await page.getByTestId('whole-set').count()) await page.getByTestId('whole-set').click()
+  await expect(page.getByTestId('whole-hint')).toBeVisible()
 }
 /** Zoom in to shelf n by tapping its board in the whole set. */
 async function openShelf(page, n) {
@@ -140,9 +140,10 @@ test('drag within a shelf', async ({ page }, info) => {
   expect(after.slice(0, 3)).toEqual(before.slice(1, 4))
 })
 
-test('whole set and one shelf: tap zooms in, the shelf buttons and a swipe step, the mini picture zooms out', async ({ page }, info) => {
+test('whole set and one shelf: tap zooms in, the shelf buttons and a swipe step, the Whole set button zooms out', async ({ page }, info) => {
   await loadData(page)
-  await expect(page.getByTestId('switcher')).toContainText('Whole set')
+  await expect(page.getByTestId('whole-hint')).toBeVisible()
+  await expect(page.getByTestId('switcher')).toHaveCount(0) // the shelf buttons only show on a shelf
   await openShelf(page, 7)
   await expect(page.getByTestId('shelf-rows').getByTestId('frow')).toHaveCount(10)
   await expect(rows(page).nth(1)).toHaveClass(/dim/) // the other shelves fade back
@@ -156,8 +157,8 @@ test('whole set and one shelf: tap zooms in, the shelf buttons and a swipe step,
     await expect(page.getByTestId('focus-name')).toHaveText('Shelf 5')
   }
   await shot(page, '03-one-shelf')
-  await page.getByTestId('minimap').click()
-  await expect(page.getByTestId('switcher')).toContainText('Whole set')
+  await page.getByTestId('whole-set').click()
+  await expect(page.getByTestId('whole-hint')).toBeVisible()
   await expect(page.locator('.shelf-row.dim')).toHaveCount(0)
 })
 
@@ -178,7 +179,7 @@ test('arrows move a product along a shelf and to the shelf below; Details > Move
   expect(sixAfter[1]).toBe(top[0]) // same spot it had above
   // Details > Move, then tap the shelf near its right end: it goes to the end of that shelf
   await openRow(page).getByTestId('details').click()
-  await page.getByRole('button', { name: 'Move', exact: true }).click()
+  await page.getByTestId('move-item').click()
   await expect(page.getByText('Tap a shelf where it should go.')).toBeVisible()
   await settled(page)
   const sixBox = await rows(page).nth(1).locator('.shelf-canvas').boundingBox()
@@ -215,7 +216,7 @@ test('facings, OVER on one shelf, undo/redo, and it survives a reload', async ({
   await expect(facings).toHaveText(String(start + 8))
   await expect(page.getByTestId('focus-left')).toContainText('in over')
   await expect(page.getByTestId('section-status')).toHaveText('1 shelf over')
-  await expect(page.locator('.mm-board.over')).toHaveCount(1) // the mini picture shows it too
+  await expect(page.locator('.board.over')).toHaveCount(1) // that shelf's board turns red
   await shot(page, '06-over')
   await page.getByTestId('undo').click()
   await expect(facings).toHaveText(String(start + 7))
@@ -236,7 +237,7 @@ test('search by name and by UPC, add to the shelf you tapped', async ({ page }) 
   await expect(page.getByTestId('add-result').first()).toBeVisible()
   await shot(page, '07-search')
   await input.fill('0-41500-00031')
-  await expect(page.locator('.results .row-name').first()).toContainText('FRENCHS')
+  await expect(page.locator('.results .row-name').first()).toContainText(/frenchs/i) // names are shown in normal case
   await page.getByTestId('add-result').first().click()
   expect((await shelfNames(page, 'Shelf 1 (bottom)')).at(-1)).toContain('FRENCHS')
 })
@@ -244,29 +245,32 @@ test('search by name and by UPC, add to the shelf you tapped', async ({ page }) 
 test('plans: copy, rename, switch, start from AFI, delete', async ({ page }) => {
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('entry-more').first().click() // Copy, Rename and Delete are behind the ⋯ button
   await page.getByRole('button', { name: 'Copy' }).first().click()
   await expect(page.getByTestId('plan-name')).toContainText('(copy)')
   // change the copy so the two differ
   await openProduct(page, 0, 0)
   await openRow(page).getByRole('button', { name: 'Take off' }).click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('entry-more').first().click()
   await page.getByRole('button', { name: 'Rename' }).first().click()
   await page.getByLabel('Plan name').fill('Ketchup proposed')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByTestId('plan-name')).toHaveText('Ketchup proposed')
   await shot(page, '08-plans')
   // open the original: it still has all 10 on the top shelf
-  await page.getByRole('button', { name: 'Open', exact: true }).first().click()
+  await page.getByTestId('plan-list').locator('li:not(.current)').getByTestId('open-plan').first().click() // tap a plan to open it
   expect(await shelfNames(page, 'Shelf 7 (top)')).toHaveLength(10)
   // new plan from the 8 ft Pickles reset
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
-  await page.getByTestId('tab-afi').click()
+  await page.getByTestId('tab-new').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
   await expect(page.getByTestId('plan-name')).toContainText('Pickles')
   await expect(rows(page)).toHaveCount(7)
   await shot(page, '09-pickles-8ft')
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await expect(page.getByTestId('plan-list').locator('li')).toHaveCount(3)
+  await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Pickles' }).getByTestId('entry-more').click()
   await page.getByRole('button', { name: /Delete Pickles/ }).click()
   await expect(page.getByRole('dialog', { name: 'Delete this plan?' })).toContainText('cannot be undone')
   await page.getByTestId('confirm-yes').click()
@@ -303,7 +307,9 @@ test('export a backup, then load it on a fresh phone', async ({ page, browser },
   await openRow(page).getByTestId('details').click()
   await page.getByTestId('photo-input').setInputFiles(path.resolve('../data/build/photos/synthetic-bottle.png'))
   await expect(page.locator('.toast')).toContainText('Photo saved')
+  await page.getByRole('button', { name: 'Done' }).click() // close the details
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('entry-more').first().click() // Copy, Rename and Delete are behind the ⋯ button
   await page.getByRole('button', { name: 'Copy' }).first().click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByTestId('tab-backup').click()
@@ -394,7 +400,6 @@ test('add a photo from the phone to a product', async ({ page }) => {
   expect(size[0]).toBeLessThan(200)
   await expect(rows(page).nth(0).locator('.tile.has-photo')).toHaveCount(1)
   await shot(page, '11-added-photo')
-  await page.getByRole('button', { name: 'More', exact: true }).click()
   await page.getByRole('button', { name: 'Remove photo' }).click()
   await expect(page.locator('.tile.has-photo')).toHaveCount(0)
 })
@@ -461,6 +466,7 @@ test('backups hold the photos taken with the phone, not the store pictures', asy
   await openRow(page).getByTestId('details').click()
   await page.getByTestId('photo-input').setInputFiles(SYNTHETIC)
   await expect(page.locator('.toast')).toContainText('Photo saved')
+  await page.getByRole('button', { name: 'Done' }).click() // close the details
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByTestId('tab-backup').click()
   await expect(page.getByTestId('backup-photo-note')).toContainText('Store pictures from photo packs are not in backups')
@@ -531,8 +537,8 @@ test('change the default guesses for a package type', async ({ page }) => {
   const tile = page.locator('.tile.selected')
   const firstRow = page.getByTestId('item-list').getByTestId('frow').filter({ hasText: 'KRAFT MAYO SQUEEZE' }).locator('.row-sub')
   await expect(firstRow).toContainText('~2.3 in') // guess: 2.75 in at 20 oz -> 2.25 in at 12 oz (list rounds to 0.1)
-  await page.getByTestId('open-shelf').click()
-  await page.getByTestId('open-guesses').click()
+  await page.getByTestId('open-tools').click()
+  await page.getByTestId('tool-guesses').click()
   await page.getByTestId('guess-squeeze-w').fill('4')
   await page.getByTestId('save-guesses').click()
   await expect(firstRow).toContainText('~3.3 in') // 4 in at 20 oz -> 3.25 in at 12 oz
@@ -563,7 +569,6 @@ test('measure a product from a photo', async ({ page }) => {
   await expect(page.getByTestId('size-w')).toHaveValue('2.75')
   await page.getByTestId('save-size').click()
   await expect(rows(page).nth(0).getByTestId('tile').nth(0).locator('.guess-mark')).toHaveText('≈') // depth: AFI's estimate
-  await page.getByRole('button', { name: 'More', exact: true }).click()
   await expect(page.getByTestId('selected-panel')).toContainText('W from photo · H from photo · D estimated from AFI shelf count')
 })
 
@@ -590,7 +595,7 @@ test('the laundry aisle recreated from photos imports as 4 plans with photo size
   await expect(page.getByRole('dialog')).toContainText('Backup loaded: 4 new plans')
   for (const [name, file] of [['Laundry A', 'A'], ['Laundry B', 'B'], ['Laundry C', 'C'], ['Laundry D', 'D']]) {
     if (!(await page.getByRole('dialog').isVisible())) await page.getByRole('button', { name: 'Plans', exact: true }).click()
-    await page.getByTestId('plan-list').locator('li').filter({ hasText: name }).getByRole('button', { name: 'Open', exact: true }).click()
+    await page.getByTestId('plan-list').locator('li').filter({ hasText: name }).getByTestId('open-plan').click()
     await expect(page.getByTestId('plan-name')).toContainText(name)
     await expect(rows(page)).toHaveCount(6)
     await shot(page, `20-aisle-${file}`)
@@ -608,12 +613,11 @@ test('stack a product 2 high and leave an empty space on a shelf', async ({ page
   await openProduct(page, 0, 0)
   const h1 = (await tile.boundingBox()).height
   await openRow(page).getByTestId('details').click()
-  await page.getByRole('button', { name: 'More', exact: true }).click()
   await page.getByRole('button', { name: 'Stack one more high' }).click()
   await expect(page.getByTestId('high')).toHaveText('2 high')
   await expect.poll(async () => (await tile.boundingBox()).height).toBeGreaterThan(h1 * 1.8) // drawn twice as tall
   await expect(openRow(page)).toContainText('2 high')
-  await page.getByTestId('selected-panel').getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Done' }).click() // close the details
   // empty space after the selected product
   const usedBefore = await page.getByTestId('focus-left').innerText()
   await page.getByTestId('open-add').click()
@@ -655,6 +659,7 @@ test('print: make a PDF with the drawing and the product list, and a picture', a
 test('compare a proposed copy with the current plan, and print the change list', async ({ page }) => {
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('entry-more').first().click() // Copy, Rename and Delete are behind the ⋯ button
   await page.getByRole('button', { name: 'Copy' }).first().click()
   await expect(page.getByTestId('plan-name')).toContainText('(copy)')
   const top = await shelfNames(page, 'Shelf 7 (top)')
@@ -793,12 +798,12 @@ test('real sizes from the AFI drawings: used for products, and AFI stacking come
   await page.getByRole('button', { name: 'Done' }).click()
   await openProduct(page, 0, 0)
   await openRow(page).getByTestId('details').click()
-  await page.getByRole('button', { name: 'More', exact: true }).click()
   await expect(page.getByTestId('selected-panel')).toContainText('W from AFI planogram · H from AFI planogram · D estimated from AFI shelf count')
   await expect(page.getByTestId('selected-panel')).toContainText('3.06 W × 6.64 H')
+  await page.getByRole('button', { name: 'Done' }).click() // close the details
   // Pickles-Relish: AFI stacks the 24 oz Vlasic jars 2 high
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
-  await page.getByTestId('tab-afi').click()
+  await page.getByTestId('tab-new').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
   await page.locator('[data-testid="tile"][data-name="VLASIC KOSHER DILL BABY WHOLE"]').first().click()
   await expect(openRow(page)).toContainText('2 high')
@@ -832,10 +837,10 @@ test('aisle: the 4 laundry sections side by side, drag a product from A into B, 
   const moved = await bTiles.first().getAttribute('data-name')
   // open Laundry B on its own: the product is there, first after the 9 in empty space; and gone from A
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
-  await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry B' }).getByRole('button', { name: 'Open', exact: true }).click()
+  await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry B' }).getByTestId('open-plan').click()
   expect((await shelfNames(page, 'Shelf 1 (bottom)')).filter((n) => n !== 'Empty space')[0]).toBe(moved)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
-  await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry A' }).getByRole('button', { name: 'Open', exact: true }).click()
+  await page.getByTestId('plan-list').locator('li').filter({ hasText: 'Laundry A' }).getByTestId('open-plan').click()
   expect(await shelfNames(page, 'Shelf 1 (bottom)')).not.toContain(moved)
   // and back in the aisle after a reload
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
@@ -847,9 +852,10 @@ test('aisle: the 4 laundry sections side by side, drag a product from A into B, 
 test('aisle: make one from two plans; print makes pages for each section', async ({ page }) => {
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
-  await page.getByTestId('tab-afi').click()
+  await page.getByTestId('tab-new').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-new').click()
   await page.getByTestId('new-aisle').click()
   const pick = (t) => page.getByTestId('make-aisle').locator('.row').filter({ hasText: t }).click()
   await pick('Ketchup'); await pick('Pickles')
@@ -867,7 +873,7 @@ test('aisle: make one from two plans; print makes pages for each section', async
 test('a two-door freezer set opens as an aisle, one 30 in section per door', async ({ page }) => {
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
-  await page.getByTestId('tab-afi').click()
+  await page.getByTestId('tab-new').click()
   await page.getByTestId('reset-search').fill('banquet')
   await expect(page.locator('[data-testid^="afi-"]')).toHaveCount(1)
   await expect(page.locator('[data-testid^="afi-"]')).toContainText('2 freezer doors · 5 ft · 6 shelves')
@@ -904,7 +910,7 @@ test('zoomed in: dragging a product onto the shelf above keeps you there; moving
   await settled(page)
   // Details > Move, then ▼ twice and tap that shelf: the product goes there
   await page.locator('.frow.open').getByTestId('details').click()
-  await page.getByRole('button', { name: 'Move', exact: true }).click()
+  await page.getByTestId('move-item').click()
   await page.getByTestId('shelf-down').click()
   await page.getByTestId('shelf-down').click()
   await expect(page.getByTestId('focus-name')).toHaveText('Shelf 5')
@@ -946,9 +952,10 @@ test('phone: the whole set fits on the screen without scrolling', async ({ page 
 test('aisle: the shelf buttons stay in the section you are on', async ({ page }) => {
   await loadData(page)
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
-  await page.getByTestId('tab-afi').click()
+  await page.getByTestId('tab-new').click()
   await page.getByTestId('afi-01-08-24_PICKLES-RELISH').click()
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByTestId('tab-new').click()
   await page.getByTestId('new-aisle').click()
   const pick = (t) => page.getByTestId('make-aisle').locator('.row').filter({ hasText: t }).click()
   await pick('Ketchup'); await pick('Pickles')

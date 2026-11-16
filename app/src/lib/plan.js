@@ -2,6 +2,8 @@
 // shelves[0] is the BOTTOM shelf (AFI's "shelf 1"). The screen draws them top shelf first.
 // Every change makes a new plan object, so undo is just "go back to the previous plan".
 
+import { niceName } from './text.js'
+
 export const SHELF_DEFAULTS = { widthIn: 48, depthIn: 24, clearanceIn: 12 }
 export const TRAY = 'tray'
 const HISTORY_LIMIT = 200
@@ -29,7 +31,7 @@ const itemFrom = (i) => ({
 
 /** A whole AFI reset as a plan: every shelf with AFI's facings; items AFI left off go to the tray. */
 export function planFromAfi(reset) {
-  const p = newPlan({ name: `${reset.name} (AFI ${reset.date})`, shelves: 0 })
+  const p = newPlan({ name: `${niceName(reset.name)} (AFI ${reset.date})`, shelves: 0 })
   p.shelves = [...(reset.shelves || [])]
     .sort((a, b) => a.shelf - b.shelf)
     .map((s) => newShelf({ widthIn: reset.widthFt * 12, items: s.items.map(itemFrom), afiDepthIn: s.depthIn, ...(s.clearanceIn ? { clearanceIn: s.clearanceIn } : {}) }))
@@ -38,7 +40,7 @@ export function planFromAfi(reset) {
   const d = reset.shelves?.length ? reset.shelves.map((s) => s.depthIn) : [24]
   const depths = Math.min(...d) === Math.max(...d) ? `${d[0]}` : `${Math.min(...d)}–${Math.max(...d)}`
   const measured = reset.shelves.some((s) => s.clearanceIn)
-  p.note = `From the AFI ${reset.name} reset (${reset.date}), ${Number(reset.widthFt.toFixed(2))} ft. AFI planned these shelves ${depths} in deep; they are set to your standard 24 in.` +
+  p.note = `From the AFI ${niceName(reset.name)} reset (${reset.date}), ${Number(reset.widthFt.toFixed(2))} ft. AFI planned these shelves ${depths} in deep; they are set to your standard 24 in.` +
     (measured ? ' The room above each shelf is measured from AFI’s drawing (the top shelf of a gondola is open, so it keeps 12 in).' : '')
   return p
 }
@@ -50,7 +52,7 @@ export function planFromAfi(reset) {
 export function plansFromAfi(reset) {
   const doors = reset.doors || 1
   if (doors < 2) return { plans: [planFromAfi(reset)], aisleName: null }
-  const title = `${reset.name} (AFI ${reset.date})`
+  const title = `${niceName(reset.name)} (AFI ${reset.date})`
   const doorIn = Math.round((reset.widthFt * 12) / doors)
   const plans = []
   for (let d = 1; d <= doors; d++) {
@@ -59,7 +61,7 @@ export function plansFromAfi(reset) {
       .map((s) => newShelf({ widthIn: doorIn, items: s.items.map(itemFrom), afiDepthIn: s.depthIn, clearanceIn: s.clearanceIn || 10 }))
     if (!p.shelves.length) p.shelves = [newShelf({ widthIn: doorIn })]
     if (d === 1) p.tray = (reset.unallocated || []).map(itemFrom)
-    p.note = `Door ${d} of ${doors} from the AFI ${reset.name} freezer set (${reset.date}). Shelves are ${doorIn} in wide; the room above each shelf is measured from AFI’s drawing where it could be.`
+    p.note = `Door ${d} of ${doors} from the AFI ${niceName(reset.name)} freezer set (${reset.date}). Shelves are ${doorIn} in wide; the room above each shelf is measured from AFI’s drawing where it could be.`
     plans.push(p)
   }
   return { plans, aisleName: title }
