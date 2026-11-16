@@ -60,21 +60,28 @@ const SHELF = ['id', 'widthIn', 'depthIn', 'clearanceIn', 'afiDepthIn']
 const ITEM = ['uid', 'upc', 'facings', 'description', 'size', 'high']
 
 const SHELF_DEFAULT = { widthIn: 48, depthIn: 24, clearanceIn: 12 } // same as plan.js SHELF_DEFAULTS
-const inches = (x, fallback, max = 600) => (typeof x === 'number' && Number.isFinite(x) && x > 0 && x <= max ? x : fallback)
+// a size in inches; a number written as text ("36") is read as the number, anything else gets the standard size
+const inches = (raw, fallback, max = 600) => {
+  const x = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw
+  return typeof x === 'number' && Number.isFinite(x) && x > 0 && x <= max ? x : fallback
+}
 
 function cleanItem(i) {
   if (i?.kind === 'gap') return { uid: String(i.uid), kind: 'gap', widthIn: inches(Number(i.widthIn), 2, 96) }
   const out = pick(i, ITEM)
   out.uid = String(out.uid)
-  out.upc = String(out.upc)
+  if (typeof out.upc === 'string' && out.upc) out.upc = String(out.upc)
+  else delete out.upc // an AFI line whose barcode could not be read: it keeps its name and its place
   for (const k of ['description', 'size']) if (out[k] !== undefined) out[k] = String(out[k])
   out.facings = Math.max(1, Math.min(99, Math.round(Number(out.facings) || 1)))
   if (!(Number.isInteger(out.high) && out.high >= 2 && out.high <= 20)) delete out.high
   return out
 }
 
-// a product needs an id and a UPC; an empty space needs an id
-const usable = (i) => i && typeof i === 'object' && i.uid != null && (i.kind === 'gap' || (typeof i.upc === 'string' && i.upc))
+// a product needs an id and something to know it by: a UPC, or at least a name (some AFI lines have no readable
+// barcode; they must never be lost in a backup or a repair). An empty space needs an id.
+const known = (i) => (typeof i.upc === 'string' && i.upc !== '') || (typeof i.description === 'string' && i.description.trim() !== '')
+const usable = (i) => i && typeof i === 'object' && i.uid != null && (i.kind === 'gap' || known(i))
 
 /** A plan from a backup with only known fields. Empty spaces never sit in the tray. Broken shelves are dropped. */
 export function cleanPlan(p) {
@@ -92,8 +99,7 @@ export function cleanPlan(p) {
   }
 }
 
-const healthyItem = (i) => i && typeof i === 'object' && i.uid != null &&
-  (i.kind === 'gap' ? Number(i.widthIn) > 0 : typeof i.upc === 'string' && i.upc !== '' && Number(i.facings) >= 1)
+const healthyItem = (i) => i && typeof i === 'object' && i.uid != null && (i.kind === 'gap' ? Number(i.widthIn) > 0 : known(i) && Number(i.facings) >= 1)
 const size = (x) => typeof x === 'number' && Number.isFinite(x) && x > 0
 const healthyShelf = (s) => s && typeof s === 'object' && typeof s.id === 'string' && size(s.widthIn) && size(s.depthIn) && size(s.clearanceIn) &&
   Array.isArray(s.items) && s.items.every(healthyItem)

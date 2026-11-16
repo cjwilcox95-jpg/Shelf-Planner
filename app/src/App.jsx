@@ -190,8 +190,9 @@ export default function App() {
     return () => clearTimeout(t)
   }, [phase])
 
-  // Save the open plan after every change.
-  useEffect(() => {
+  // Save the open plan after every change. Done in the same breath as the screen update (a layout effect), not a
+  // moment later, so a change is on its way to storage before the screen even shows it.
+  useLayoutEffect(() => {
     if (phase !== 'ready') return
     if (plan.sections) {
       // an aisle: save each section plan that changed
@@ -213,7 +214,7 @@ export default function App() {
 
   const products = useMemo(() => makeProducts(catalog, { sizes, guessEdits }), [catalog, sizes, guessEdits])
   // small photos of every product in the open plan or aisle (shelves and off the shelf), read in one go
-  const planUpcs = useMemo(() => [...plan.shelves.flatMap((s) => s.items), ...plan.tray].filter((i) => i.kind !== 'gap').map((i) => i.upc), [plan])
+  const planUpcs = useMemo(() => [...plan.shelves.flatMap((s) => s.items), ...plan.tray].filter((i) => i.kind !== 'gap' && i.upc).map((i) => i.upc), [plan])
   const thumbs = useThumbs(planUpcs, photoIndex)
   const index = useMemo(() => (catalog ? buildIndex(catalog) : []), [catalog])
   const check = useMemo(() => checkPlan(plan, (item) => products.dims(item)), [plan, products])

@@ -24,6 +24,8 @@ person is in `docs/HOW_TO_USE.md`.
 - Plans saved on the phone are checked at start; a damaged one is repaired instead of breaking the app.
 - A notice when a newer version is ready. A plain message when the browser will not save (private window).
 - With a keyboard, a shelf can be opened from the whole-set picture again (lost in the last change).
+- A product from an AFI set that has a name but no readable barcode is no longer dropped when a backup is loaded.
+- A change is on its way to storage in the same step as the screen update, not a moment later.
 
 **More refined**
 - The whole plan name shows (two lines). The shelf-size button is labelled "Size". Product rows no longer repeat the
@@ -32,7 +34,7 @@ person is in `docs/HOW_TO_USE.md`.
 - Fits the smallest phones (320 px wide), checked by the screen tour. A phone held sideways is asked to turn upright.
 
 **Tests**
-- 227 unit tests. 27 browser tests of the everyday actions and a tour of every screen at three sizes, all on the
+- 231 unit tests. 27 browser tests of the everyday actions and a tour of every screen at three sizes, all on the
   demo products, so they run on any computer. The whole browser set was run three times in a row with no failures.
 - Not run: the older browser tests and the data-prep run, which need the store's own files (lost from the build
   machine on 2026-11-14). Not checked: a real phone.

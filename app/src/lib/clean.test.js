@@ -87,3 +87,36 @@ describe('plans saved on the phone are checked before use', () => {
     expect(cleanPlan({ id: 'p', shelves: [] }).name).toBe('Plan')
   })
 })
+
+describe('a product with a name but no readable barcode (some AFI lines) is never lost', () => {
+  const plan = {
+    id: 'p1', name: 'From AFI', note: '',
+    shelves: [{ id: 's1', widthIn: 48, depthIn: 24, clearanceIn: 12, items: [{ uid: 'i1', facings: 2, description: 'MYSTERY SAUCE', size: '12 OZ' }, { uid: 'i2', upc: '400000000001', facings: 1 }] }],
+    tray: [{ uid: 'i3', facings: 1, description: 'LEFT OUT BY AFI' }],
+  }
+  it('the plan counts as healthy and is passed on untouched at start', () => {
+    expect(healthyPlan(plan)).toBe(true)
+    expect(repairPlans({ p1: plan }).plans.p1).toBe(plan)
+  })
+  it('a backup keeps it, with its name, facings and place', () => {
+    const c = cleanPlan(plan)
+    expect(c.shelves[0].items).toEqual([{ uid: 'i1', facings: 2, description: 'MYSTERY SAUCE', size: '12 OZ' }, { uid: 'i2', upc: '400000000001', facings: 1 }])
+    expect(c.tray).toEqual([{ uid: 'i3', facings: 1, description: 'LEFT OUT BY AFI' }])
+  })
+  it('a repair of a damaged plan keeps it too; only an entry with neither barcode nor name goes', () => {
+    const r = repairPlans({ p1: { ...plan, shelves: [...plan.shelves, 'nonsense'], tray: [...plan.tray, { uid: 'junk' }] } })
+    expect(r.repaired).toEqual(['From AFI'])
+    expect(r.plans.p1.shelves[0].items.map((i) => i.uid)).toEqual(['i1', 'i2'])
+    expect(r.plans.p1.tray.map((i) => i.uid)).toEqual(['i3'])
+  })
+})
+
+describe('sizes written as text', () => {
+  it('a repair keeps the size ("36" stays 36 in), it does not fall back to the standard 48', () => {
+    const p = { id: 'p1', name: 'Old', shelves: [{ id: 's1', widthIn: '36', depthIn: 20, clearanceIn: '10.5', items: [] }], tray: [] }
+    expect(healthyPlan(p)).toBe(false) // text where a number should be
+    const r = repairPlans({ p1: p })
+    expect(r.plans.p1.shelves[0]).toMatchObject({ id: 's1', widthIn: 36, depthIn: 20, clearanceIn: 10.5 })
+    expect(healthyPlan(r.plans.p1)).toBe(true)
+  })
+})

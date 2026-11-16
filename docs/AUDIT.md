@@ -22,6 +22,9 @@ Status key: **Fixed** = changed and tested. **Kept** = looked at, fine as it is.
 | 1.8 | Facings and stacking accept a broken number from a damaged file. | **Fixed.** A broken number counts as 1. |
 | 1.9 | Before the app's code has loaded (slow signal) the page is plain white with no word on it. | **Fixed.** The page says "Opening Shelf Planner…", and says so if JavaScript is off. |
 
+| 1.10 | A product from an AFI set whose barcode could not be read (it has a name but no UPC) was dropped when a backup was loaded. | **Fixed.** A product with a name is always kept, in backups and in repairs. |
+| 1.11 | A change made a split second before the app is closed might not be saved, because saving started a moment after the screen updated. | **Fixed.** Saving now starts in the same step as the screen update. (Found because one test, run under heavy load, lost a change.) |
+
 ## 2. Things a first-time user would trip over
 
 | # | What was found | Status |
@@ -48,7 +51,7 @@ Status key: **Fixed** = changed and tested. **Kept** = looked at, fine as it is.
 ## 4. Looked at and kept
 
 - Fit maths, size guesses, UPC rules, tape-measure reading, plan changes and undo: read line by line, covered by
-  unit tests (227 in all after this review), no faults found.
+  unit tests (231 in all after this review), no faults found.
 - Saving on the phone: every change is saved at once; photos are saved in batches; a full phone is reported.
 - Backups: importing only adds and updates, never deletes; the newer copy of a plan wins.
 - Cost, retail and margin: never read by the app; files coming in are trimmed to the known fields.
@@ -63,7 +66,7 @@ Status key: **Fixed** = changed and tested. **Kept** = looked at, fine as it is.
 
 ## 6. How it is tested now
 
-- 227 unit tests of the maths and the file handling.
+- 231 unit tests of the maths and the file handling.
 - 27 browser tests of the everyday actions (`app/e2e/demo.spec.js`), run at phone and desktop size on the made-up
   demo products, so they run on any computer.
 - A tour of every screen (`app/e2e/tour.spec.js`) at three sizes (small phone 320 px, phone 390 px, desktop), which

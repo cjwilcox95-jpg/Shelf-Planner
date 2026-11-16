@@ -13,6 +13,8 @@ const demo = JSON.parse(fs.readFileSync(CATALOG, 'utf8'))
 const rows = (page) => page.getByTestId('shelf-row') // top shelf first
 const openRow = (page) => page.locator('.frow.open')
 const done = (page) => page.getByRole('button', { name: 'Done' }).click()
+/** Wait until every change is really written to the phone's storage (the app marks the page while it is writing). */
+const saved = (page) => expect(page.locator('html[data-saving]')).toHaveCount(0)
 
 /** Open the app the way a new person does: try the demo, read the welcome, close it. */
 async function loadData(page) {
@@ -126,6 +128,7 @@ test('facings, OVER on one shelf, undo and redo, and it survives a reload', asyn
   await page.getByTestId('open-tools').click()
   await page.getByTestId('redo').click()
   await expect(facings).toHaveText(String(start + 12))
+  await saved(page)
   await page.reload()
   await expect(page.getByTestId('section-status')).toHaveText('1 shelf over')
 })
@@ -243,6 +246,7 @@ test('details: one panel with the facts, stacking, a real size that sticks, and 
   await done(page)
   await expect(openRow(page).locator('.row-sub')).not.toContainText('~')
   await expect(openRow(page).locator('.row-sub')).toContainText('2 high')
+  await saved(page)
   await page.reload()
   await openProduct(page, 1, 0)
   await expect(openRow(page).locator('.row-sub')).not.toContainText('~')
@@ -491,6 +495,7 @@ test('first screen: the demo opens with no file, the welcome shows once, and How
   await expect(welcome.getByTestId('help-demo')).toContainText('made-up demo products')
   await page.getByRole('button', { name: 'Got it' }).click()
   await expect(page.getByTestId('plan-name')).toHaveText('Ketchup Mustard (AFI 2026-03)')
+  await saved(page)
   await page.reload()
   await expect(page.getByTestId('status-pill')).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0) // not shown a second time
@@ -579,6 +584,7 @@ test('a scanned product that is not in the store list can be added and given a n
   await expect(page.getByTestId('selected-panel')).toContainText('Local Honey 12 Oz')
   await done(page)
   await expect(openRow(page).locator('.row-name')).toHaveText('Local Honey 12 Oz')
+  await saved(page)
   await page.reload()
   expect((await shelfNames(page, 1)).at(-1)).toBe('Local honey 12 oz') // the name is saved with the plan
 })
@@ -604,6 +610,7 @@ test('if a screen breaks: a plain message, the plans are safe, a backup can be s
   const facings = await openRow(page).getByTestId('row-facings').innerText()
   // break the next start on purpose: sorting names (used when the product list is prepared) throws
   await page.addInitScript(() => { window.__breakOnce = sessionStorage.getItem('broke') !== '1'; if (window.__breakOnce) { sessionStorage.setItem('broke', '1'); Intl.Collator = function () { throw new Error('test: the screen broke') } } })
+  await saved(page)
   await page.reload()
   const crash = page.getByTestId('crash')
   await expect(crash).toContainText('Something went wrong')
@@ -620,7 +627,8 @@ test('if a screen breaks: a plain message, the plans are safe, a backup can be s
 
 test('a damaged plan saved on the phone is repaired at start instead of breaking the app', async ({ page }) => {
   await loadData(page)
-  // damage what is saved: one shelf becomes nonsense, one product loses its barcode
+  // damage what is saved: one shelf becomes nonsense, two products lose their barcode, one of them its name too
+  await saved(page)
   await page.evaluate(() => new Promise((resolve, reject) => {
     const req = indexedDB.open('shelf-planner')
     req.onsuccess = () => {
@@ -631,7 +639,9 @@ test('a damaged plan saved on the phone is repaired at start instead of breaking
         const plans = get.result
         const p = Object.values(plans)[0]
         p.shelves[0] = 'nonsense'
-        delete p.shelves[1].items[0].upc
+        delete p.shelves[1].items[0].upc // a name but no barcode: kept
+        delete p.shelves[1].items[1].upc // no barcode and no name: nothing to know it by
+        delete p.shelves[1].items[1].description
         kv.put(plans, 'plans')
       }
       tx.oncomplete = () => { req.result.close(); resolve() }
@@ -639,10 +649,13 @@ test('a damaged plan saved on the phone is repaired at start instead of breaking
     }
   }))
   const before = demo.resets[0].shelves[1].items.length
+  await saved(page)
   await page.reload()
   await expect(page.locator('.toast')).toContainText('A damaged plan was repaired: Ketchup Mustard')
   await expect(rows(page)).toHaveCount(4) // the broken shelf is gone, the rest is there
-  expect(await shelfNames(page, 1)).toHaveLength(before - 1)
+  const names = await shelfNames(page, 1) // what was shelf 2 is now the bottom shelf
+  expect(names).toHaveLength(before - 1) // only the one with nothing to know it by is gone
+  expect(names[0]).toBe(demo.resets[0].shelves[1].items[0].description) // the one with a name but no barcode is still first
   await expect(page.getByTestId('crash')).toHaveCount(0)
 })
 

@@ -58,6 +58,8 @@ async function openProduct(page, r, k) {
   await expect(page.locator('.frow.open')).toBeVisible()
 }
 const openRow = (page) => page.locator('.frow.open')
+/** Wait until every change is really written to the phone's storage (the app marks the page while it is writing). */
+const saved = (page) => expect(page.locator('html[data-saving]')).toHaveCount(0)
 /** The section status details (opens the panel; close it with Done). */
 async function openStatus(page) {
   await page.getByTestId('status-pill').click()
@@ -225,6 +227,7 @@ test('facings, OVER on one shelf, undo/redo, and it survives a reload', async ({
   await page.getByTestId('open-tools').click()
   await page.getByTestId('redo').click()
   await expect(facings).toHaveText(String(start + 8))
+  await saved(page)
   await page.reload()
   await expect(page.getByTestId('section-status')).toHaveText('1 shelf over')
 })
@@ -358,6 +361,7 @@ test('a shelf saved by the old one-shelf version becomes a plan', async ({ page 
       tx.onerror = reject
     }
   }))
+  await saved(page)
   await page.reload()
   await expect(page.getByTestId('plan-name')).toHaveText('My old shelf')
   await expect(rows(page)).toHaveCount(1)
@@ -445,6 +449,7 @@ test('a 960-photo pack loads in batches, and the photos are still on the Ketchup
   await expect(page.locator('.tile.has-photo').first()).toBeVisible()
   const shown = await page.locator('.tile.has-photo').count()
   expect(shown).toBeGreaterThan(5)
+  await saved(page)
   await page.reload()
   await expect(page.getByTestId('plan-name')).toContainText('Ketchup - Mustard')
   await expect(page.locator('.tile.has-photo')).toHaveCount(shown)
@@ -500,6 +505,7 @@ test('a photo saved by the first version of the app moves to the photo store at 
       tx.onerror = () => reject(tx.error)
     }
   }), [`photo:${upc}`, { ...rec, source: 'your photo' }])
+  await saved(page)
   await page.reload()
   await expect(page.locator('.tile.has-photo')).toHaveCount(1) // shown on its tile, as before
   await expect.poll(async () => (await storageNow(page)).kvPhotoKeys.length).toBe(0) // the old copy is gone
@@ -527,6 +533,7 @@ test('edit a product size: saved everywhere, marks change from ~ to measured', a
   await expect(page.locator('.toast')).toContainText('Size saved')
   await expect(tile.locator('.guess-mark')).toHaveCount(0) // all three measured: no ~
   await expect(page.getByTestId('selected-panel')).toContainText('2 × 4 in = 8 in wide')
+  await saved(page)
   await page.reload()
   await expect(rows(page).nth(0).getByTestId('tile').nth(0).locator('.guess-mark')).toHaveCount(0)
 })
@@ -727,6 +734,7 @@ test('sales help: load a CSV export, money columns are ignored, worth-a-look lis
   await expect(openRow(page)).toContainText(items[0].description, { ignoreCase: true })
   await openRow(page).getByTestId('details').click()
   await expect(page.getByTestId('sells')).toContainText('sells ~69/wk') // 900 / 13 weeks
+  await saved(page)
   await page.reload()
   await openProduct(page, 0, 0)
   await openRow(page).getByTestId('details').click()
@@ -848,6 +856,7 @@ test('aisle: the 4 laundry sections side by side, drag a product from A into B, 
   // and back in the aisle after a reload
   await page.getByRole('button', { name: 'Plans', exact: true }).click()
   await page.getByTestId('aisle-list').locator('li').filter({ hasText: 'Laundry aisle' }).getByTestId('open-aisle').click()
+  await saved(page)
   await page.reload()
   await expect(page.getByTestId('plan-name')).toHaveText('Laundry aisle')
 })
@@ -895,6 +904,7 @@ test('opens with no signal after being opened once online', async ({ page, conte
   await expect.poll(() => page.evaluate(async () => (await caches.keys()).length)).toBeGreaterThan(0)
   await expect.poll(() => page.evaluate(async () => (await (await caches.open((await caches.keys())[0])).keys()).length)).toBeGreaterThan(5)
   await context.setOffline(true)
+  await saved(page)
   await page.reload()
   await expect(page.getByText('Load your store data')).toBeVisible() // the app itself opened from the phone
   await context.setOffline(false)

@@ -39,17 +39,33 @@ function open() {
 let dbPromise
 const db = () => (dbPromise ||= open())
 
+// While anything is being written, the page carries data-saving="1" (on <html>). Nothing on screen uses it
+// yet; it lets the browser tests wait until a change is really on the phone before closing the app.
+let writing = 0
+function markWriting(change) {
+  writing += change
+  if (typeof document === 'undefined') return
+  if (writing > 0) document.documentElement.dataset.saving = '1'
+  else delete document.documentElement.dataset.saving
+}
+
 /** Run a transaction; resolves with what `fn` returns once everything is really written. */
 async function run(stores, mode, fn) {
-  const d = await db()
-  return new Promise((resolve, reject) => {
-    const tx = d.transaction(stores, mode)
-    let out
-    try { out = fn(tx) } catch (e) { tx.abort(); reject(e); return }
-    tx.oncomplete = () => resolve(typeof out === 'function' ? out() : out)
-    tx.onerror = () => reject(tx.error)
-    tx.onabort = () => reject(tx.error || new Error('Saving was stopped'))
-  })
+  const write = mode === 'readwrite'
+  if (write) markWriting(1)
+  try {
+    const d = await db()
+    return await new Promise((resolve, reject) => {
+      const tx = d.transaction(stores, mode)
+      let out
+      try { out = fn(tx) } catch (e) { tx.abort(); reject(e); return }
+      tx.oncomplete = () => resolve(typeof out === 'function' ? out() : out)
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error || new Error('Saving was stopped'))
+    })
+  } finally {
+    if (write) markWriting(-1)
+  }
 }
 
 export async function load(key) {
