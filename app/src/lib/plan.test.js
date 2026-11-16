@@ -226,3 +226,24 @@ describe('freezer sets with doors', () => {
     expect(plans).toHaveLength(1)
   })
 })
+
+describe('sturdy against odd input', () => {
+  it('facings and stacking ignore a broken number', () => {
+    const p = applyPlanAction(newPlan({ shelves: 1 }), { type: 'add', uid: 'i1', upc: '400000000001', description: 'X', size: '' })
+    expect(applyPlanAction(p, { type: 'facings', uid: 'i1', facings: 'lots' }).shelves[0].items[0].facings).toBe(1)
+    expect(applyPlanAction(p, { type: 'high', uid: 'i1', high: undefined }).shelves[0].items[0].high).toBeUndefined()
+  })
+  it('a product that is not in the store files can be given a name', () => {
+    const p = applyPlanAction(newPlan({ shelves: 1 }), { type: 'add', uid: 'i1', upc: '400000000001', description: 'UPC 4-00000-00000-1', size: '' })
+    const named = applyPlanAction(p, { type: 'describe', uid: 'i1', description: '  Local honey 12 oz ' })
+    expect(named.shelves[0].items[0].description).toBe('Local honey 12 oz')
+    expect(applyPlanAction(named, { type: 'describe', uid: 'i1', description: '   ' })).toBe(named) // a blank name changes nothing
+    expect(applyPlanAction(named, { type: 'describe', uid: 'i1', description: 'Local honey 12 oz' })).toBe(named)
+  })
+  it('a set with no width or no products on a shelf still makes a plan', () => {
+    const p = planFromAfi({ name: 'ODD SET', date: '2026', shelves: [{ shelf: 1, depthIn: 20 }] })
+    expect(p.shelves).toHaveLength(1)
+    expect(p.shelves[0].widthIn).toBe(48)
+    expect(p.name).toBe('Odd Set (AFI 2026)')
+  })
+})

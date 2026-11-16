@@ -83,6 +83,7 @@ export default function SectionView({
 
   const viewAt = (uid, clientX, clientY) => {
     const at = locate(clientX, clientY)
+    if (!at) return null // no shelf is drawn (never on screen, but never a crash either)
     const gap = insertIndexAt(fits[at.shelf.id].items, at.xIn, uid)
     return { uid, shelfId: at.shelf.id, gap, clientX, clientY }
   }
@@ -144,8 +145,8 @@ export default function SectionView({
     if (d.active) {
       if (!cancelled) {
         const v = viewAt(d.uid, e.clientX, e.clientY)
-        const shelf = plan.shelves.find((s) => s.id === v.shelfId)
-        onMove(d.uid, v.shelfId, insertBeforeFor(shelf, d.uid, v.gap))
+        const shelf = v && plan.shelves.find((s) => s.id === v.shelfId)
+        if (shelf && plan.shelves.some((s) => s.items.some((i) => i.uid === d.uid))) onMove(d.uid, v.shelfId, insertBeforeFor(shelf, d.uid, v.gap))
       }
       setDragView(null)
     } else if (!cancelled) {
@@ -299,10 +300,12 @@ export default function SectionView({
                   )}
                   <div className={`board${compact ? ' labeled' : ''}${fit.isOver ? ' over' : ''}`} style={{ left: xPx(0), width: shelf.widthIn * scale, top: canvasH, height: BOARD_H }}>
                     {compact && (
-                      <span className="board-label" data-testid="board-label">
+                      // a real button, so a keyboard or a screen reader can open the shelf too (a tap anywhere on the shelf does the same)
+                      <button type="button" className="board-label" data-testid="board-label"
+                        aria-label={`${placing ? 'Put it on' : 'Work on'} ${shelfLabel(plan, shelf.id)}: ${fit.isOver ? `${fmtIn(fit.overIn)} inches over` : `${fmtIn(fit.remainingIn)} inches left`}`}>
                         <span>{shelfLabel(plan, shelf.id).replace(/ \((top|bottom)\)$/, '')}</span>
                         <strong>{fit.isOver ? `${fmtIn(fit.overIn)} in over` : `${fmtIn(fit.remainingIn)} in left`}</strong>
-                      </span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -394,6 +397,7 @@ export default function SectionView({
 
       {dragView && (() => {
         const shelf = plan.shelves.find((s) => s.items.some((i) => i.uid === dragView.uid))
+        if (!shelf) return null // the product went away while it was being dragged (an Undo, say)
         const p = fits[shelf.id].items.find((i) => i.uid === dragView.uid)
         const info = products.info(shelf.items.find((i) => i.uid === dragView.uid))
         const w = p.widthIn * scale

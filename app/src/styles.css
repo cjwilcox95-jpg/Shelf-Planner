@@ -97,7 +97,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0 10px; }
 .file-btn { position: relative; overflow: hidden; }
 .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
 
-:is(.btn, .icon-btn, .row, .chip, .tab, .tool, .tabs-btn, .frow-main, .frow-step button, .frow-acts button, .plan-open, .status-pill, .tray-link, .link-btn):focus-visible {
+:is(.btn, .icon-btn, .row, .chip, .tab, .tool, .tabs-btn, .frow-main, .frow-step button, .frow-acts button, .plan-open, .status-pill, .tray-link, .link-btn, .board-label):focus-visible {
   outline: 3px solid var(--green); outline-offset: 2px;
 }
 
@@ -223,7 +223,8 @@ main { padding: 0 12px calc(100px + env(safe-area-inset-bottom)); }
 .board.labeled { display: flex; align-items: center; overflow: hidden; }
 .board.labeled.over { background: linear-gradient(#f4b9b2 0 2px, #d9534a 2px); box-shadow: 0 2px 0 #b8433b, 0 4px 8px rgba(33, 48, 41, 0.08); }
 .board-label {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; height: 100%;
+  border: 0; background: none; cursor: pointer; font-family: inherit;
   padding: 1px 6px 0 3px; color: #4a3f2d; font-size: 14px; line-height: 18px; font-weight: 600; white-space: nowrap;
 }
 .board-label > span:first-child { padding: 0 8px; border-radius: 999px; background: #fff; color: var(--green-dark); font-weight: 800; }

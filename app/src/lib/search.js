@@ -1,6 +1,12 @@
 import { digits, candidateKeys } from './upc.js'
 
 /**
+ * Text as it is compared: capitals, apostrophes dropped (FRENCH'S = FRENCHS), other punctuation as spaces.
+ * So a name finds its product however either side wrote it.
+ */
+export const searchText = (s) => String(s ?? '').toUpperCase().replace(/['’`]/g, '').replace(/[^\p{L}\p{N}.]+/gu, ' ').trim()
+
+/**
  * Prepare the catalog for fast searching (done once after loading).
  * Each entry also gets `rank`: its place in the usual order (regular items before KEHE special orders,
  * then by name), so a search never has to sort its hits.
@@ -10,7 +16,7 @@ export function buildIndex(catalog) {
   const index = catalog.items.map((item, i) => ({
     item,
     i,
-    hay: `${item.description} ${item.size} ${sub[`${item.classCode}-${item.subclassCode}`] || ''}`.toUpperCase(),
+    hay: searchText(`${item.description} ${item.size} ${sub[`${item.classCode}-${item.subclassCode}`] || ''}`),
     rank: 0,
   }))
   const byName = new Intl.Collator().compare // the same order as localeCompare, much faster
@@ -60,7 +66,8 @@ export function search(index, query, limit = 60) {
       if (isExact || String(e.item.upc).includes(d)) top.add((isExact ? 0 : n) + e.i, e.item)
     }
   } else {
-    const words = q.split(/\s+/)
+    const words = searchText(q).split(/\s+/).filter(Boolean)
+    if (!words.length) return []
     for (const e of index) {
       if (!words.every((w) => e.hay.includes(w))) continue
       // rank already puts special orders last; a name starting with the first word goes first within each group

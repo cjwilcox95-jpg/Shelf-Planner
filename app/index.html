@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" />
-    <meta name="description" content="Plan grocery shelf sets in real inches." />
+    <meta name="description" content="Plan grocery shelf sets in real inches, and see what fits before you move anything." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Shelves" />
@@ -14,7 +14,9 @@
     <title>Shelf Planner</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Shown until the app's code has loaded (a moment, or longer on a weak signal). -->
+    <div id="root"><p style="margin:0;padding:48px 16px;text-align:center;font:500 18px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#5f6b65">Opening Shelf Planner…</p></div>
+    <noscript><p style="padding:24px 16px;text-align:center;font:18px sans-serif">Shelf Planner needs JavaScript. Turn it on in your browser's settings, then reload this page.</p></noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

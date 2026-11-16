@@ -29,6 +29,10 @@ export function cleanCatalog(doc) {
     .filter((r) => r && Array.isArray(r.shelves) && r.shelves.length > 0)
     .map((r) => ({
       ...pick(r, RESET),
+      id: String(r.id ?? r.name ?? ''),
+      name: String(r.name ?? 'Set'),
+      date: String(r.date ?? ''),
+      widthFt: Number(r.widthFt) > 0 && Number(r.widthFt) <= 100 ? Number(r.widthFt) : 4,
       shelves: r.shelves.map((s) => ({ shelf: s.shelf, ...(s.door ? { door: s.door } : {}), ...(s.clearanceIn > 0 ? { clearanceIn: s.clearanceIn } : {}), depthIn: s.depthIn, items: (s.items || []).map((i) => pick(i, RESET_ITEM)) })),
       unallocated: (r.unallocated || []).map((i) => pick(i, RESET_ITEM)),
     }))
@@ -76,6 +80,7 @@ const usable = (i) => i && typeof i === 'object' && i.uid != null && (i.kind ===
 export function cleanPlan(p) {
   return {
     ...pick(p, PLAN),
+    name: String(p.name ?? '').trim() || 'Plan',
     shelves: (p.shelves || []).filter((s) => s && typeof s === 'object').map((s) => ({
       ...pick(s, SHELF),
       widthIn: inches(s.widthIn, SHELF_DEFAULT.widthIn),
@@ -85,4 +90,37 @@ export function cleanPlan(p) {
     })),
     tray: (Array.isArray(p.tray) ? p.tray : []).filter((i) => usable(i) && i.kind !== 'gap').map(cleanItem),
   }
+}
+
+const healthyItem = (i) => i && typeof i === 'object' && i.uid != null &&
+  (i.kind === 'gap' ? Number(i.widthIn) > 0 : typeof i.upc === 'string' && i.upc !== '' && Number(i.facings) >= 1)
+const size = (x) => typeof x === 'number' && Number.isFinite(x) && x > 0
+const healthyShelf = (s) => s && typeof s === 'object' && typeof s.id === 'string' && size(s.widthIn) && size(s.depthIn) && size(s.clearanceIn) &&
+  Array.isArray(s.items) && s.items.every(healthyItem)
+/** Can the screens draw this plan as it is? */
+export const healthyPlan = (p) => !!p && typeof p === 'object' && typeof p.id === 'string' && typeof p.name === 'string' &&
+  Array.isArray(p.shelves) && p.shelves.length > 0 && p.shelves.every(healthyShelf) && Array.isArray(p.tray) && p.tray.every(healthyItem)
+
+/**
+ * The plans saved on the phone, checked before the screens use them. A healthy plan is passed on untouched.
+ * A damaged one (a half-written save, an old format) is repaired with the same rules as a backup coming in:
+ * broken products and shelves are dropped, missing sizes get the standard ones. A plan with nothing left to
+ * draw is left out. `makeId` gives ids to shelves that lost theirs.
+ * Returns { plans, repaired: [names], dropped: number }.
+ */
+export function repairPlans(saved, makeId = (i) => `s-repaired-${i}`) {
+  const plans = {}
+  const repaired = []
+  let dropped = 0
+  let n = 0
+  for (const [key, p] of Object.entries(saved && typeof saved === 'object' ? saved : {})) {
+    if (healthyPlan(p) && p.id === key) { plans[key] = p; continue }
+    if (!p || typeof p !== 'object' || !Array.isArray(p.shelves)) { dropped++; continue }
+    const fixed = cleanPlan({ ...p, id: key })
+    fixed.shelves = fixed.shelves.map((s) => (typeof s.id === 'string' && s.id ? s : { ...s, id: makeId(n++) }))
+    if (!fixed.shelves.length) { dropped++; continue }
+    plans[key] = fixed
+    repaired.push(fixed.name)
+  }
+  return { plans, repaired, dropped }
 }

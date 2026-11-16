@@ -79,3 +79,21 @@ describe('search returns the best 60 without sorting every hit', () => {
     expect(search(big, 'ketchup', 5).map((i) => i.upc)).toEqual(sortEverything(big, 'ketchup', 5).map((i) => i.upc))
   })
 })
+
+describe('search ignores punctuation', () => {
+  const cat = { subclassNames: {}, items: [
+    { upc: '400000000001', description: "FRENCH'S MUSTARD", size: '20 OZ', classCode: '1', subclassCode: '1' },
+    { upc: '400000000002', description: 'FRENCHS MUSTARD SQZ', size: '12 OZ', classCode: '1', subclassCode: '1' },
+    { upc: '400000000003', description: 'MAC & CHEESE 7.25 OZ BOX', size: '7.25 OZ', classCode: '1', subclassCode: '1' },
+  ] }
+  const idx2 = buildIndex(cat)
+  it("french's and frenchs find the same products, however the store file wrote them", () => {
+    expect(search(idx2, "french's").map((i) => i.upc)).toEqual(['400000000001', '400000000002'])
+    expect(search(idx2, 'frenchs mustard').map((i) => i.upc)).toEqual(['400000000001', '400000000002'])
+  })
+  it('symbols and commas in what is typed are ignored; decimals in sizes still match', () => {
+    expect(search(idx2, 'mac & cheese').map((i) => i.upc)).toEqual(['400000000003'])
+    expect(search(idx2, 'cheese, mac 7.25').map((i) => i.upc)).toEqual(['400000000003'])
+    expect(search(idx2, '&')).toEqual([])
+  })
+})
