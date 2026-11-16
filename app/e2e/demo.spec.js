@@ -655,3 +655,63 @@ test('an update that arrives while the app is open is announced, with a button t
   await expect(page.getByTestId('status-pill')).toBeVisible() // reloaded
   await expect(page.getByTestId('update-ready')).toHaveCount(0)
 })
+
+// ---------- your own products without anyone's help: a product list saved as CSV ----------
+
+const productCsv = (rows) => ['UPC,Description,Size,Case Pack,Category,Cost,Retail', ...rows].join('\n')
+const csvRow = (first11, name, size, group) => `${first11}${checkDigit(first11)},${name},${size},12,${group},1.11,2.99`
+
+test('first screen: a product list (CSV) starts an empty section; cost and retail columns are never kept', async ({ page }, info) => {
+  const file = info.outputPath('my-products.csv')
+  fs.writeFileSync(file, productCsv([csvRow('48000000001', 'Corner Store Salsa', '16 oz', 'Dips'), csvRow('48000000002', 'Corner Store Chips', '10 oz', 'Snacks'), 'no barcode here,Mystery,,,,,']))
+  await page.goto('./')
+  await page.getByTestId('data-file').setInputFiles(file)
+  await page.getByRole('button', { name: 'Got it' }).click()
+  await expect(page.getByTestId('plan-name')).toHaveText('My section')
+  await expect(rows(page)).toHaveCount(5)
+  await rows(page).last().getByTestId('board-label').click()
+  await page.getByTestId('shelf-empty').getByRole('button', { name: 'Add a product' }).click()
+  await page.getByTestId('search-input').fill('salsa')
+  await expect(page.locator('.results li').first()).toContainText('Corner Store Salsa')
+  await expect(page.locator('.results li').first()).toContainText('16 oz · pack 12 · Dips')
+  await page.getByTestId('add-result').click()
+  await expect(page.getByTestId('shelf-rows').getByTestId('frow')).toHaveCount(1)
+  await page.getByTestId('open-plans').click()
+  await page.getByTestId('tab-backup').click()
+  await expect(page.getByTestId('store-info')).toContainText('Store data: 2 products')
+  // nothing from the cost or retail columns reached the phone's storage
+  const saved = await page.evaluate(() => new Promise((resolve) => {
+    const req = indexedDB.open('shelf-planner')
+    req.onsuccess = () => { const g = req.result.transaction('kv').objectStore('kv').get('catalog'); g.onsuccess = () => resolve(JSON.stringify(g.result)) }
+  }))
+  expect(saved).toContain('CORNER STORE SALSA')
+  expect(saved).not.toMatch(/1\.11|2\.99|cost|retail/i)
+})
+
+test('a product list replaces the demo straight away, but asks before replacing a real list', async ({ page }, info) => {
+  const one = info.outputPath('list-one.csv')
+  fs.writeFileSync(one, productCsv([csvRow('48000000001', 'Corner Store Salsa', '16 oz', 'Dips')]))
+  const two = info.outputPath('list-two.csv')
+  fs.writeFileSync(two, productCsv([csvRow('48000000001', 'Corner Store Salsa', '16 oz', 'Dips'), csvRow('48000000002', 'Corner Store Chips', '10 oz', 'Snacks')]))
+  const notProducts = info.outputPath('notes.csv')
+  fs.writeFileSync(notProducts, 'Day,Notes\nMonday,Reset the ketchup\n')
+  await loadData(page)
+  await page.getByTestId('open-plans').click()
+  await page.getByTestId('tab-backup').click()
+  await page.getByTestId('import-file').setInputFiles(notProducts)
+  await expect(page.locator('.sheet .error')).toContainText('Could not find a column named UPC or Barcode')
+  await page.getByTestId('import-file').setInputFiles(one)
+  await expect(page.locator('.ok-msg')).toContainText('Store data loaded: 1 product. The demo plans are still under Your plans')
+  await expect(page.getByTestId('store-info')).toContainText('Store data: 1 product,')
+  // now there is a real list on the phone: the next one asks first, and Cancel changes nothing
+  await page.getByTestId('import-file').setInputFiles(two)
+  const ask = page.getByRole('dialog', { name: 'Use this product list?' })
+  await expect(ask).toContainText('This file has 2 products')
+  await expect(ask).toContainText('It replaces the 1 product on this phone. Your plans, photos and sizes stay.')
+  await ask.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByTestId('store-info')).toContainText('Store data: 1 product,')
+  await page.getByTestId('import-file').setInputFiles(two)
+  await page.getByTestId('confirm-yes').click()
+  await expect(page.locator('.toast')).toContainText('Store data loaded: 2 products.')
+  await expect(page.getByTestId('plan-name')).toHaveText('Ketchup Mustard (AFI 2026-03)') // the plan is still there
+})

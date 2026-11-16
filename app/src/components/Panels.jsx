@@ -506,9 +506,9 @@ export function PlansSheet({
           <button className="btn primary wide" onClick={async () => setMsg(await onExport())} data-testid="export-backup"><Download size={18} aria-hidden="true" /> Export backup</button>
           <label className="btn wide file-btn">
             <Upload size={18} aria-hidden="true" /> Import a file
-            <input type="file" accept=".json,application/json" onChange={pick} data-testid="import-file" />
+            <input type="file" accept=".json,.csv,application/json,text/csv" onChange={pick} data-testid="import-file" />
           </label>
-          <p className="muted small">Import takes a backup, a photo or size pack, or a newer store-data file. It adds and updates; it never deletes anything on this phone.</p>
+          <p className="muted small">Import takes a backup, a photo or size pack, a newer store-data file, or a product list saved as CSV. It never deletes your plans.</p>
         </div>
       </div>
     </Sheet>

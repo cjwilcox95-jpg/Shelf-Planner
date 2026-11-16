@@ -25,6 +25,7 @@ import { MovementSheet } from './components/MovementSheet.jsx'
 import { aisleRows, makeAisleView, mergeAisles, newAisle, sectionOf, splitAisleView } from './lib/aisle.js'
 import { cleanCatalog, repairPlans } from './lib/clean.js'
 import { HelpSheet } from './components/Help.jsx'
+import { parseProductCsv } from './lib/productList.js'
 import { cleanGuessEdits } from './lib/guess.js'
 import { ScanSheet } from './components/ScanSheet.jsx'
 import { loadReader } from './lib/barcode.js'
@@ -578,9 +579,33 @@ export default function App() {
    */
   const onImportFile = (file, onProgress) => importFile(file, onProgress).catch((e) => `Could not finish loading that file: ${e.message || e}. Nothing on this phone was deleted; try again.`)
   const importFile = async (file, onProgress) => {
+    const text = (await file.text()).replace(/^\uFEFF/, '')
+    if (/\.csv$/i.test(file.name)) return importProductList(text)
     let doc
-    try { doc = JSON.parse((await file.text()).replace(/^\uFEFF/, '')) } catch { return 'Could not read that file. Pick a Shelf Planner file: a backup, catalog.json, or a photo or size pack.' }
+    try { doc = JSON.parse(text) } catch { return 'Could not read that file. Pick a Shelf Planner file (a backup, catalog.json, a photo or size pack) or a product list saved as CSV.' }
     return importDoc(doc, onProgress)
+  }
+  /**
+   * A product list from a spreadsheet (CSV): only UPC, name, size, pack and category are read.
+   * It replaces the store data, so when real store data is already on the phone it asks first.
+   */
+  const importProductList = async (text) => {
+    const r = parseProductCsv(text)
+    if (r.problem) return `Could not use that file. ${r.problem}`
+    const n = r.catalog.items.length
+    const use = async () => {
+      const said = await importDoc(r.catalog)
+      return r.skipped ? `${said} ${r.skipped} line${r.skipped === 1 ? ' was' : 's were'} skipped (no UPC, no name, or a repeat).` : said
+    }
+    if (phase !== 'ready' || catalog?.version === 'demo') return use()
+    setAsk({
+      title: 'Use this product list?',
+      text: `This file has ${n.toLocaleString()} product${n === 1 ? '' : 's'} (UPC from the “${r.columns.upc}” column, names from “${r.columns.name}”). ` +
+        `It replaces the ${catalog.items.length.toLocaleString()} product${catalog.items.length === 1 ? '' : 's'} on this phone. Your plans, photos and sizes stay.`,
+      yes: 'Use this list',
+      onYes: async () => { const said = await use(); setSheet(null); showToast(said) },
+    })
+    return null
   }
   /** The made-up demo products that come with the app, for looking around without a file. */
   const onDemo = async () => {
@@ -624,7 +649,7 @@ export default function App() {
       await askToKeepData()
       setCatalog(cat)
       if (phase !== 'ready') startWith(cat, await load('plans'), await load('currentPlanId'), await load('shelf'))
-      return `Store data loaded: ${cat.items.length.toLocaleString()} products.` +
+      return `Store data loaded: ${cat.items.length.toLocaleString()} product${cat.items.length === 1 ? '' : 's'}.` +
         (leavingDemo ? ' The demo plans are still under Your plans; delete them when you like.' : '')
     }
     // backup
@@ -950,7 +975,7 @@ export default function App() {
           photoCount={Object.keys(photoIndex).length}
           storeInfo={catalog.version === 'demo'
             ? `Store data: ${catalog.items.length} made-up demo products. Import your store’s file to replace them.`
-            : `Store data: ${catalog.items.length.toLocaleString()} products, built ${catalog.built}.`}
+            : `Store data: ${catalog.items.length.toLocaleString()} product${catalog.items.length === 1 ? '' : 's'}, built ${catalog.built}.`}
           aisles={aisles} currentAisleId={plan.aisleId || null}
           onOpenAisle={onOpenAisle} onNewAisle={onNewAisle} onRenameAisle={onRenameAisle} onDeleteAisle={onDeleteAisle}
           onOpen={onOpenPlan} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDeletePlan}
@@ -1035,9 +1060,10 @@ function WelcomeScreen({ onFile, onDemo, storageBroken }) {
         <p>Choose the <strong>backup file</strong> someone shared with you, or your store’s product file (<strong>catalog.json</strong>).</p>
         <label className={`btn wide file-btn${busy ? ' busy' : ''}`}>
           {busy === 'file' ? progress || 'Loading…' : 'Choose the file'}
-          <input type="file" accept=".json,application/json" onChange={pick} disabled={!!busy} data-testid="data-file" />
+          <input type="file" accept=".json,.csv,application/json,text/csv" onChange={pick} disabled={!!busy} data-testid="data-file" />
         </label>
-        <p className="muted small">The file stays on this phone. Nothing is uploaded anywhere, and no costs or prices are ever used.</p>
+        <p className="muted small">No file like that? A spreadsheet of your products saved as CSV works too, if it has UPC and Description columns.</p>
+        <p className="muted small">The file stays on this phone. Nothing is uploaded anywhere, and costs and prices are never read.</p>
       </div>
       {msg && <p className="error" role="alert" data-testid="welcome-error">{msg}</p>}
     </div>
